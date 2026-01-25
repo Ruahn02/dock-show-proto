@@ -21,17 +21,14 @@ interface ConferenteModalProps {
 
 export function ConferenteModal({ open, onClose, conferente, onSave }: ConferenteModalProps) {
   const [nome, setNome] = useState('');
-  const [matricula, setMatricula] = useState('');
   const [ativo, setAtivo] = useState(true);
 
   useEffect(() => {
     if (conferente) {
       setNome(conferente.nome);
-      setMatricula(conferente.matricula);
       setAtivo(conferente.ativo);
     } else {
       setNome('');
-      setMatricula('');
       setAtivo(true);
     }
   }, [conferente, open]);
@@ -39,7 +36,6 @@ export function ConferenteModal({ open, onClose, conferente, onSave }: Conferent
   const handleSave = () => {
     onSave({
       nome,
-      matricula,
       ativo,
     });
     onClose();
@@ -65,16 +61,6 @@ export function ConferenteModal({ open, onClose, conferente, onSave }: Conferent
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="matricula">Matrícula</Label>
-            <Input
-              id="matricula"
-              value={matricula}
-              onChange={(e) => setMatricula(e.target.value)}
-              placeholder="CONF000"
-            />
-          </div>
-
           <div className="flex items-center justify-between">
             <Label htmlFor="ativo">Ativo</Label>
             <Switch
@@ -87,7 +73,7 @@ export function ConferenteModal({ open, onClose, conferente, onSave }: Conferent
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave}>Salvar</Button>
+          <Button onClick={handleSave} disabled={!nome}>Salvar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

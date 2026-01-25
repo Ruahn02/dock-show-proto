@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Doca, StatusCarga } from '@/types';
 import { conferentes } from '@/data/mockData';
-import { useProfile } from '@/contexts/ProfileContext';
 
 interface DocaModalProps {
   open: boolean;
@@ -32,7 +31,6 @@ interface FinalizacaoData {
 }
 
 export function DocaModal({ open, onClose, doca, onConfirm, mode }: DocaModalProps) {
-  const { isAdmin } = useProfile();
   const [status, setStatus] = useState<StatusCarga>('conferido');
   const [volume, setVolume] = useState('');
   const [rua, setRua] = useState('');
@@ -64,11 +62,11 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode }: DocaModalPro
   if (!doca) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { resetForm(); onClose(); } }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'entrar' ? `Entrar na Doca ${doca.numero}` : `Finalizar Doca ${doca.numero}`}
+            {mode === 'entrar' ? `Iniciar Conferência - Doca ${doca.numero}` : `Finalizar Conferência - Doca ${doca.numero}`}
           </DialogTitle>
         </DialogHeader>
 
@@ -89,7 +87,7 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode }: DocaModalPro
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="rua">Rua (opcional)</Label>
+                <Label htmlFor="rua">Rua</Label>
                 <Input
                   id="rua"
                   value={rua}
@@ -119,22 +117,13 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode }: DocaModalPro
               {status === 'conferido' && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="volume">Volume Conferido *</Label>
+                    <Label htmlFor="volume">Volume Recebido *</Label>
                     <Input
                       id="volume"
                       type="number"
                       value={volume}
                       onChange={(e) => setVolume(e.target.value)}
                       placeholder="Quantidade de volumes"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ruaFinal">Rua *</Label>
-                    <Input
-                      id="ruaFinal"
-                      value={rua}
-                      onChange={(e) => setRua(e.target.value)}
-                      placeholder="Ex: A-15"
                     />
                   </div>
                   <div className="space-y-2">
@@ -154,8 +143,8 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode }: DocaModalPro
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleConfirm}>
+          <Button variant="outline" onClick={() => { resetForm(); onClose(); }}>Cancelar</Button>
+          <Button onClick={handleConfirm} disabled={mode === 'entrar' && !conferenteId}>
             {mode === 'entrar' ? 'Iniciar Conferência' : 'Confirmar'}
           </Button>
         </DialogFooter>

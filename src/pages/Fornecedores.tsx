@@ -54,8 +54,6 @@ export default function Fornecedores() {
       const novoFornecedor: Fornecedor = {
         id: `f${Date.now()}`,
         nome: data.nome || '',
-        cnpj: data.cnpj || '',
-        contato: data.contato || '',
         ativo: data.ativo ?? true,
       };
       setFornecedores([...fornecedores, novoFornecedor]);
@@ -78,12 +76,12 @@ export default function Fornecedores() {
             <Building2 className="h-8 w-8 text-primary" />
             <div>
               <h1 className="text-3xl font-bold">Fornecedores</h1>
-              <p className="text-muted-foreground">Gerenciamento de fornecedores cadastrados</p>
+              <p className="text-muted-foreground">Lista de fornecedores</p>
             </div>
           </div>
           <Button onClick={handleNovo} className="gap-2">
             <Plus className="h-4 w-4" />
-            Novo Fornecedor
+            Adicionar
           </Button>
         </div>
 
@@ -92,8 +90,6 @@ export default function Fornecedores() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                <TableHead>CNPJ</TableHead>
-                <TableHead>Contato</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -102,8 +98,6 @@ export default function Fornecedores() {
               {fornecedores.map((fornecedor) => (
                 <TableRow key={fornecedor.id}>
                   <TableCell className="font-medium">{fornecedor.nome}</TableCell>
-                  <TableCell>{fornecedor.cnpj}</TableCell>
-                  <TableCell>{fornecedor.contato}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch 
