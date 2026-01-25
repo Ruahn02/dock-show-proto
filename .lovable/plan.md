@@ -1,292 +1,269 @@
 
-# Plano de Implementacao - Prototipo Visual de Controle de Docas
+# Plano de Ajustes - Prototipo Visual de Controle de Docas
 
-## Resumo do Projeto
+## Resumo das Alteracoes
 
-Criar um prototipo visual navegavel para demonstracao de um sistema de controle de docas, agendamentos e conferencia de cargas. O sistema utilizara apenas dados simulados (mock), sem banco de dados, autenticacao real ou persistencia de dados.
+Este plano detalha os ajustes necessarios para simplificar o prototipo, focando em um sistema operacional de uso em docas.
 
-## Arquitetura Proposta
+---
 
-```text
-src/
-├── components/
-│   ├── layout/
-│   │   ├── Header.tsx           # Cabecalho com seletor de perfil
-│   │   ├── Sidebar.tsx          # Menu lateral de navegacao
-│   │   └── Layout.tsx           # Layout principal
-│   ├── dashboard/
-│   │   ├── StatCard.tsx         # Card de indicador
-│   │   ├── ProductivityChart.tsx # Grafico de barras
-│   │   ├── RankingList.tsx      # Ranking de conferentes
-│   │   └── StatusChart.tsx      # Grafico de status
-│   ├── docas/
-│   │   ├── DocaCard.tsx         # Card individual de doca
-│   │   ├── DocaStatusBadge.tsx  # Badge colorido de status
-│   │   └── DocaModal.tsx        # Modal de acoes da doca
-│   ├── agendamento/
-│   │   └── AgendamentoModal.tsx # Modal de agendamento
-│   ├── fornecedores/
-│   │   └── FornecedorModal.tsx  # Modal de fornecedor
-│   └── conferentes/
-│       └── ConferenteModal.tsx  # Modal de conferente
-├── contexts/
-│   └── ProfileContext.tsx       # Contexto para perfil ativo
-├── data/
-│   └── mockData.ts              # Dados simulados
-├── pages/
-│   ├── Dashboard.tsx            # Tela 1
-│   ├── Agendamento.tsx          # Tela 2
-│   ├── Docas.tsx                # Tela 3
-│   ├── Fornecedores.tsx         # Tela 4
-│   └── Conferentes.tsx          # Tela 5
-└── types/
-    └── index.ts                 # Tipos TypeScript
-```
+## 1. DASHBOARD - Simplificacao
 
-## Etapas de Implementacao
+### Remover Componentes
+- Remover `ProductivityChart.tsx` (grafico de produtividade)
+- Remover `RankingList.tsx` (ranking de conferentes)
+- Remover `StatusChart.tsx` (grafico de status)
+- Remover botoes de exportacao Excel/PDF
 
-### Etapa 1: Estrutura Base e Dados Mock
+### Adicionar Filtro de Periodo
+- Criar seletor visual com opcoes: **Dia**, **Semana**, **Mes**
+- Filtro apenas simula mudanca de valores mock (cada selecao mostra valores diferentes)
+- Valores resetam visualmente conforme periodo
 
-**Arquivo: `src/types/index.ts`**
-- Definir tipos para: Perfil, Doca, Carga, Fornecedor, Conferente, StatusDoca
+### Manter Apenas 4 Indicadores
+| Indicador | Icone |
+|-----------|-------|
+| Total de Volumes Recebidos | Package |
+| Cargas Conferidas | CheckCircle |
+| Docas Livres | Container |
+| Docas Ocupadas | Container |
 
-**Arquivo: `src/data/mockData.ts`**
-- Dados ficticios de fornecedores (10 itens)
-- Dados ficticios de conferentes (8 itens)
-- Dados ficticios de cargas/agendamentos (15 itens)
-- Dados ficticios de docas (6 docas)
-- Indicadores do dashboard
+### Arquivos a Modificar
+- `src/pages/Dashboard.tsx` - Reescrever com layout simplificado
+- `src/data/mockData.ts` - Adicionar dados mock por periodo
 
-**Arquivo: `src/contexts/ProfileContext.tsx`**
-- Contexto React para gerenciar perfil ativo (Administrador/Operacional)
-- Hook `useProfile` para acesso facil
+---
 
-### Etapa 2: Layout e Navegacao
+## 2. AGENDAMENTO - Calendario e Novo Fluxo
 
-**Arquivo: `src/components/layout/Header.tsx`**
-- Logo do sistema
-- Seletor visual de perfil (Administrador/Operacional)
-- Indicador visual do perfil ativo
+### Adicionar Calendario Visual
+- Usar componente `Calendar` do shadcn/ui para selecao de datas
+- Exibir calendario lateral ou superior para navegacao
+- Permitir agendar para datas futuras
 
-**Arquivo: `src/components/layout/Sidebar.tsx`**
-- Menu com links para as 5 telas
-- Itens visiveis conforme perfil:
-  - Todos: Dashboard, Agendamento, Docas
-  - Apenas Admin: Fornecedores, Conferentes
-- Icones lucide-react para cada item
-
-**Arquivo: `src/components/layout/Layout.tsx`**
-- Wrapper com Header + Sidebar + Conteudo
-
-**Arquivo: `src/App.tsx`**
-- Atualizar rotas para todas as paginas
-- Envolver com ProfileProvider
-
-### Etapa 3: Dashboard (Tela 1)
-
-**Arquivo: `src/pages/Dashboard.tsx`**
-- Grid de cards com indicadores do dia
-- Graficos usando Recharts (ja instalado)
-- Botoes de exportacao (simulados)
-- Conteudo diferenciado por perfil
-
-**Cards de Indicadores (Admin):**
-| Indicador | Valor Mock |
-|-----------|------------|
-| Total de volumes recebidos | 1.247 |
-| Media por conferente | 156 |
-| Cargas conferidas | 12 |
-| Cargas no show | 2 |
-| Cargas recusadas | 1 |
-| Docas livres | 2 |
-| Docas ocupadas | 3 |
-| Docas em conferencia | 1 |
-
-**Graficos:**
-- Barras: Produtividade por conferente (BarChart)
-- Ranking: Lista ordenada com medalhas
-- Pizza: Status das cargas (PieChart)
-
-**Perfil Operacional:**
-- Mostra apenas indicadores gerais
-- Mostra status das docas
-- Oculta ranking individual
-
-### Etapa 4: Agendamento (Tela 2)
-
-**Arquivo: `src/pages/Agendamento.tsx`**
-- Tabela com lista de cargas do dia
-- Colunas: Data, Fornecedor, NF(s), Volume Previsto, Status
-- Badges coloridos para status
-
-**Acoes (apenas Admin):**
-- Botao "Novo Agendamento" abre modal
-- Botao "Editar" em cada linha
-- Botao "Associar a Doca"
-
-**Modal de Agendamento:**
-- Campos: Data, Fornecedor (select), NFs, Volume previsto
-- Botoes Salvar/Cancelar (apenas visuais)
-
-### Etapa 5: Docas (Tela 3)
-
-**Arquivo: `src/pages/Docas.tsx`**
-- Grid de cards grandes (otimizado para uso em doca)
-- Cada card representa uma doca
-
-**Status com cores:**
+### Novo Status de Agendamento
 | Status | Cor |
 |--------|-----|
-| Livre | Verde (green-500) |
-| Conferindo | Amarelo (yellow-500) |
-| Conferido | Azul (blue-500) |
-| Uso e consumo | Cinza (gray-400) |
+| Aguardando chegada | Roxo |
+| Em conferencia | Amarelo |
+| Conferido | Azul |
+| No show | Laranja |
+| Recusado | Vermelho |
 
-**Card da Doca (Admin):**
-- Numero da doca
-- Status colorido
-- Fornecedor associado
-- Conferente (quando aplicavel)
-- Volume (quando conferido)
-- Botoes: Alterar Status, Uso e Consumo, Liberar
+### Fornecedor com Autocomplete
+- Substituir Select por input com busca/digitacao
+- Usar componente `Command` (cmdk) do shadcn para autocomplete
 
-**Card da Doca (Operacional):**
-- Numero, Status, Fornecedor, NFs, Volume previsto
-- Botoes: Entrar na Doca, Marcar Em Conferencia
+### Restricao de Edicao
+- **Novo agendamento**: todos os campos editaveis
+- **Edicao**: bloquear fornecedor e dados basicos
+- Permitir apenas alterar status para no_show ou recusado
 
-**Modal de Finalizacao:**
-- Opcoes: Conferido, No Show, Recusado
-- Campos condicionais para "Conferido": Volume, Rua, Divergencia
+### Botoes Rapidos na Lista
+- Adicionar botoes "No Show" e "Recusado" diretamente na tabela
+- Remover botao "Associar a Doca" (associacao sera feita na tela de Docas)
 
-### Etapa 6: Fornecedores (Tela 4) - Apenas Admin
+### Arquivos a Modificar
+- `src/pages/Agendamento.tsx` - Adicionar calendario e botoes rapidos
+- `src/components/agendamento/AgendamentoModal.tsx` - Autocomplete e restricoes
+- `src/types/index.ts` - Atualizar status para "aguardando_chegada"
 
-**Arquivo: `src/pages/Fornecedores.tsx`**
-- Tabela com lista de fornecedores
-- Colunas: Nome, CNPJ, Status (Ativo/Inativo)
-- Botoes: Adicionar, Editar, Ativar/Desativar
+---
 
-**Modal de Fornecedor:**
-- Campos: Nome, CNPJ, Contato
-- Toggle de status
+## 3. DOCAS - Layout em Lista
 
-### Etapa 7: Conferentes (Tela 5) - Apenas Admin
+### Substituir Cards por Tabela/Lista
+- Remover grid de cards
+- Exibir docas em formato de linhas (lista)
+- Cada linha mostra: Numero | Status | Fornecedor | NF(s) | Volume Previsto
 
-**Arquivo: `src/pages/Conferentes.tsx`**
-- Tabela com lista de conferentes
-- Colunas: Nome, Matricula, Status
-- Botoes: Adicionar, Editar, Ativar/Desativar
+### Status da Doca (simplificado)
+| Status | Cor |
+|--------|-----|
+| Livre | Verde |
+| Ocupada | Amarelo |
+| Uso e Consumo | Cinza |
 
-**Modal de Conferente:**
-- Campos: Nome, Matricula
-- Toggle de status
+### Novo Fluxo de Associacao
+1. Clicar em doca livre
+2. Modal exibe lista de cargas disponiveis (aguardando ou em conferencia)
+3. Selecionar carga para associar a doca
+4. Doca fica "Ocupada"
 
-### Etapa 8: Estilizacao e Ajustes Finais
+### Operacao na Doca
+1. Conferente entra na doca
+2. Seleciona seu nome (lista simples)
+3. Marca como "Em conferencia"
+4. Informa rua
 
-**Arquivo: `src/index.css`**
-- Variaveis CSS customizadas para cores de status
-- Ajustes para cards grandes e legibilidade
+### Finalizacao
+- **Conferido**: Volume recebido + Divergencia (opcional)
+- **No Show**: Sem campos
+- **Recusado**: Sem campos
 
-**Refinamentos:**
-- Responsividade para tablets
-- Transicoes suaves
-- Feedback visual nas acoes
+### Regra Importante
+- Ao finalizar, doca pode voltar a Livre
+- Carga pode continuar como "Em conferencia" (mesma carga em multiplas docas)
 
-## Cores e Design
+### Arquivos a Modificar
+- `src/pages/Docas.tsx` - Substituir grid por lista
+- `src/components/docas/DocaCard.tsx` - Converter para linha de tabela ou remover
+- `src/components/docas/DocaModal.tsx` - Ajustar fluxo de selecao de carga
+- `src/types/index.ts` - Simplificar StatusDoca para livre/ocupada/uso_consumo
 
-**Paleta de Status:**
-```text
-Livre:          bg-green-100 text-green-800 border-green-300
-Conferindo:     bg-yellow-100 text-yellow-800 border-yellow-300
-Conferido:      bg-blue-100 text-blue-800 border-blue-300
-Uso e Consumo:  bg-gray-100 text-gray-600 border-gray-300
-No Show:        bg-orange-100 text-orange-800 border-orange-300
-Recusado:       bg-red-100 text-red-800 border-red-300
+---
+
+## 4. USO E CONSUMO
+
+### Comportamento
+- Marcar doca como ocupada para uso interno
+- NAO entra em metricas do dashboard
+- Pode ser liberada manualmente
+
+### Implementacao
+- Manter botao "Uso e Consumo" para docas livres
+- Manter botao "Liberar" para docas em uso e consumo
+- Garantir que Dashboard nao conta uso_consumo
+
+---
+
+## 5. FORNECEDORES - Simplificar
+
+### Remover Campos
+- Remover CNPJ
+- Remover Contato
+
+### Manter Apenas
+- Nome do fornecedor
+- Status (Ativo/Inativo)
+
+### Layout
+- Lista simples
+- Botao adicionar
+- Botao editar
+
+### Arquivos a Modificar
+- `src/types/index.ts` - Remover cnpj e contato do tipo Fornecedor
+- `src/data/mockData.ts` - Simplificar dados de fornecedores
+- `src/pages/Fornecedores.tsx` - Remover colunas CNPJ e Contato
+- `src/components/fornecedores/FornecedorModal.tsx` - Remover campos
+
+---
+
+## 6. CONFERENTES - Simplificar
+
+### Remover Campos
+- Remover Matricula
+
+### Manter Apenas
+- Nome do conferente
+- Status (Ativo/Inativo)
+
+### Layout
+- Lista simples
+- Botao adicionar
+- Botao editar
+
+### Arquivos a Modificar
+- `src/types/index.ts` - Remover matricula do tipo Conferente
+- `src/data/mockData.ts` - Simplificar dados de conferentes
+- `src/pages/Conferentes.tsx` - Remover coluna Matricula
+- `src/components/conferentes/ConferenteModal.tsx` - Remover campo
+
+---
+
+## 7. TIPOS E DADOS
+
+### Atualizar `src/types/index.ts`
+
+```typescript
+// Fornecedor simplificado
+export interface Fornecedor {
+  id: string;
+  nome: string;
+  ativo: boolean;
+}
+
+// Conferente simplificado
+export interface Conferente {
+  id: string;
+  nome: string;
+  ativo: boolean;
+}
+
+// Status da doca simplificado
+export type StatusDoca = 'livre' | 'ocupada' | 'uso_consumo';
+
+// Status da carga atualizado
+export type StatusCarga = 'aguardando_chegada' | 'em_conferencia' | 'conferido' | 'no_show' | 'recusado';
 ```
 
-**Principios de Design:**
-- Cards grandes com texto legivel
-- Espacamento generoso
-- Cores claras e distintas para status
-- Interface limpa sem elementos desnecessarios
+### Atualizar `src/data/mockData.ts`
+- Remover campos desnecessarios dos fornecedores
+- Remover matriculas dos conferentes
+- Adicionar dados mock para diferentes periodos (dia/semana/mes)
+- Atualizar labels de status
 
-## Componentes Utilizados
+---
 
-Todos os componentes shadcn/ui ja estao disponiveis no projeto:
-- Card, CardHeader, CardContent, CardTitle
-- Button (variantes: default, outline, ghost, destructive)
-- Badge (para status)
-- Dialog (para modais)
-- Select (para dropdowns)
-- Table (para listas)
-- Input, Label (para formularios)
-- Switch (para ativar/desativar)
-- Tabs (se necessario)
-- Toast/Sonner (para feedback visual)
+## 8. ORDEM DE IMPLEMENTACAO
 
-Biblioteca de graficos:
-- Recharts (ja instalada) para BarChart, PieChart
+1. Atualizar tipos em `src/types/index.ts`
+2. Atualizar dados mock em `src/data/mockData.ts`
+3. Simplificar pagina Fornecedores e modal
+4. Simplificar pagina Conferentes e modal
+5. Refatorar Dashboard com filtro de periodo
+6. Refatorar Agendamento com calendario e autocomplete
+7. Refatorar Docas para layout de lista
+8. Testar fluxo completo
 
-## Fluxo de Navegacao
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                         HEADER                              │
-│  [Logo]              [Perfil: Admin ▼] [Operacional]        │
-├──────────────┬──────────────────────────────────────────────┤
-│   SIDEBAR    │              CONTEUDO                        │
-│              │                                              │
-│ > Dashboard  │  ┌─────────────────────────────────────────┐ │
-│   Agendamento│  │                                         │ │
-│   Docas      │  │     Pagina Selecionada                  │ │
-│   ---------- │  │                                         │ │
-│   Fornecedor*│  │                                         │ │
-│   Conferente*│  │                                         │ │
-│              │  └─────────────────────────────────────────┘ │
-│   *só Admin  │                                              │
-└──────────────┴──────────────────────────────────────────────┘
-```
+---
 
 ## Detalhes Tecnicos
 
-**Gerenciamento de Estado:**
-- React Context para perfil ativo
-- useState local para dados mock (simula alteracoes visuais)
-- Nenhuma persistencia - dados resetam ao recarregar
+### Componentes shadcn/ui a Utilizar
+- `Calendar` - Para selecao de datas no agendamento
+- `Command` - Para autocomplete de fornecedores
+- `Popover` - Para exibir calendario e autocomplete
+- `Tabs` ou `ToggleGroup` - Para filtro de periodo no dashboard
+- `Table` - Para lista de docas
 
-**Rotas (react-router-dom):**
-```text
-/              -> Dashboard
-/agendamento   -> Agendamento
-/docas         -> Docas
-/fornecedores  -> Fornecedores (redireciona se Operacional)
-/conferentes   -> Conferentes (redireciona se Operacional)
+### Estado Local
+- Todos os dados continuam em `useState`
+- Nenhuma persistencia
+- Dados resetam ao recarregar pagina
+
+### Dados Mock por Periodo
+```typescript
+export const dashboardPorPeriodo = {
+  dia: { totalVolumes: 450, cargasConferidas: 5, docasLivres: 3, docasOcupadas: 3 },
+  semana: { totalVolumes: 2850, cargasConferidas: 32, docasLivres: 2, docasOcupadas: 4 },
+  mes: { totalVolumes: 12400, cargasConferidas: 145, docasLivres: 3, docasOcupadas: 3 },
+};
 ```
 
-**Exportacao Simulada:**
-- Botoes "Exportar Excel" e "Exportar PDF"
-- Ao clicar: exibe toast "Exportacao simulada com sucesso!"
-- Nenhum arquivo e gerado
+---
 
-## Resultado Esperado
+## Interface Visual
 
-Um prototipo visual que:
-- Abre sem erros
-- Permite navegacao fluida entre telas
-- Demonstra o fluxo operacional completo
-- Possui visual profissional e apresentavel
-- Diferencia claramente os dois perfis
-- Funciona completamente sem backend
-- Serve para validacao com a gestao
+### Principios Mantidos
+- Visual limpo e simples
+- Leitura rapida
+- Foco no uso em doca
+- Sem telas administrativas complexas
 
-## Ordem de Implementacao
+### Cores de Status (Docas)
+```
+Livre:         bg-green-100 text-green-800
+Ocupada:       bg-yellow-100 text-yellow-800
+Uso e Consumo: bg-gray-100 text-gray-600
+```
 
-1. Tipos e dados mock
-2. Contexto de perfil
-3. Layout (Header, Sidebar, Layout wrapper)
-4. Atualizacao do App.tsx com rotas
-5. Pagina Dashboard com indicadores e graficos
-6. Pagina Agendamento com tabela e modal
-7. Pagina Docas com cards e acoes
-8. Pagina Fornecedores com CRUD visual
-9. Pagina Conferentes com CRUD visual
-10. Ajustes finais de estilo e responsividade
+### Cores de Status (Cargas)
+```
+Aguardando:    bg-purple-100 text-purple-800
+Em Conferencia: bg-yellow-100 text-yellow-800
+Conferido:     bg-blue-100 text-blue-800
+No Show:       bg-orange-100 text-orange-800
+Recusado:      bg-red-100 text-red-800
+```
