@@ -54,7 +54,6 @@ export default function Conferentes() {
       const novoConferente: Conferente = {
         id: `c${Date.now()}`,
         nome: data.nome || '',
-        matricula: data.matricula || '',
         ativo: data.ativo ?? true,
       };
       setConferentes([...conferentes, novoConferente]);
@@ -77,12 +76,12 @@ export default function Conferentes() {
             <Users className="h-8 w-8 text-primary" />
             <div>
               <h1 className="text-3xl font-bold">Conferentes</h1>
-              <p className="text-muted-foreground">Gerenciamento de conferentes cadastrados</p>
+              <p className="text-muted-foreground">Lista de conferentes</p>
             </div>
           </div>
           <Button onClick={handleNovo} className="gap-2">
             <Plus className="h-4 w-4" />
-            Novo Conferente
+            Adicionar
           </Button>
         </div>
 
@@ -91,7 +90,6 @@ export default function Conferentes() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                <TableHead>Matrícula</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -100,7 +98,6 @@ export default function Conferentes() {
               {conferentes.map((conferente) => (
                 <TableRow key={conferente.id}>
                   <TableCell className="font-medium">{conferente.nome}</TableCell>
-                  <TableCell>{conferente.matricula}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch 

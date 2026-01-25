@@ -1,21 +1,18 @@
 export type Perfil = 'administrador' | 'operacional';
 
-export type StatusDoca = 'livre' | 'conferindo' | 'conferido' | 'uso_consumo';
+export type StatusDoca = 'livre' | 'ocupada' | 'uso_consumo';
 
-export type StatusCarga = 'agendado' | 'em_conferencia' | 'conferido' | 'no_show' | 'recusado';
+export type StatusCarga = 'aguardando_chegada' | 'em_conferencia' | 'conferido' | 'no_show' | 'recusado';
 
 export interface Fornecedor {
   id: string;
   nome: string;
-  cnpj: string;
-  contato: string;
   ativo: boolean;
 }
 
 export interface Conferente {
   id: string;
   nome: string;
-  matricula: string;
   ativo: boolean;
 }
 
@@ -43,19 +40,9 @@ export interface Doca {
   rua?: string;
 }
 
-export interface DashboardIndicadores {
+export interface DashboardPorPeriodo {
   totalVolumes: number;
-  mediaVolumesConferente: number;
   cargasConferidas: number;
-  cargasNoShow: number;
-  cargasRecusadas: number;
   docasLivres: number;
   docasOcupadas: number;
-  docasConferindo: number;
-}
-
-export interface ProdutividadeConferente {
-  conferenteId: string;
-  nome: string;
-  volumes: number;
 }

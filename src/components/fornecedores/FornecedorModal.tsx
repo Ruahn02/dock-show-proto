@@ -21,20 +21,14 @@ interface FornecedorModalProps {
 
 export function FornecedorModal({ open, onClose, fornecedor, onSave }: FornecedorModalProps) {
   const [nome, setNome] = useState('');
-  const [cnpj, setCnpj] = useState('');
-  const [contato, setContato] = useState('');
   const [ativo, setAtivo] = useState(true);
 
   useEffect(() => {
     if (fornecedor) {
       setNome(fornecedor.nome);
-      setCnpj(fornecedor.cnpj);
-      setContato(fornecedor.contato);
       setAtivo(fornecedor.ativo);
     } else {
       setNome('');
-      setCnpj('');
-      setContato('');
       setAtivo(true);
     }
   }, [fornecedor, open]);
@@ -42,8 +36,6 @@ export function FornecedorModal({ open, onClose, fornecedor, onSave }: Fornecedo
   const handleSave = () => {
     onSave({
       nome,
-      cnpj,
-      contato,
       ativo,
     });
     onClose();
@@ -69,26 +61,6 @@ export function FornecedorModal({ open, onClose, fornecedor, onSave }: Fornecedo
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="cnpj">CNPJ</Label>
-            <Input
-              id="cnpj"
-              value={cnpj}
-              onChange={(e) => setCnpj(e.target.value)}
-              placeholder="00.000.000/0001-00"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contato">Contato</Label>
-            <Input
-              id="contato"
-              value={contato}
-              onChange={(e) => setContato(e.target.value)}
-              placeholder="(00) 00000-0000"
-            />
-          </div>
-
           <div className="flex items-center justify-between">
             <Label htmlFor="ativo">Ativo</Label>
             <Switch
@@ -101,7 +73,7 @@ export function FornecedorModal({ open, onClose, fornecedor, onSave }: Fornecedo
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave}>Salvar</Button>
+          <Button onClick={handleSave} disabled={!nome}>Salvar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
