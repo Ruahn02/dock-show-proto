@@ -10,6 +10,8 @@ interface DocaStatusBadgeProps {
 const statusStyles: Record<StatusDoca, string> = {
   livre: 'bg-green-100 text-green-800 border-green-300 hover:bg-green-100',
   ocupada: 'bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-100',
+  em_conferencia: 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-100',
+  conferido: 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100',
   uso_consumo: 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-100',
 };
 
