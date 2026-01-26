@@ -1,269 +1,322 @@
 
-# Plano de Ajustes - Prototipo Visual de Controle de Docas
+# Plano de Ajustes - Prototipo Visual Completo
 
-## Resumo das Alteracoes
+## Resumo das Alteracoes Necessarias
 
-Este plano detalha os ajustes necessarios para simplificar o prototipo, focando em um sistema operacional de uso em docas.
+O prototipo atual ja possui a estrutura base. Este plano detalha as melhorias para atender completamente aos requisitos visuais solicitados.
 
 ---
 
-## 1. DASHBOARD - Simplificacao
+## 1. DASHBOARD - Adicionar Graficos e Mais Indicadores
 
-### Remover Componentes
-- Remover `ProductivityChart.tsx` (grafico de produtividade)
-- Remover `RankingList.tsx` (ranking de conferentes)
-- Remover `StatusChart.tsx` (grafico de status)
-- Remover botoes de exportacao Excel/PDF
+### Estado Atual
+- 4 indicadores basicos (volumes, conferidas, docas livres/ocupadas)
+- Filtro simples de periodo (Dia, Semana, Mes)
 
-### Adicionar Filtro de Periodo
-- Criar seletor visual com opcoes: **Dia**, **Semana**, **Mes**
-- Filtro apenas simula mudanca de valores mock (cada selecao mostra valores diferentes)
-- Valores resetam visualmente conforme periodo
+### Alteracoes Necessarias
 
-### Manter Apenas 4 Indicadores
-| Indicador | Icone |
-|-----------|-------|
-| Total de Volumes Recebidos | Package |
-| Cargas Conferidas | CheckCircle |
-| Docas Livres | Container |
-| Docas Ocupadas | Container |
+**Novos Filtros de Periodo:**
+- Adicionar opcao "Outro Dia" com seletor de data
+- Adicionar opcao "Intervalo de Datas" com dois datepickers (De/Ate)
+- Manter visual compacto com Popover para selecao
+
+**Novos Indicadores (7 total):**
+| Indicador | Icone | Cor |
+|-----------|-------|-----|
+| Total de Volumes | Package | Azul |
+| Cargas Conferidas | CheckCircle | Verde |
+| Cargas No Show | AlertCircle | Laranja |
+| Cargas Recusadas | XCircle | Vermelho |
+| Docas Livres | Container | Verde |
+| Docas Ocupadas | Container | Amarelo |
+| Docas em Conferencia | Container | Azul |
+
+**Novos Graficos (usar Recharts):**
+1. BarChart - Produtividade por conferente (volumes)
+2. Lista visual de ranking de conferentes (1º, 2º, 3º com icones)
+3. PieChart - Status das cargas (conferido, no show, recusado)
+
+**Botoes de Exportacao (simulados):**
+- Botao "Exportar Excel" - exibe toast
+- Botao "Exportar PDF" - exibe toast
+
+**Diferenciacao por Perfil:**
+- Admin: ve todos os graficos e ranking detalhado
+- Operacional: ve apenas indicadores gerais, sem ranking
 
 ### Arquivos a Modificar
-- `src/pages/Dashboard.tsx` - Reescrever com layout simplificado
-- `src/data/mockData.ts` - Adicionar dados mock por periodo
+- `src/pages/Dashboard.tsx` - Adicionar graficos e filtros
+- `src/data/mockData.ts` - Adicionar dados mock para graficos
+- `src/types/index.ts` - Expandir tipo DashboardPorPeriodo
+- Criar `src/components/dashboard/ProductivityChart.tsx`
+- Criar `src/components/dashboard/RankingList.tsx`
+- Criar `src/components/dashboard/StatusChart.tsx`
 
----
+### Dados Mock para Graficos
+```text
+produtividadePorConferente: [
+  { nome: 'Joao Silva', volumes: 450 },
+  { nome: 'Maria Santos', volumes: 380 },
+  { nome: 'Pedro Oliveira', volumes: 320 },
+  ...
+]
 
-## 2. AGENDAMENTO - Calendario e Novo Fluxo
-
-### Adicionar Calendario Visual
-- Usar componente `Calendar` do shadcn/ui para selecao de datas
-- Exibir calendario lateral ou superior para navegacao
-- Permitir agendar para datas futuras
-
-### Novo Status de Agendamento
-| Status | Cor |
-|--------|-----|
-| Aguardando chegada | Roxo |
-| Em conferencia | Amarelo |
-| Conferido | Azul |
-| No show | Laranja |
-| Recusado | Vermelho |
-
-### Fornecedor com Autocomplete
-- Substituir Select por input com busca/digitacao
-- Usar componente `Command` (cmdk) do shadcn para autocomplete
-
-### Restricao de Edicao
-- **Novo agendamento**: todos os campos editaveis
-- **Edicao**: bloquear fornecedor e dados basicos
-- Permitir apenas alterar status para no_show ou recusado
-
-### Botoes Rapidos na Lista
-- Adicionar botoes "No Show" e "Recusado" diretamente na tabela
-- Remover botao "Associar a Doca" (associacao sera feita na tela de Docas)
-
-### Arquivos a Modificar
-- `src/pages/Agendamento.tsx` - Adicionar calendario e botoes rapidos
-- `src/components/agendamento/AgendamentoModal.tsx` - Autocomplete e restricoes
-- `src/types/index.ts` - Atualizar status para "aguardando_chegada"
-
----
-
-## 3. DOCAS - Layout em Lista
-
-### Substituir Cards por Tabela/Lista
-- Remover grid de cards
-- Exibir docas em formato de linhas (lista)
-- Cada linha mostra: Numero | Status | Fornecedor | NF(s) | Volume Previsto
-
-### Status da Doca (simplificado)
-| Status | Cor |
-|--------|-----|
-| Livre | Verde |
-| Ocupada | Amarelo |
-| Uso e Consumo | Cinza |
-
-### Novo Fluxo de Associacao
-1. Clicar em doca livre
-2. Modal exibe lista de cargas disponiveis (aguardando ou em conferencia)
-3. Selecionar carga para associar a doca
-4. Doca fica "Ocupada"
-
-### Operacao na Doca
-1. Conferente entra na doca
-2. Seleciona seu nome (lista simples)
-3. Marca como "Em conferencia"
-4. Informa rua
-
-### Finalizacao
-- **Conferido**: Volume recebido + Divergencia (opcional)
-- **No Show**: Sem campos
-- **Recusado**: Sem campos
-
-### Regra Importante
-- Ao finalizar, doca pode voltar a Livre
-- Carga pode continuar como "Em conferencia" (mesma carga em multiplas docas)
-
-### Arquivos a Modificar
-- `src/pages/Docas.tsx` - Substituir grid por lista
-- `src/components/docas/DocaCard.tsx` - Converter para linha de tabela ou remover
-- `src/components/docas/DocaModal.tsx` - Ajustar fluxo de selecao de carga
-- `src/types/index.ts` - Simplificar StatusDoca para livre/ocupada/uso_consumo
-
----
-
-## 4. USO E CONSUMO
-
-### Comportamento
-- Marcar doca como ocupada para uso interno
-- NAO entra em metricas do dashboard
-- Pode ser liberada manualmente
-
-### Implementacao
-- Manter botao "Uso e Consumo" para docas livres
-- Manter botao "Liberar" para docas em uso e consumo
-- Garantir que Dashboard nao conta uso_consumo
-
----
-
-## 5. FORNECEDORES - Simplificar
-
-### Remover Campos
-- Remover CNPJ
-- Remover Contato
-
-### Manter Apenas
-- Nome do fornecedor
-- Status (Ativo/Inativo)
-
-### Layout
-- Lista simples
-- Botao adicionar
-- Botao editar
-
-### Arquivos a Modificar
-- `src/types/index.ts` - Remover cnpj e contato do tipo Fornecedor
-- `src/data/mockData.ts` - Simplificar dados de fornecedores
-- `src/pages/Fornecedores.tsx` - Remover colunas CNPJ e Contato
-- `src/components/fornecedores/FornecedorModal.tsx` - Remover campos
-
----
-
-## 6. CONFERENTES - Simplificar
-
-### Remover Campos
-- Remover Matricula
-
-### Manter Apenas
-- Nome do conferente
-- Status (Ativo/Inativo)
-
-### Layout
-- Lista simples
-- Botao adicionar
-- Botao editar
-
-### Arquivos a Modificar
-- `src/types/index.ts` - Remover matricula do tipo Conferente
-- `src/data/mockData.ts` - Simplificar dados de conferentes
-- `src/pages/Conferentes.tsx` - Remover coluna Matricula
-- `src/components/conferentes/ConferenteModal.tsx` - Remover campo
-
----
-
-## 7. TIPOS E DADOS
-
-### Atualizar `src/types/index.ts`
-
-```typescript
-// Fornecedor simplificado
-export interface Fornecedor {
-  id: string;
-  nome: string;
-  ativo: boolean;
-}
-
-// Conferente simplificado
-export interface Conferente {
-  id: string;
-  nome: string;
-  ativo: boolean;
-}
-
-// Status da doca simplificado
-export type StatusDoca = 'livre' | 'ocupada' | 'uso_consumo';
-
-// Status da carga atualizado
-export type StatusCarga = 'aguardando_chegada' | 'em_conferencia' | 'conferido' | 'no_show' | 'recusado';
+statusCargas: [
+  { status: 'Conferido', quantidade: 12 },
+  { status: 'No Show', quantidade: 2 },
+  { status: 'Recusado', quantidade: 1 },
+]
 ```
 
-### Atualizar `src/data/mockData.ts`
-- Remover campos desnecessarios dos fornecedores
-- Remover matriculas dos conferentes
-- Adicionar dados mock para diferentes periodos (dia/semana/mes)
-- Atualizar labels de status
+---
+
+## 2. AGENDAMENTO - Ajustes Menores
+
+### Estado Atual
+- Calendario funcional
+- Lista de agendamentos por data
+- Botoes de No Show e Recusado na tabela
+- Modal com autocomplete
+
+### Verificacoes e Ajustes
+- Confirmar que campo fornecedor nao e editavel ao editar (ja implementado)
+- Confirmar status visuais corretos (ja implementado)
+- Status "Conferido" aparece apenas quando finalizado na doca
+
+### Nenhuma Alteracao Significativa Necessaria
+A tela ja atende aos requisitos. Apenas garantir que:
+- O status "em_conferencia" apareca visualmente
+- Marcar No Show ou Recusado funcione direto da lista
 
 ---
 
-## 8. ORDEM DE IMPLEMENTACAO
+## 3. DOCAS - Adicionar Status "Em Conferencia" e "Conferido"
 
-1. Atualizar tipos em `src/types/index.ts`
-2. Atualizar dados mock em `src/data/mockData.ts`
-3. Simplificar pagina Fornecedores e modal
-4. Simplificar pagina Conferentes e modal
-5. Refatorar Dashboard com filtro de periodo
-6. Refatorar Agendamento com calendario e autocomplete
-7. Refatorar Docas para layout de lista
-8. Testar fluxo completo
+### Estado Atual
+- Layout em lista (correto)
+- Status: Livre, Ocupada, Uso e Consumo
+- Fluxo de associar carga e finalizar conferencia
+
+### Alteracoes Necessarias
+
+**Novos Status da Doca (5 total):**
+| Status | Cor | Descricao |
+|--------|-----|-----------|
+| Livre | Verde | Doca disponivel |
+| Ocupada | Amarelo | Carga associada, aguardando conferencia |
+| Em Conferencia | Azul | Conferente trabalhando |
+| Conferido | Verde escuro | Finalizado, aguardando liberacao |
+| Uso e Consumo | Cinza | Uso interno |
+
+**Alteracoes no Fluxo:**
+1. Doca livre -> Clicar -> Associar carga -> Doca fica "Ocupada"
+2. Doca ocupada -> Iniciar conferencia -> Doca fica "Em Conferencia"
+3. Doca em conferencia -> Finalizar -> Doca fica "Conferido"
+4. Doca conferido -> Liberar -> Doca volta a "Livre"
+
+**Exibicao Visual:**
+- Adicionar coluna "Data" na tabela
+- Data vem do agendamento associado
+
+### Arquivos a Modificar
+- `src/types/index.ts` - Adicionar novos status de doca
+- `src/data/mockData.ts` - Atualizar labels e dados
+- `src/pages/Docas.tsx` - Atualizar fluxo e estilos
+- `src/components/docas/DocaStatusBadge.tsx` - Atualizar cores
+
+### Novos Status Visuais
+```text
+livre:          bg-green-100 text-green-800
+ocupada:        bg-yellow-100 text-yellow-800
+em_conferencia: bg-blue-100 text-blue-800
+conferido:      bg-emerald-100 text-emerald-800
+uso_consumo:    bg-gray-100 text-gray-600
+```
+
+---
+
+## 4. USO E CONSUMO - Confirmar Comportamento
+
+### Requisitos
+- Marca doca como ocupada
+- NAO aparece em indicadores do dashboard
+- NAO conta volumes
+- NAO conta produtividade
+
+### Verificacao
+- Dashboard ja exclui uso_consumo dos calculos (verificar mock data)
+- Garantir que graficos nao incluam docas em uso_consumo
+
+---
+
+## 5. FORNECEDORES e CONFERENTES - Ja Simplificados
+
+### Estado Atual
+- Apenas Nome e Status (Ativo/Inativo)
+- Sem CNPJ, Matricula ou outros campos
+
+### Nenhuma Alteracao Necessaria
+Telas ja atendem aos requisitos.
+
+---
+
+## Arquitetura de Arquivos
+
+### Arquivos a Criar
+```text
+src/components/dashboard/ProductivityChart.tsx  # Grafico de barras
+src/components/dashboard/RankingList.tsx        # Lista de ranking
+src/components/dashboard/StatusChart.tsx        # Grafico de pizza
+```
+
+### Arquivos a Modificar
+```text
+src/types/index.ts                              # Adicionar status de doca
+src/data/mockData.ts                            # Dados para graficos
+src/pages/Dashboard.tsx                         # Novo layout com graficos
+src/pages/Docas.tsx                             # Novos status visuais
+src/components/docas/DocaStatusBadge.tsx        # Novas cores
+```
 
 ---
 
 ## Detalhes Tecnicos
 
-### Componentes shadcn/ui a Utilizar
-- `Calendar` - Para selecao de datas no agendamento
-- `Command` - Para autocomplete de fornecedores
-- `Popover` - Para exibir calendario e autocomplete
-- `Tabs` ou `ToggleGroup` - Para filtro de periodo no dashboard
-- `Table` - Para lista de docas
-
-### Estado Local
-- Todos os dados continuam em `useState`
-- Nenhuma persistencia
-- Dados resetam ao recarregar pagina
-
-### Dados Mock por Periodo
+### Tipos Atualizados
 ```typescript
-export const dashboardPorPeriodo = {
-  dia: { totalVolumes: 450, cargasConferidas: 5, docasLivres: 3, docasOcupadas: 3 },
-  semana: { totalVolumes: 2850, cargasConferidas: 32, docasLivres: 2, docasOcupadas: 4 },
-  mes: { totalVolumes: 12400, cargasConferidas: 145, docasLivres: 3, docasOcupadas: 3 },
-};
+// src/types/index.ts
+export type StatusDoca = 'livre' | 'ocupada' | 'em_conferencia' | 'conferido' | 'uso_consumo';
+
+export interface DashboardPorPeriodo {
+  totalVolumes: number;
+  cargasConferidas: number;
+  cargasNoShow: number;
+  cargasRecusadas: number;
+  docasLivres: number;
+  docasOcupadas: number;
+  docasEmConferencia: number;
+}
+
+export interface ProdutividadeConferente {
+  id: string;
+  nome: string;
+  volumes: number;
+}
+```
+
+### Dados Mock Expandidos
+```typescript
+// src/data/mockData.ts
+export const produtividadeConferentes: ProdutividadeConferente[] = [
+  { id: 'c1', nome: 'Joao Silva', volumes: 450 },
+  { id: 'c2', nome: 'Maria Santos', volumes: 380 },
+  { id: 'c3', nome: 'Pedro Oliveira', volumes: 320 },
+  { id: 'c4', nome: 'Ana Costa', volumes: 290 },
+  { id: 'c5', nome: 'Carlos Ferreira', volumes: 250 },
+];
+
+export const statusCargasChart = [
+  { name: 'Conferido', value: 12, color: '#3B82F6' },
+  { name: 'No Show', value: 2, color: '#F97316' },
+  { name: 'Recusado', value: 1, color: '#EF4444' },
+];
 ```
 
 ---
 
-## Interface Visual
+## Componentes de Graficos
 
-### Principios Mantidos
-- Visual limpo e simples
-- Leitura rapida
-- Foco no uso em doca
-- Sem telas administrativas complexas
+### ProductivityChart.tsx
+- Usar BarChart do Recharts
+- Barras horizontais
+- Nome do conferente no eixo Y
+- Volumes no eixo X
+- Cores em gradiente azul
 
-### Cores de Status (Docas)
-```
-Livre:         bg-green-100 text-green-800
-Ocupada:       bg-yellow-100 text-yellow-800
-Uso e Consumo: bg-gray-100 text-gray-600
+### RankingList.tsx
+- Lista ordenada por volumes
+- Icones de medalha para top 3
+- Numero de volumes ao lado
+- Visual compacto
+
+### StatusChart.tsx
+- Usar PieChart do Recharts
+- 3 fatias (Conferido, No Show, Recusado)
+- Legenda abaixo
+- Cores conforme status
+
+---
+
+## Filtros de Periodo do Dashboard
+
+### Opcoes
+1. **Hoje** - Data atual
+2. **Outro Dia** - Abre datepicker simples
+3. **Semana** - Semana atual
+4. **Mes** - Mes atual
+5. **Intervalo** - Abre dois datepickers (De/Ate)
+
+### Implementacao Visual
+- ToggleGroup para selecao rapida
+- Popover com Calendar para selecao de datas
+- Exibir periodo selecionado no subtitulo
+
+---
+
+## Ordem de Implementacao
+
+1. Atualizar tipos em `src/types/index.ts`
+2. Expandir dados mock em `src/data/mockData.ts`
+3. Criar componentes de graficos (3 arquivos)
+4. Refatorar Dashboard com graficos e novos filtros
+5. Atualizar status de Docas (5 status)
+6. Atualizar estilos e labels
+7. Testar fluxo completo
+
+---
+
+## Visual Final Esperado
+
+### Dashboard
+```text
+┌────────────────────────────────────────────────────────────┐
+│ Dashboard                     [Hoje] [Outro] [Sem] [Mes]   │
+│ Hoje - 24/01/2026                      [Excel] [PDF]       │
+├────────────────────────────────────────────────────────────┤
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐            │
+│ │ Volumes │ │ Conferi │ │ NoShow  │ │Recusado │            │
+│ │   450   │ │    5    │ │    2    │ │    1    │            │
+│ └─────────┘ └─────────┘ └─────────┘ └─────────┘            │
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐                        │
+│ │ D.Livre │ │D.Ocupada│ │D.Confer │                        │
+│ │    2    │ │    3    │ │    1    │                        │
+│ └─────────┘ └─────────┘ └─────────┘                        │
+├────────────────────────────────────────────────────────────┤
+│ ┌─────────────────────────┐ ┌─────────────────────────┐    │
+│ │ Produtividade           │ │ Ranking                 │    │
+│ │ [========] Joao 450     │ │ 🥇 Joao Silva    450    │    │
+│ │ [======] Maria 380      │ │ 🥈 Maria Santos  380    │    │
+│ │ [=====] Pedro 320       │ │ 🥉 Pedro Oliveira 320   │    │
+│ └─────────────────────────┘ └─────────────────────────┘    │
+│ ┌─────────────────────────┐                                │
+│ │ Status das Cargas       │                                │
+│ │     [PIE CHART]         │                                │
+│ │ ■ Conferido ■ NoShow    │                                │
+│ └─────────────────────────┘                                │
+└────────────────────────────────────────────────────────────┘
 ```
 
-### Cores de Status (Cargas)
-```
-Aguardando:    bg-purple-100 text-purple-800
-Em Conferencia: bg-yellow-100 text-yellow-800
-Conferido:     bg-blue-100 text-blue-800
-No Show:       bg-orange-100 text-orange-800
-Recusado:      bg-red-100 text-red-800
+### Docas (Lista)
+```text
+┌────────────────────────────────────────────────────────────┐
+│ Docas                                      [+ Nova Doca]   │
+├──────┬────────────────┬────────────┬─────────┬─────────────┤
+│ Doca │ Status         │ Fornecedor │ NF(s)   │ Volume      │
+├──────┼────────────────┼────────────┼─────────┼─────────────┤
+│ #1   │ [Em Conferencia] │ ABC Ltda │ NF-001  │ 150        │
+│ #2   │ [Ocupada]       │ Nacional  │ NF-003  │ 80         │
+│ #3   │ [Livre]         │ -         │ -       │ -          │
+│ #4   │ [Uso e Consumo] │ -         │ -       │ -          │
+│ #5   │ [Conferido]     │ Express   │ NF-004  │ 250 ✓      │
+└──────┴────────────────┴────────────┴─────────┴─────────────┘
 ```
