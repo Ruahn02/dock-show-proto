@@ -16,11 +16,14 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { docasIniciais, cargasIniciais, conferentes, fornecedores, statusDocaLabels } from '@/data/mockData';
 import { Doca, Carga, StatusDoca, StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { Container, Plus, Coffee, Unlock, LogIn, CheckCircle } from 'lucide-react';
+import { Container, Plus, Coffee, Unlock, LogIn, CheckCircle, Play } from 'lucide-react';
+import { format } from 'date-fns';
 
 const statusStyles: Record<StatusDoca, string> = {
   livre: 'bg-green-100 text-green-800 border-green-300',
   ocupada: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+  em_conferencia: 'bg-blue-100 text-blue-800 border-blue-300',
+  conferido: 'bg-emerald-100 text-emerald-800 border-emerald-300',
   uso_consumo: 'bg-gray-100 text-gray-600 border-gray-300',
 };
 
@@ -53,18 +56,19 @@ export default function Docas() {
     if (doca.status === 'livre') {
       setSelectedDoca(doca);
       setAssociarModalOpen(true);
-    } else if (doca.status === 'ocupada') {
-      const carga = getCarga(doca.cargaId);
-      if (carga?.status === 'em_conferencia') {
-        setSelectedDoca(doca);
-        setModalMode('finalizar');
-        setModalOpen(true);
-      } else {
-        setSelectedDoca(doca);
-        setModalMode('entrar');
-        setModalOpen(true);
-      }
     }
+  };
+
+  const handleIniciarConferencia = (doca: Doca) => {
+    setSelectedDoca(doca);
+    setModalMode('entrar');
+    setModalOpen(true);
+  };
+
+  const handleFinalizarConferencia = (doca: Doca) => {
+    setSelectedDoca(doca);
+    setModalMode('finalizar');
+    setModalOpen(true);
   };
 
   const handleAssociarCarga = (cargaId: string) => {
@@ -101,9 +105,11 @@ export default function Docas() {
     if (!selectedDoca) return;
 
     if (modalMode === 'entrar') {
+      // Inicia conferência - muda status da doca para em_conferencia
       setDocas(docas.map(d => 
         d.id === selectedDoca.id ? { 
           ...d, 
+          status: 'em_conferencia' as StatusDoca,
           conferenteId: data.conferenteId,
           rua: data.rua
         } : d
@@ -117,9 +123,11 @@ export default function Docas() {
       toast.success(`Conferência iniciada na Doca ${selectedDoca.numero}`);
     } else {
       if (data.status === 'conferido') {
+        // Finaliza conferência - muda status da doca para conferido
         setDocas(docas.map(d => 
           d.id === selectedDoca.id ? { 
             ...d, 
+            status: 'conferido' as StatusDoca,
             volumeConferido: data.volume,
             rua: data.rua
           } : d
@@ -193,7 +201,8 @@ export default function Docas() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-20">Doca</TableHead>
-                <TableHead className="w-32">Status</TableHead>
+                <TableHead className="w-36">Status</TableHead>
+                <TableHead className="w-28">Data</TableHead>
                 <TableHead>Fornecedor</TableHead>
                 <TableHead>NF(s)</TableHead>
                 <TableHead className="text-right w-24">Volume</TableHead>
@@ -218,6 +227,9 @@ export default function Docas() {
                       <Badge variant="outline" className={statusStyles[doca.status]}>
                         {statusDocaLabels[doca.status]}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {carga ? format(new Date(carga.data), 'dd/MM/yyyy') : '-'}
                     </TableCell>
                     <TableCell>{fornecedor?.nome || '-'}</TableCell>
                     <TableCell>{carga?.nfs.join(', ') || '-'}</TableCell>
@@ -251,26 +263,15 @@ export default function Docas() {
                         )}
                         {doca.status === 'ocupada' && (
                           <>
-                            {carga?.status !== 'em_conferencia' && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleClickDoca(doca)}
-                                title="Iniciar Conferência"
-                              >
-                                <LogIn className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {carga?.status === 'em_conferencia' && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleClickDoca(doca)}
-                                title="Finalizar Conferência"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </Button>
-                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleIniciarConferencia(doca)}
+                              title="Iniciar Conferência"
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <Play className="h-4 w-4" />
+                            </Button>
                             <Button 
                               variant="ghost" 
                               size="sm"
@@ -281,6 +282,39 @@ export default function Docas() {
                               <Unlock className="h-4 w-4" />
                             </Button>
                           </>
+                        )}
+                        {doca.status === 'em_conferencia' && (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleFinalizarConferencia(doca)}
+                              title="Finalizar Conferência"
+                              className="text-emerald-600 hover:text-emerald-700"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleLiberar(doca)}
+                              className="text-green-600 hover:text-green-700"
+                              title="Liberar"
+                            >
+                              <Unlock className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        {doca.status === 'conferido' && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleLiberar(doca)}
+                            className="text-green-600 hover:text-green-700"
+                            title="Liberar Doca"
+                          >
+                            <Unlock className="h-4 w-4" />
+                          </Button>
                         )}
                         {doca.status === 'uso_consumo' && (
                           <Button 

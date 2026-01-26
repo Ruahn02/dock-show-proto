@@ -1,6 +1,6 @@
 export type Perfil = 'administrador' | 'operacional';
 
-export type StatusDoca = 'livre' | 'ocupada' | 'uso_consumo';
+export type StatusDoca = 'livre' | 'ocupada' | 'em_conferencia' | 'conferido' | 'uso_consumo';
 
 export type StatusCarga = 'aguardando_chegada' | 'em_conferencia' | 'conferido' | 'no_show' | 'recusado';
 
@@ -43,6 +43,21 @@ export interface Doca {
 export interface DashboardPorPeriodo {
   totalVolumes: number;
   cargasConferidas: number;
+  cargasNoShow: number;
+  cargasRecusadas: number;
   docasLivres: number;
   docasOcupadas: number;
+  docasEmConferencia: number;
+}
+
+export interface ProdutividadeConferente {
+  id: string;
+  nome: string;
+  volumes: number;
+}
+
+export interface StatusCargaChart {
+  name: string;
+  value: number;
+  color: string;
 }

@@ -1,4 +1,4 @@
-import { Fornecedor, Conferente, Carga, Doca, DashboardPorPeriodo } from '@/types';
+import { Fornecedor, Conferente, Carga, Doca, DashboardPorPeriodo, ProdutividadeConferente, StatusCargaChart } from '@/types';
 
 export const fornecedores: Fornecedor[] = [
   { id: 'f1', nome: 'Distribuidora ABC Ltda', ativo: true },
@@ -43,8 +43,8 @@ export const cargasIniciais: Carga[] = [
 ];
 
 export const docasIniciais: Doca[] = [
-  { id: 'd1', numero: 1, status: 'ocupada', cargaId: 'cg1', conferenteId: 'c1', volumeConferido: 148, rua: 'A-15' },
-  { id: 'd2', numero: 2, status: 'ocupada', cargaId: 'cg2', conferenteId: 'c2' },
+  { id: 'd1', numero: 1, status: 'conferido', cargaId: 'cg1', conferenteId: 'c1', volumeConferido: 148, rua: 'A-15' },
+  { id: 'd2', numero: 2, status: 'em_conferencia', cargaId: 'cg2', conferenteId: 'c2' },
   { id: 'd3', numero: 3, status: 'livre' },
   { id: 'd4', numero: 4, status: 'uso_consumo' },
   { id: 'd5', numero: 5, status: 'livre' },
@@ -52,9 +52,75 @@ export const docasIniciais: Doca[] = [
 ];
 
 export const dashboardPorPeriodo: Record<'dia' | 'semana' | 'mes', DashboardPorPeriodo> = {
-  dia: { totalVolumes: 450, cargasConferidas: 5, docasLivres: 2, docasOcupadas: 4 },
-  semana: { totalVolumes: 2850, cargasConferidas: 32, docasLivres: 2, docasOcupadas: 4 },
-  mes: { totalVolumes: 12400, cargasConferidas: 145, docasLivres: 2, docasOcupadas: 4 },
+  dia: { 
+    totalVolumes: 518, 
+    cargasConferidas: 4, 
+    cargasNoShow: 1,
+    cargasRecusadas: 1,
+    docasLivres: 2, 
+    docasOcupadas: 2,
+    docasEmConferencia: 1
+  },
+  semana: { 
+    totalVolumes: 2850, 
+    cargasConferidas: 28, 
+    cargasNoShow: 3,
+    cargasRecusadas: 2,
+    docasLivres: 2, 
+    docasOcupadas: 2,
+    docasEmConferencia: 1
+  },
+  mes: { 
+    totalVolumes: 12400, 
+    cargasConferidas: 145, 
+    cargasNoShow: 12,
+    cargasRecusadas: 8,
+    docasLivres: 2, 
+    docasOcupadas: 2,
+    docasEmConferencia: 1
+  },
+};
+
+export const produtividadeConferentes: Record<'dia' | 'semana' | 'mes', ProdutividadeConferente[]> = {
+  dia: [
+    { id: 'c1', nome: 'João Silva', volumes: 148 },
+    { id: 'c4', nome: 'Ana Costa', volumes: 195 },
+    { id: 'c3', nome: 'Pedro Oliveira', volumes: 45 },
+    { id: 'c5', nome: 'Carlos Ferreira', volumes: 130 },
+    { id: 'c2', nome: 'Maria Santos', volumes: 0 },
+  ],
+  semana: [
+    { id: 'c1', nome: 'João Silva', volumes: 680 },
+    { id: 'c4', nome: 'Ana Costa', volumes: 620 },
+    { id: 'c2', nome: 'Maria Santos', volumes: 540 },
+    { id: 'c3', nome: 'Pedro Oliveira', volumes: 480 },
+    { id: 'c5', nome: 'Carlos Ferreira', volumes: 530 },
+  ],
+  mes: [
+    { id: 'c1', nome: 'João Silva', volumes: 2850 },
+    { id: 'c2', nome: 'Maria Santos', volumes: 2640 },
+    { id: 'c4', nome: 'Ana Costa', volumes: 2480 },
+    { id: 'c3', nome: 'Pedro Oliveira', volumes: 2320 },
+    { id: 'c5', nome: 'Carlos Ferreira', volumes: 2110 },
+  ],
+};
+
+export const statusCargasChart: Record<'dia' | 'semana' | 'mes', StatusCargaChart[]> = {
+  dia: [
+    { name: 'Conferido', value: 4, color: '#3B82F6' },
+    { name: 'No Show', value: 1, color: '#F97316' },
+    { name: 'Recusado', value: 1, color: '#EF4444' },
+  ],
+  semana: [
+    { name: 'Conferido', value: 28, color: '#3B82F6' },
+    { name: 'No Show', value: 3, color: '#F97316' },
+    { name: 'Recusado', value: 2, color: '#EF4444' },
+  ],
+  mes: [
+    { name: 'Conferido', value: 145, color: '#3B82F6' },
+    { name: 'No Show', value: 12, color: '#F97316' },
+    { name: 'Recusado', value: 8, color: '#EF4444' },
+  ],
 };
 
 export const statusCargaLabels: Record<string, string> = {
@@ -68,5 +134,7 @@ export const statusCargaLabels: Record<string, string> = {
 export const statusDocaLabels: Record<string, string> = {
   livre: 'Livre',
   ocupada: 'Ocupada',
+  em_conferencia: 'Em Conferência',
+  conferido: 'Conferido',
   uso_consumo: 'Uso e Consumo',
 };
