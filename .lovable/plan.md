@@ -1,322 +1,350 @@
 
-# Plano de Ajustes - Prototipo Visual Completo
+# Plano de Ajuste Geral - Agendamento e Docas
 
-## Resumo das Alteracoes Necessarias
+## Resumo do Objetivo
 
-O prototipo atual ja possui a estrutura base. Este plano detalha as melhorias para atender completamente aos requisitos visuais solicitados.
+Simplificar o fluxo do sistema com foco em:
+- **Agendamento** como local central de todas as informacoes finais da carga
+- **Docas** apenas para operacao da conferencia
+- Fluxo claro: COMECAR -> TERMINAR conferencia
+- Separacao de responsabilidades: Admin vincula cargas, Operacional confere
 
 ---
 
-## 1. DASHBOARD - Adicionar Graficos e Mais Indicadores
+## 1. TELA AGENDAMENTO - Reestruturacao da Tabela
 
-### Estado Atual
-- 4 indicadores basicos (volumes, conferidas, docas livres/ocupadas)
-- Filtro simples de periodo (Dia, Semana, Mes)
+### Alteracoes na Tabela
 
-### Alteracoes Necessarias
+**Nova Ordem das Colunas (9 colunas):**
 
-**Novos Filtros de Periodo:**
-- Adicionar opcao "Outro Dia" com seletor de data
-- Adicionar opcao "Intervalo de Datas" com dois datepickers (De/Ate)
-- Manter visual compacto com Popover para selecao
+| # | Coluna | Descricao |
+|---|--------|-----------|
+| 1 | Data | Data do agendamento |
+| 2 | Fornecedor | Nome do fornecedor |
+| 3 | NF(s) | Notas fiscais |
+| 4 | Volume Previsto | Renomear de "Volume" |
+| 5 | Volume Recebido | Novo campo - preenchido apos conferencia |
+| 6 | Conferente | Novo campo - nome do conferente |
+| 7 | Divergencia | Novo campo - texto da divergencia |
+| 8 | Status | Badge colorido |
+| 9 | Acoes | Botao unico "Acoes da Carga" |
 
-**Novos Indicadores (7 total):**
-| Indicador | Icone | Cor |
-|-----------|-------|-----|
-| Total de Volumes | Package | Azul |
-| Cargas Conferidas | CheckCircle | Verde |
-| Cargas No Show | AlertCircle | Laranja |
-| Cargas Recusadas | XCircle | Vermelho |
-| Docas Livres | Container | Verde |
-| Docas Ocupadas | Container | Amarelo |
-| Docas em Conferencia | Container | Azul |
+### Padronizacao de Cores dos Status
 
-**Novos Graficos (usar Recharts):**
-1. BarChart - Produtividade por conferente (volumes)
-2. Lista visual de ranking de conferentes (1º, 2º, 3º com icones)
-3. PieChart - Status das cargas (conferido, no show, recusado)
+| Status | Cor | CSS |
+|--------|-----|-----|
+| Aguardando Conferencia | Azul | bg-blue-100 text-blue-800 |
+| Conferindo | Amarelo | bg-yellow-100 text-yellow-800 |
+| Conferido | Verde | bg-green-100 text-green-800 |
+| Recusado | Vermelho | bg-red-100 text-red-800 |
+| No-show | Cinza | bg-gray-100 text-gray-800 |
 
-**Botoes de Exportacao (simulados):**
-- Botao "Exportar Excel" - exibe toast
-- Botao "Exportar PDF" - exibe toast
+### Simplificacao das Acoes
 
-**Diferenciacao por Perfil:**
-- Admin: ve todos os graficos e ranking detalhado
-- Operacional: ve apenas indicadores gerais, sem ranking
+**Remover:**
+- Icones confusos (AlertCircle, XCircle)
+- Botoes individuais de No Show e Recusado
 
-### Arquivos a Modificar
-- `src/pages/Dashboard.tsx` - Adicionar graficos e filtros
-- `src/data/mockData.ts` - Adicionar dados mock para graficos
-- `src/types/index.ts` - Expandir tipo DashboardPorPeriodo
-- Criar `src/components/dashboard/ProductivityChart.tsx`
-- Criar `src/components/dashboard/RankingList.tsx`
-- Criar `src/components/dashboard/StatusChart.tsx`
+**Adicionar:**
+- Botao unico "Acoes da Carga" usando DropdownMenu
+- Ao clicar, exibir opcoes:
+  - Marcar como No-show
+  - Marcar como Recusado
+- Cada acao abre dialogo de confirmacao:
+  "Tem certeza que deseja marcar como [No-show / Recusado]?"
 
-### Dados Mock para Graficos
+**Regras de Visibilidade:**
+- Botao "Acoes da Carga" aparece apenas para status "Aguardando Conferencia" ou "Conferindo"
+- Nao aparece para cargas ja finalizadas (Conferido, No-show, Recusado)
+
+### Arquivo a Modificar
+- `src/pages/Agendamento.tsx`
+
+---
+
+## 2. TELA DOCAS - Simplificacao do Fluxo
+
+### Alteracoes na Tabela
+
+**Colunas Simplificadas:**
+
+| Coluna | Descricao |
+|--------|-----------|
+| Doca | Numero da doca |
+| Fornecedor | Nome do fornecedor |
+| NF(s) | Notas fiscais |
+| Volume Previsto | Volume esperado |
+| Status da Carga | Status atual |
+| Acoes | Botoes contextuais |
+
+**Remover coluna "Data"** - informacao menos relevante na operacao
+
+### Regras de Acesso por Perfil
+
+**ADMINISTRADOR:**
+- Pode vincular carga do dia a uma doca livre
+- Pode marcar doca como Uso e Consumo
+- Pode liberar doca de Uso e Consumo
+
+**OPERACIONAL:**
+- NAO pode vincular carga a doca
+- Pode apenas realizar a conferencia (COMECAR e TERMINAR)
+
+### Novo Fluxo de Botoes
+
+**Doca LIVRE:**
+- Admin: Botao "Vincular Carga" (abre modal de selecao)
+- Admin: Botao "Uso e Consumo"
+- Operacional: Sem acoes
+
+**Doca OCUPADA (carga vinculada):**
+- Todos: Botao "COMECAR CONFERENCIA" (destaque visual)
+
+**Doca EM CONFERENCIA:**
+- Todos: Botao "TERMINAR CONFERENCIA" (destaque visual)
+
+**Doca CONFERIDO:**
+- Admin: Botao "Liberar Doca"
+- Operacional: Sem acoes (doca liberada automaticamente)
+
+**Doca USO E CONSUMO:**
+- Admin: Botao "Liberar"
+- Operacional: Sem acoes
+
+### Fluxo Visual
+
 ```text
-produtividadePorConferente: [
-  { nome: 'Joao Silva', volumes: 450 },
-  { nome: 'Maria Santos', volumes: 380 },
-  { nome: 'Pedro Oliveira', volumes: 320 },
-  ...
-]
-
-statusCargas: [
-  { status: 'Conferido', quantidade: 12 },
-  { status: 'No Show', quantidade: 2 },
-  { status: 'Recusado', quantidade: 1 },
-]
-```
-
----
-
-## 2. AGENDAMENTO - Ajustes Menores
-
-### Estado Atual
-- Calendario funcional
-- Lista de agendamentos por data
-- Botoes de No Show e Recusado na tabela
-- Modal com autocomplete
-
-### Verificacoes e Ajustes
-- Confirmar que campo fornecedor nao e editavel ao editar (ja implementado)
-- Confirmar status visuais corretos (ja implementado)
-- Status "Conferido" aparece apenas quando finalizado na doca
-
-### Nenhuma Alteracao Significativa Necessaria
-A tela ja atende aos requisitos. Apenas garantir que:
-- O status "em_conferencia" apareca visualmente
-- Marcar No Show ou Recusado funcione direto da lista
-
----
-
-## 3. DOCAS - Adicionar Status "Em Conferencia" e "Conferido"
-
-### Estado Atual
-- Layout em lista (correto)
-- Status: Livre, Ocupada, Uso e Consumo
-- Fluxo de associar carga e finalizar conferencia
-
-### Alteracoes Necessarias
-
-**Novos Status da Doca (5 total):**
-| Status | Cor | Descricao |
-|--------|-----|-----------|
-| Livre | Verde | Doca disponivel |
-| Ocupada | Amarelo | Carga associada, aguardando conferencia |
-| Em Conferencia | Azul | Conferente trabalhando |
-| Conferido | Verde escuro | Finalizado, aguardando liberacao |
-| Uso e Consumo | Cinza | Uso interno |
-
-**Alteracoes no Fluxo:**
-1. Doca livre -> Clicar -> Associar carga -> Doca fica "Ocupada"
-2. Doca ocupada -> Iniciar conferencia -> Doca fica "Em Conferencia"
-3. Doca em conferencia -> Finalizar -> Doca fica "Conferido"
-4. Doca conferido -> Liberar -> Doca volta a "Livre"
-
-**Exibicao Visual:**
-- Adicionar coluna "Data" na tabela
-- Data vem do agendamento associado
-
-### Arquivos a Modificar
-- `src/types/index.ts` - Adicionar novos status de doca
-- `src/data/mockData.ts` - Atualizar labels e dados
-- `src/pages/Docas.tsx` - Atualizar fluxo e estilos
-- `src/components/docas/DocaStatusBadge.tsx` - Atualizar cores
-
-### Novos Status Visuais
-```text
-livre:          bg-green-100 text-green-800
-ocupada:        bg-yellow-100 text-yellow-800
-em_conferencia: bg-blue-100 text-blue-800
-conferido:      bg-emerald-100 text-emerald-800
-uso_consumo:    bg-gray-100 text-gray-600
-```
-
----
-
-## 4. USO E CONSUMO - Confirmar Comportamento
-
-### Requisitos
-- Marca doca como ocupada
-- NAO aparece em indicadores do dashboard
-- NAO conta volumes
-- NAO conta produtividade
-
-### Verificacao
-- Dashboard ja exclui uso_consumo dos calculos (verificar mock data)
-- Garantir que graficos nao incluam docas em uso_consumo
-
----
-
-## 5. FORNECEDORES e CONFERENTES - Ja Simplificados
-
-### Estado Atual
-- Apenas Nome e Status (Ativo/Inativo)
-- Sem CNPJ, Matricula ou outros campos
-
-### Nenhuma Alteracao Necessaria
-Telas ja atendem aos requisitos.
-
----
-
-## Arquitetura de Arquivos
-
-### Arquivos a Criar
-```text
-src/components/dashboard/ProductivityChart.tsx  # Grafico de barras
-src/components/dashboard/RankingList.tsx        # Lista de ranking
-src/components/dashboard/StatusChart.tsx        # Grafico de pizza
+LIVRE
+  |
+  v (Admin vincula carga)
+OCUPADA
+  |
+  v (Operacional clica "COMECAR")
+  |-- Modal: Seleciona conferente + Informa rua
+  |
+  v
+EM CONFERENCIA
+  |
+  v (Operacional clica "TERMINAR")
+  |-- Modal: Informa volume recebido + divergencia
+  |
+  v
+LIVRE (doca liberada automaticamente)
+  |
+  +-- Agendamento atualizado com:
+      - Status: Conferido
+      - Volume Recebido
+      - Conferente
+      - Divergencia
 ```
 
 ### Arquivos a Modificar
-```text
-src/types/index.ts                              # Adicionar status de doca
-src/data/mockData.ts                            # Dados para graficos
-src/pages/Dashboard.tsx                         # Novo layout com graficos
-src/pages/Docas.tsx                             # Novos status visuais
-src/components/docas/DocaStatusBadge.tsx        # Novas cores
-```
+- `src/pages/Docas.tsx`
+- `src/components/docas/DocaModal.tsx`
 
 ---
 
-## Detalhes Tecnicos
+## 3. INTEGRACAO AGENDAMENTO <-> DOCAS
 
-### Tipos Atualizados
+### Comportamento ao Finalizar Conferencia
+
+Quando operacional clica "TERMINAR CONFERENCIA" e confirma:
+
+1. **Na Doca:**
+   - Status muda para LIVRE (doca liberada)
+   - cargaId removido
+   - conferenteId removido
+
+2. **No Agendamento (Carga):**
+   - Status muda para "Conferido"
+   - volumeConferido = valor informado
+   - conferenteId = conferente selecionado
+   - divergencia = texto informado (se houver)
+
+Isso garante que todas as informacoes finais ficam salvas no Agendamento.
+
+---
+
+## 4. ATUALIZACAO DE STATUS/LABELS
+
+### Arquivo `src/data/mockData.ts`
+
+**Alterar labels de status:**
+- "Aguardando Chegada" -> "Aguardando Conferencia"
+
 ```typescript
-// src/types/index.ts
-export type StatusDoca = 'livre' | 'ocupada' | 'em_conferencia' | 'conferido' | 'uso_consumo';
-
-export interface DashboardPorPeriodo {
-  totalVolumes: number;
-  cargasConferidas: number;
-  cargasNoShow: number;
-  cargasRecusadas: number;
-  docasLivres: number;
-  docasOcupadas: number;
-  docasEmConferencia: number;
-}
-
-export interface ProdutividadeConferente {
-  id: string;
-  nome: string;
-  volumes: number;
-}
+export const statusCargaLabels: Record<string, string> = {
+  aguardando_chegada: 'Aguardando Conferencia',  // ALTERADO
+  em_conferencia: 'Conferindo',                   // ALTERADO
+  conferido: 'Conferido',
+  no_show: 'No-show',                             // ALTERADO (hifen)
+  recusado: 'Recusado',
+};
 ```
 
-### Dados Mock Expandidos
+---
+
+## 5. COMPONENTE DE CONFIRMACAO
+
+### Novo Componente: ConfirmDialog
+
+Criar um componente reutilizavel para confirmacao:
+
+```text
+src/components/ui/confirm-dialog.tsx
+```
+
+**Props:**
+- open: boolean
+- onClose: () => void
+- onConfirm: () => void
+- title: string
+- message: string
+
+**Uso:**
+"Tem certeza que deseja marcar como No-show?"
+[Cancelar] [Confirmar]
+
+---
+
+## 6. RESUMO DOS ARQUIVOS A MODIFICAR
+
+| Arquivo | Alteracoes |
+|---------|------------|
+| `src/pages/Agendamento.tsx` | Nova estrutura de colunas, botao "Acoes da Carga" com DropdownMenu, dialogo de confirmacao |
+| `src/pages/Docas.tsx` | Remover coluna Data, botoes contextuais por perfil, fluxo COMECAR/TERMINAR, liberacao automatica |
+| `src/components/docas/DocaModal.tsx` | Ajustar titulo para "Comecar Conferencia" e "Terminar Conferencia" |
+| `src/data/mockData.ts` | Atualizar labels de status |
+
+---
+
+## 7. DETALHES TECNICOS
+
+### Botao "Acoes da Carga" - Implementacao
+
+Usar componente DropdownMenu do shadcn/ui:
+
 ```typescript
-// src/data/mockData.ts
-export const produtividadeConferentes: ProdutividadeConferente[] = [
-  { id: 'c1', nome: 'Joao Silva', volumes: 450 },
-  { id: 'c2', nome: 'Maria Santos', volumes: 380 },
-  { id: 'c3', nome: 'Pedro Oliveira', volumes: 320 },
-  { id: 'c4', nome: 'Ana Costa', volumes: 290 },
-  { id: 'c5', nome: 'Carlos Ferreira', volumes: 250 },
-];
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="outline" size="sm">
+      Acoes da Carga
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent>
+    <DropdownMenuItem onClick={() => setConfirmNoShow(true)}>
+      Marcar como No-show
+    </DropdownMenuItem>
+    <DropdownMenuItem onClick={() => setConfirmRecusado(true)}>
+      Marcar como Recusado
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
+```
 
-export const statusCargasChart = [
-  { name: 'Conferido', value: 12, color: '#3B82F6' },
-  { name: 'No Show', value: 2, color: '#F97316' },
-  { name: 'Recusado', value: 1, color: '#EF4444' },
-];
+### Dialogo de Confirmacao - Implementacao
+
+Usar AlertDialog do shadcn/ui:
+
+```typescript
+<AlertDialog open={confirmNoShow} onOpenChange={setConfirmNoShow}>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Confirmar acao</AlertDialogTitle>
+      <AlertDialogDescription>
+        Tem certeza que deseja marcar esta carga como No-show?
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+      <AlertDialogAction onClick={handleNoShow}>Confirmar</AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+```
+
+### Controle de Acesso nas Docas
+
+```typescript
+// Em Docas.tsx
+const { isAdmin } = useProfile();
+
+// Doca livre - apenas admin pode vincular
+{doca.status === 'livre' && isAdmin && (
+  <Button onClick={() => handleVincularCarga(doca)}>
+    Vincular Carga
+  </Button>
+)}
+
+// Doca ocupada - todos podem comecar conferencia
+{doca.status === 'ocupada' && (
+  <Button variant="default" className="bg-blue-600">
+    COMECAR CONFERENCIA
+  </Button>
+)}
+
+// Doca em conferencia - todos podem terminar
+{doca.status === 'em_conferencia' && (
+  <Button variant="default" className="bg-green-600">
+    TERMINAR CONFERENCIA
+  </Button>
+)}
 ```
 
 ---
 
-## Componentes de Graficos
+## 8. VISUAL FINAL ESPERADO
 
-### ProductivityChart.tsx
-- Usar BarChart do Recharts
-- Barras horizontais
-- Nome do conferente no eixo Y
-- Volumes no eixo X
-- Cores em gradiente azul
+### Tela Agendamento
 
-### RankingList.tsx
-- Lista ordenada por volumes
-- Icones de medalha para top 3
-- Numero de volumes ao lado
-- Visual compacto
-
-### StatusChart.tsx
-- Usar PieChart do Recharts
-- 3 fatias (Conferido, No Show, Recusado)
-- Legenda abaixo
-- Cores conforme status
-
----
-
-## Filtros de Periodo do Dashboard
-
-### Opcoes
-1. **Hoje** - Data atual
-2. **Outro Dia** - Abre datepicker simples
-3. **Semana** - Semana atual
-4. **Mes** - Mes atual
-5. **Intervalo** - Abre dois datepickers (De/Ate)
-
-### Implementacao Visual
-- ToggleGroup para selecao rapida
-- Popover com Calendar para selecao de datas
-- Exibir periodo selecionado no subtitulo
-
----
-
-## Ordem de Implementacao
-
-1. Atualizar tipos em `src/types/index.ts`
-2. Expandir dados mock em `src/data/mockData.ts`
-3. Criar componentes de graficos (3 arquivos)
-4. Refatorar Dashboard com graficos e novos filtros
-5. Atualizar status de Docas (5 status)
-6. Atualizar estilos e labels
-7. Testar fluxo completo
-
----
-
-## Visual Final Esperado
-
-### Dashboard
 ```text
-┌────────────────────────────────────────────────────────────┐
-│ Dashboard                     [Hoje] [Outro] [Sem] [Mes]   │
-│ Hoje - 24/01/2026                      [Excel] [PDF]       │
-├────────────────────────────────────────────────────────────┤
-│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐            │
-│ │ Volumes │ │ Conferi │ │ NoShow  │ │Recusado │            │
-│ │   450   │ │    5    │ │    2    │ │    1    │            │
-│ └─────────┘ └─────────┘ └─────────┘ └─────────┘            │
-│ ┌─────────┐ ┌─────────┐ ┌─────────┐                        │
-│ │ D.Livre │ │D.Ocupada│ │D.Confer │                        │
-│ │    2    │ │    3    │ │    1    │                        │
-│ └─────────┘ └─────────┘ └─────────┘                        │
-├────────────────────────────────────────────────────────────┤
-│ ┌─────────────────────────┐ ┌─────────────────────────┐    │
-│ │ Produtividade           │ │ Ranking                 │    │
-│ │ [========] Joao 450     │ │ 🥇 Joao Silva    450    │    │
-│ │ [======] Maria 380      │ │ 🥈 Maria Santos  380    │    │
-│ │ [=====] Pedro 320       │ │ 🥉 Pedro Oliveira 320   │    │
-│ └─────────────────────────┘ └─────────────────────────┘    │
-│ ┌─────────────────────────┐                                │
-│ │ Status das Cargas       │                                │
-│ │     [PIE CHART]         │                                │
-│ │ ■ Conferido ■ NoShow    │                                │
-│ └─────────────────────────┘                                │
-└────────────────────────────────────────────────────────────┘
++------+-------------+--------+----------+----------+------------+------------+-----------+--------------+
+| Data | Fornecedor  | NF(s)  | Vol.Prev | Vol.Rec  | Conferente | Divergencia| Status    | Acoes        |
++------+-------------+--------+----------+----------+------------+------------+-----------+--------------+
+| 24/01| ABC Ltda    | NF-001 | 150      | 148      | Joao Silva | 2 faltando | Conferido | -            |
+| 24/01| Nacional SA | NF-003 | 80       | -        | Maria S.   | -          | Conferindo| [Acoes ▼]    |
+| 24/01| Express     | NF-004 | 250      | -        | -          | -          | Aguardando| [Acoes ▼]    |
++------+-------------+--------+----------+----------+------------+------------+-----------+--------------+
 ```
 
-### Docas (Lista)
+### Tela Docas (Admin)
+
 ```text
-┌────────────────────────────────────────────────────────────┐
-│ Docas                                      [+ Nova Doca]   │
-├──────┬────────────────┬────────────┬─────────┬─────────────┤
-│ Doca │ Status         │ Fornecedor │ NF(s)   │ Volume      │
-├──────┼────────────────┼────────────┼─────────┼─────────────┤
-│ #1   │ [Em Conferencia] │ ABC Ltda │ NF-001  │ 150        │
-│ #2   │ [Ocupada]       │ Nacional  │ NF-003  │ 80         │
-│ #3   │ [Livre]         │ -         │ -       │ -          │
-│ #4   │ [Uso e Consumo] │ -         │ -       │ -          │
-│ #5   │ [Conferido]     │ Express   │ NF-004  │ 250 ✓      │
-└──────┴────────────────┴────────────┴─────────┴─────────────┘
++------+-------------+--------+----------+-------------+---------------------------+
+| Doca | Fornecedor  | NF(s)  | Vol.Prev | Status      | Acoes                     |
++------+-------------+--------+----------+-------------+---------------------------+
+| #1   | ABC Ltda    | NF-001 | 150      | Conferindo  | [TERMINAR CONFERENCIA]    |
+| #2   | -           | -      | -        | Livre       | [Vincular] [Uso Consumo]  |
+| #3   | Nacional    | NF-003 | 80       | Ocupada     | [COMECAR CONFERENCIA]     |
+| #4   | -           | -      | -        | Uso Consumo | [Liberar]                 |
++------+-------------+--------+----------+-------------+---------------------------+
 ```
+
+### Tela Docas (Operacional)
+
+```text
++------+-------------+--------+----------+-------------+---------------------------+
+| Doca | Fornecedor  | NF(s)  | Vol.Prev | Status      | Acoes                     |
++------+-------------+--------+----------+-------------+---------------------------+
+| #1   | ABC Ltda    | NF-001 | 150      | Conferindo  | [TERMINAR CONFERENCIA]    |
+| #2   | -           | -      | -        | Livre       | -                         |
+| #3   | Nacional    | NF-003 | 80       | Ocupada     | [COMECAR CONFERENCIA]     |
+| #4   | -           | -      | -        | Uso Consumo | -                         |
++------+-------------+--------+----------+-------------+---------------------------+
+```
+
+---
+
+## 9. ORDEM DE IMPLEMENTACAO
+
+1. Atualizar labels em `src/data/mockData.ts`
+2. Atualizar cores de status em ambas as telas
+3. Reestruturar tabela de Agendamento (novas colunas)
+4. Implementar botao "Acoes da Carga" com DropdownMenu
+5. Implementar dialogos de confirmacao
+6. Simplificar tabela de Docas (remover coluna Data)
+7. Implementar controle de acesso por perfil
+8. Ajustar botoes para COMECAR/TERMINAR CONFERENCIA
+9. Garantir integracao: dados salvos no Agendamento ao finalizar
+10. Testar fluxo completo
+
