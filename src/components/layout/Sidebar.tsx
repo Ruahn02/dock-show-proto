@@ -9,8 +9,8 @@ import {
 } from 'lucide-react';
 
 const menuItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
-  { to: '/agendamento', label: 'Agendamento', icon: Calendar, adminOnly: false },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true },
+  { to: '/agendamento', label: 'Agendamento', icon: Calendar, adminOnly: true },
   { to: '/docas', label: 'Docas', icon: Container, adminOnly: false },
   { to: '/fornecedores', label: 'Fornecedores', icon: Building2, adminOnly: true },
   { to: '/conferentes', label: 'Conferentes', icon: Users, adminOnly: true },
