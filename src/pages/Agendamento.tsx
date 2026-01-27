@@ -12,20 +12,36 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { AgendamentoModal } from '@/components/agendamento/AgendamentoModal';
 import { useProfile } from '@/contexts/ProfileContext';
-import { cargasIniciais, fornecedores, statusCargaLabels } from '@/data/mockData';
+import { cargasIniciais, fornecedores, conferentes, statusCargaLabels } from '@/data/mockData';
 import { Carga, StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { Plus, Calendar as CalendarIcon, AlertCircle, XCircle } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, MoreHorizontal } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const statusStyles: Record<StatusCarga, string> = {
-  aguardando_chegada: 'bg-purple-100 text-purple-800 border-purple-300',
+  aguardando_chegada: 'bg-blue-100 text-blue-800 border-blue-300',
   em_conferencia: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  conferido: 'bg-blue-100 text-blue-800 border-blue-300',
-  no_show: 'bg-orange-100 text-orange-800 border-orange-300',
+  conferido: 'bg-green-100 text-green-800 border-green-300',
+  no_show: 'bg-gray-100 text-gray-800 border-gray-300',
   recusado: 'bg-red-100 text-red-800 border-red-300',
 };
 
@@ -35,9 +51,19 @@ export default function Agendamento() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCarga, setSelectedCarga] = useState<Carga | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(2026, 0, 24));
+  
+  // Confirmation dialogs state
+  const [confirmNoShow, setConfirmNoShow] = useState(false);
+  const [confirmRecusado, setConfirmRecusado] = useState(false);
+  const [cargaToUpdate, setCargaToUpdate] = useState<Carga | null>(null);
 
   const getFornecedorNome = (id: string) => {
     return fornecedores.find(f => f.id === id)?.nome || 'N/A';
+  };
+
+  const getConferenteNome = (id?: string) => {
+    if (!id) return '-';
+    return conferentes.find(c => c.id === id)?.nome || '-';
   };
 
   const cargasFiltradas = useMemo(() => {
@@ -74,18 +100,34 @@ export default function Agendamento() {
     }
   };
 
-  const handleNoShow = (carga: Carga) => {
-    setCargas(cargas.map(c => 
-      c.id === carga.id ? { ...c, status: 'no_show' as StatusCarga } : c
-    ));
-    toast.success(`Carga ${carga.nfs[0]} marcada como No Show`);
+  const openNoShowConfirm = (carga: Carga) => {
+    setCargaToUpdate(carga);
+    setConfirmNoShow(true);
   };
 
-  const handleRecusado = (carga: Carga) => {
+  const openRecusadoConfirm = (carga: Carga) => {
+    setCargaToUpdate(carga);
+    setConfirmRecusado(true);
+  };
+
+  const handleNoShow = () => {
+    if (!cargaToUpdate) return;
     setCargas(cargas.map(c => 
-      c.id === carga.id ? { ...c, status: 'recusado' as StatusCarga } : c
+      c.id === cargaToUpdate.id ? { ...c, status: 'no_show' as StatusCarga } : c
     ));
-    toast.success(`Carga ${carga.nfs[0]} marcada como Recusado`);
+    toast.success(`Carga ${cargaToUpdate.nfs[0]} marcada como No-show`);
+    setConfirmNoShow(false);
+    setCargaToUpdate(null);
+  };
+
+  const handleRecusado = () => {
+    if (!cargaToUpdate) return;
+    setCargas(cargas.map(c => 
+      c.id === cargaToUpdate.id ? { ...c, status: 'recusado' as StatusCarga } : c
+    ));
+    toast.success(`Carga ${cargaToUpdate.nfs[0]} marcada como Recusado`);
+    setConfirmRecusado(false);
+    setCargaToUpdate(null);
   };
 
   const canChangeStatus = (carga: Carga) => {
@@ -132,13 +174,17 @@ export default function Agendamento() {
             </CardContent>
           </Card>
 
-          <div className="lg:col-span-3 border rounded-lg">
+          <div className="lg:col-span-3 border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Data</TableHead>
                   <TableHead>Fornecedor</TableHead>
                   <TableHead>NF(s)</TableHead>
-                  <TableHead className="text-right">Volume</TableHead>
+                  <TableHead className="text-right">Vol. Previsto</TableHead>
+                  <TableHead className="text-right">Vol. Recebido</TableHead>
+                  <TableHead>Conferente</TableHead>
+                  <TableHead>Divergência</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -146,16 +192,26 @@ export default function Agendamento() {
               <TableBody>
                 {cargasFiltradas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       Nenhum agendamento para esta data
                     </TableCell>
                   </TableRow>
                 ) : (
                   cargasFiltradas.map((carga) => (
                     <TableRow key={carga.id}>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        {format(parseISO(carga.data), 'dd/MM/yyyy')}
+                      </TableCell>
                       <TableCell className="font-medium">{getFornecedorNome(carga.fornecedorId)}</TableCell>
                       <TableCell>{carga.nfs.join(', ')}</TableCell>
                       <TableCell className="text-right">{carga.volumePrevisto}</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {carga.volumeConferido ?? '-'}
+                      </TableCell>
+                      <TableCell>{getConferenteNome(carga.conferenteId)}</TableCell>
+                      <TableCell className="max-w-32 truncate" title={carga.divergencia}>
+                        {carga.divergencia || '-'}
+                      </TableCell>
                       <TableCell>
                         <Badge 
                           variant="outline" 
@@ -166,26 +222,25 @@ export default function Agendamento() {
                       </TableCell>
                       <TableCell className="text-right">
                         {canChangeStatus(carga) && (
-                          <div className="flex justify-end gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleNoShow(carga)}
-                              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                              title="Marcar No Show"
-                            >
-                              <AlertCircle className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleRecusado(carga)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              title="Marcar Recusado"
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="gap-1">
+                                Ações
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openNoShowConfirm(carga)}>
+                                Marcar como No-show
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => openRecusadoConfirm(carga)}
+                                className="text-red-600"
+                              >
+                                Marcar como Recusado
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                       </TableCell>
                     </TableRow>
@@ -203,6 +258,50 @@ export default function Agendamento() {
           onSave={handleSave}
           selectedDate={selectedDate}
         />
+
+        {/* Confirmation Dialog - No-show */}
+        <AlertDialog open={confirmNoShow} onOpenChange={setConfirmNoShow}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar ação</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja marcar esta carga como <strong>No-show</strong>?
+                {cargaToUpdate && (
+                  <span className="block mt-2 text-foreground">
+                    Fornecedor: {getFornecedorNome(cargaToUpdate.fornecedorId)} - NF: {cargaToUpdate.nfs.join(', ')}
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleNoShow}>Confirmar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Confirmation Dialog - Recusado */}
+        <AlertDialog open={confirmRecusado} onOpenChange={setConfirmRecusado}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar ação</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja marcar esta carga como <strong>Recusado</strong>?
+                {cargaToUpdate && (
+                  <span className="block mt-2 text-foreground">
+                    Fornecedor: {getFornecedorNome(cargaToUpdate.fornecedorId)} - NF: {cargaToUpdate.nfs.join(', ')}
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleRecusado} className="bg-red-600 hover:bg-red-700">
+                Confirmar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );

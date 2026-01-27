@@ -124,10 +124,10 @@ export const statusCargasChart: Record<'dia' | 'semana' | 'mes', StatusCargaChar
 };
 
 export const statusCargaLabels: Record<string, string> = {
-  aguardando_chegada: 'Aguardando Chegada',
-  em_conferencia: 'Em Conferência',
+  aguardando_chegada: 'Aguardando Conferência',
+  em_conferencia: 'Conferindo',
   conferido: 'Conferido',
-  no_show: 'No Show',
+  no_show: 'No-show',
   recusado: 'Recusado',
 };
 

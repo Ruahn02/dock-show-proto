@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -31,26 +31,37 @@ interface FinalizacaoData {
 }
 
 export function DocaModal({ open, onClose, doca, onConfirm, mode }: DocaModalProps) {
-  const [status, setStatus] = useState<StatusCarga>('conferido');
   const [volume, setVolume] = useState('');
   const [rua, setRua] = useState('');
   const [divergencia, setDivergencia] = useState('');
   const [conferenteId, setConferenteId] = useState('');
 
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (open) {
+      resetForm();
+    }
+  }, [open]);
+
   const handleConfirm = () => {
-    onConfirm({
-      status,
-      volume: volume ? parseInt(volume) : undefined,
-      rua: rua || undefined,
-      divergencia: divergencia || undefined,
-      conferenteId: conferenteId || undefined,
-    });
+    if (mode === 'entrar') {
+      onConfirm({
+        status: 'em_conferencia',
+        conferenteId,
+        rua: rua || undefined,
+      });
+    } else {
+      onConfirm({
+        status: 'conferido',
+        volume: volume ? parseInt(volume) : undefined,
+        divergencia: divergencia || undefined,
+      });
+    }
     resetForm();
     onClose();
   };
 
   const resetForm = () => {
-    setStatus('conferido');
     setVolume('');
     setRua('');
     setDivergencia('');
@@ -59,14 +70,21 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode }: DocaModalPro
 
   const conferentesAtivos = conferentes.filter(c => c.ativo);
 
+  const isValid = mode === 'entrar' 
+    ? conferenteId !== ''
+    : volume !== '';
+
   if (!doca) return null;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { resetForm(); onClose(); } }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {mode === 'entrar' ? `Iniciar Conferência - Doca ${doca.numero}` : `Finalizar Conferência - Doca ${doca.numero}`}
+          <DialogTitle className="text-xl">
+            {mode === 'entrar' 
+              ? `Começar Conferência - Doca ${doca.numero}` 
+              : `Terminar Conferência - Doca ${doca.numero}`
+            }
           </DialogTitle>
         </DialogHeader>
 
@@ -74,7 +92,7 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode }: DocaModalPro
           {mode === 'entrar' && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="conferente">Conferente</Label>
+                <Label htmlFor="conferente">Conferente *</Label>
                 <Select value={conferenteId} onValueChange={setConferenteId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o conferente" />
@@ -101,51 +119,39 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode }: DocaModalPro
           {mode === 'finalizar' && (
             <>
               <div className="space-y-2">
-                <Label>Status Final</Label>
-                <Select value={status} onValueChange={(v) => setStatus(v as StatusCarga)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="conferido">Conferido</SelectItem>
-                    <SelectItem value="no_show">No Show</SelectItem>
-                    <SelectItem value="recusado">Recusado</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="volume">Volume Recebido *</Label>
+                <Input
+                  id="volume"
+                  type="number"
+                  value={volume}
+                  onChange={(e) => setVolume(e.target.value)}
+                  placeholder="Quantidade de volumes recebidos"
+                />
               </div>
-
-              {status === 'conferido' && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="volume">Volume Recebido *</Label>
-                    <Input
-                      id="volume"
-                      type="number"
-                      value={volume}
-                      onChange={(e) => setVolume(e.target.value)}
-                      placeholder="Quantidade de volumes"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="divergencia">Divergência (opcional)</Label>
-                    <Textarea
-                      id="divergencia"
-                      value={divergencia}
-                      onChange={(e) => setDivergencia(e.target.value)}
-                      placeholder="Descreva qualquer divergência encontrada"
-                      rows={3}
-                    />
-                  </div>
-                </>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="divergencia">Divergência (opcional)</Label>
+                <Textarea
+                  id="divergencia"
+                  value={divergencia}
+                  onChange={(e) => setDivergencia(e.target.value)}
+                  placeholder="Descreva qualquer divergência encontrada"
+                  rows={3}
+                />
+              </div>
             </>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => { resetForm(); onClose(); }}>Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={mode === 'entrar' && !conferenteId}>
-            {mode === 'entrar' ? 'Iniciar Conferência' : 'Confirmar'}
+          <Button variant="outline" onClick={() => { resetForm(); onClose(); }}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleConfirm} 
+            disabled={!isValid}
+            className={mode === 'finalizar' ? 'bg-green-600 hover:bg-green-700' : ''}
+          >
+            {mode === 'entrar' ? 'Iniciar Conferência' : 'Finalizar Conferência'}
           </Button>
         </DialogFooter>
       </DialogContent>
