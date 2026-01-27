@@ -1,350 +1,271 @@
 
-# Plano de Ajuste Geral - Agendamento e Docas
+# Plano de Ajuste de Permissoes - Perfil Operacional
 
 ## Resumo do Objetivo
 
-Simplificar o fluxo do sistema com foco em:
-- **Agendamento** como local central de todas as informacoes finais da carga
-- **Docas** apenas para operacao da conferencia
-- Fluxo claro: COMECAR -> TERMINAR conferencia
-- Separacao de responsabilidades: Admin vincula cargas, Operacional confere
+Restringir completamente o acesso do perfil OPERACIONAL para que:
+- Tenha acesso APENAS a tela de Docas
+- Nao visualize Dashboard, Agendamento, ou telas administrativas
+- Tenha permissoes limitadas mesmo dentro de Docas (apenas conferir)
 
 ---
 
-## 1. TELA AGENDAMENTO - Reestruturacao da Tabela
+## 1. SIDEBAR - Menu Restrito por Perfil
 
-### Alteracoes na Tabela
+### Estado Atual
+O Sidebar mostra Dashboard, Agendamento e Docas para todos os perfis.
+Apenas Fornecedores e Conferentes sao restritos com `adminOnly: true`.
 
-**Nova Ordem das Colunas (9 colunas):**
+### Alteracoes Necessarias
 
-| # | Coluna | Descricao |
-|---|--------|-----------|
-| 1 | Data | Data do agendamento |
-| 2 | Fornecedor | Nome do fornecedor |
-| 3 | NF(s) | Notas fiscais |
-| 4 | Volume Previsto | Renomear de "Volume" |
-| 5 | Volume Recebido | Novo campo - preenchido apos conferencia |
-| 6 | Conferente | Novo campo - nome do conferente |
-| 7 | Divergencia | Novo campo - texto da divergencia |
-| 8 | Status | Badge colorido |
-| 9 | Acoes | Botao unico "Acoes da Carga" |
+Criar nova propriedade `operationalOnly` ou inverter a logica para que apenas Docas seja visivel para Operacional.
 
-### Padronizacao de Cores dos Status
+**Alteracao no array menuItems:**
 
-| Status | Cor | CSS |
-|--------|-----|-----|
-| Aguardando Conferencia | Azul | bg-blue-100 text-blue-800 |
-| Conferindo | Amarelo | bg-yellow-100 text-yellow-800 |
-| Conferido | Verde | bg-green-100 text-green-800 |
-| Recusado | Vermelho | bg-red-100 text-red-800 |
-| No-show | Cinza | bg-gray-100 text-gray-800 |
-
-### Simplificacao das Acoes
-
-**Remover:**
-- Icones confusos (AlertCircle, XCircle)
-- Botoes individuais de No Show e Recusado
-
-**Adicionar:**
-- Botao unico "Acoes da Carga" usando DropdownMenu
-- Ao clicar, exibir opcoes:
-  - Marcar como No-show
-  - Marcar como Recusado
-- Cada acao abre dialogo de confirmacao:
-  "Tem certeza que deseja marcar como [No-show / Recusado]?"
-
-**Regras de Visibilidade:**
-- Botao "Acoes da Carga" aparece apenas para status "Aguardando Conferencia" ou "Conferindo"
-- Nao aparece para cargas ja finalizadas (Conferido, No-show, Recusado)
+| Rota | Admin | Operacional |
+|------|-------|-------------|
+| Dashboard | Visivel | Oculto |
+| Agendamento | Visivel | Oculto |
+| Docas | Visivel | Visivel |
+| Fornecedores | Visivel | Oculto |
+| Conferentes | Visivel | Oculto |
 
 ### Arquivo a Modificar
-- `src/pages/Agendamento.tsx`
+- `src/components/layout/Sidebar.tsx`
+
+### Implementacao
+```typescript
+const menuItems = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true },
+  { to: '/agendamento', label: 'Agendamento', icon: Calendar, adminOnly: true },
+  { to: '/docas', label: 'Docas', icon: Container, adminOnly: false },
+  { to: '/fornecedores', label: 'Fornecedores', icon: Building2, adminOnly: true },
+  { to: '/conferentes', label: 'Conferentes', icon: Users, adminOnly: true },
+];
+```
 
 ---
 
-## 2. TELA DOCAS - Simplificacao do Fluxo
+## 2. ROTAS - Bloqueio de Acesso Direto
 
-### Alteracoes na Tabela
+### Estado Atual
+Qualquer perfil pode acessar qualquer rota digitando a URL diretamente.
 
-**Colunas Simplificadas:**
+### Alteracoes Necessarias
 
-| Coluna | Descricao |
-|--------|-----------|
-| Doca | Numero da doca |
-| Fornecedor | Nome do fornecedor |
-| NF(s) | Notas fiscais |
-| Volume Previsto | Volume esperado |
-| Status da Carga | Status atual |
-| Acoes | Botoes contextuais |
+Criar componente de protecao de rota que redireciona Operacional para /docas.
 
-**Remover coluna "Data"** - informacao menos relevante na operacao
+**Opcao 1: Componente ProtectedRoute**
 
-### Regras de Acesso por Perfil
+Criar `src/components/auth/ProtectedRoute.tsx` que:
+- Verifica se o perfil e admin
+- Se nao for admin e a rota requer admin, redireciona para /docas
 
-**ADMINISTRADOR:**
-- Pode vincular carga do dia a uma doca livre
-- Pode marcar doca como Uso e Consumo
-- Pode liberar doca de Uso e Consumo
+**Opcao 2: Verificacao direta nas paginas**
 
-**OPERACIONAL:**
-- NAO pode vincular carga a doca
-- Pode apenas realizar a conferencia (COMECAR e TERMINAR)
+Adicionar verificacao no inicio de Dashboard e Agendamento:
+- Se nao for admin, exibe mensagem de acesso restrito ou redireciona
 
-### Novo Fluxo de Botoes
+### Arquivos a Modificar/Criar
+- Criar `src/components/auth/ProtectedRoute.tsx`
+- `src/App.tsx` - Envolver rotas com ProtectedRoute
 
-**Doca LIVRE:**
-- Admin: Botao "Vincular Carga" (abre modal de selecao)
-- Admin: Botao "Uso e Consumo"
-- Operacional: Sem acoes
+### Implementacao do ProtectedRoute
+```typescript
+import { Navigate } from 'react-router-dom';
+import { useProfile } from '@/contexts/ProfileContext';
 
-**Doca OCUPADA (carga vinculada):**
-- Todos: Botao "COMECAR CONFERENCIA" (destaque visual)
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  adminOnly?: boolean;
+}
 
-**Doca EM CONFERENCIA:**
-- Todos: Botao "TERMINAR CONFERENCIA" (destaque visual)
+export function ProtectedRoute({ children, adminOnly = false }: ProtectedRouteProps) {
+  const { isAdmin } = useProfile();
+  
+  if (adminOnly && !isAdmin) {
+    return <Navigate to="/docas" replace />;
+  }
+  
+  return <>{children}</>;
+}
+```
 
-**Doca CONFERIDO:**
-- Admin: Botao "Liberar Doca"
-- Operacional: Sem acoes (doca liberada automaticamente)
+### Atualizacao do App.tsx
+```typescript
+<Routes>
+  <Route path="/" element={
+    <ProtectedRoute adminOnly>
+      <Dashboard />
+    </ProtectedRoute>
+  } />
+  <Route path="/agendamento" element={
+    <ProtectedRoute adminOnly>
+      <Agendamento />
+    </ProtectedRoute>
+  } />
+  <Route path="/docas" element={<Docas />} />
+  <Route path="/fornecedores" element={
+    <ProtectedRoute adminOnly>
+      <Fornecedores />
+    </ProtectedRoute>
+  } />
+  <Route path="/conferentes" element={
+    <ProtectedRoute adminOnly>
+      <Conferentes />
+    </ProtectedRoute>
+  } />
+  <Route path="*" element={<NotFound />} />
+</Routes>
+```
 
-**Doca USO E CONSUMO:**
-- Admin: Botao "Liberar"
-- Operacional: Sem acoes
+---
 
-### Fluxo Visual
+## 3. HEADER - Ajuste Visual (Opcional)
 
+### Estado Atual
+O Header mostra os botoes de troca de perfil (Administrador / Operacional).
+
+### Consideracao
+Manter os botoes para fins de demonstracao (prototiipo), permitindo alternar entre perfis para testar as restricoes.
+
+### Arquivo
+- `src/components/layout/Header.tsx` - Nenhuma alteracao necessaria
+
+---
+
+## 4. TELA DOCAS - Restricoes Adicionais para Operacional
+
+### Estado Atual
+Operacional ja nao pode:
+- Vincular carga a doca (isAdmin check)
+- Usar e consumo (isAdmin check)
+- Liberar doca manualmente (isAdmin check)
+
+### Verificacoes Necessarias
+Confirmar que o Operacional pode APENAS:
+- Visualizar docas
+- Ver fornecedor, NF(s) e volume previsto
+- Iniciar conferencia (COMECAR CONFERENCIA)
+- Finalizar conferencia (TERMINAR CONFERENCIA)
+
+### Alteracoes Adicionais
+- Remover botao "Nova Doca" para Operacional (ja implementado)
+- Garantir que nenhuma metrica ou ranking apareca na tela
+
+### Arquivo a Verificar
+- `src/pages/Docas.tsx` - Confirmar restricoes existentes
+
+### Codigo Existente (ja correto)
+```typescript
+// Doca LIVRE - Admin: Vincular Carga + Uso e Consumo
+{doca.status === 'livre' && isAdmin && (...)}
+
+// Doca OCUPADA - Todos: Comecar Conferencia
+{doca.status === 'ocupada' && (...)}
+
+// Doca EM CONFERENCIA - Todos: Terminar Conferencia
+{doca.status === 'em_conferencia' && (...)}
+
+// Doca USO E CONSUMO - Admin: Liberar
+{doca.status === 'uso_consumo' && isAdmin && (...)}
+```
+
+---
+
+## 5. RESUMO DOS ARQUIVOS A MODIFICAR
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/components/layout/Sidebar.tsx` | Marcar Dashboard e Agendamento como adminOnly |
+| `src/components/auth/ProtectedRoute.tsx` | Criar componente de protecao de rota |
+| `src/App.tsx` | Envolver rotas restritas com ProtectedRoute |
+| `src/pages/Docas.tsx` | Nenhuma alteracao (ja restrito corretamente) |
+
+---
+
+## 6. FLUXO VISUAL ESPERADO
+
+### Operacional - Menu Lateral
 ```text
-LIVRE
-  |
-  v (Admin vincula carga)
-OCUPADA
-  |
-  v (Operacional clica "COMECAR")
-  |-- Modal: Seleciona conferente + Informa rua
-  |
-  v
-EM CONFERENCIA
-  |
-  v (Operacional clica "TERMINAR")
-  |-- Modal: Informa volume recebido + divergencia
-  |
-  v
-LIVRE (doca liberada automaticamente)
-  |
-  +-- Agendamento atualizado com:
-      - Status: Conferido
-      - Volume Recebido
-      - Conferente
-      - Divergencia
++------------------------+
+| [Icon] DOCAS           |  <-- Unica opcao visivel
++------------------------+
 ```
 
-### Arquivos a Modificar
-- `src/pages/Docas.tsx`
-- `src/components/docas/DocaModal.tsx`
-
----
-
-## 3. INTEGRACAO AGENDAMENTO <-> DOCAS
-
-### Comportamento ao Finalizar Conferencia
-
-Quando operacional clica "TERMINAR CONFERENCIA" e confirma:
-
-1. **Na Doca:**
-   - Status muda para LIVRE (doca liberada)
-   - cargaId removido
-   - conferenteId removido
-
-2. **No Agendamento (Carga):**
-   - Status muda para "Conferido"
-   - volumeConferido = valor informado
-   - conferenteId = conferente selecionado
-   - divergencia = texto informado (se houver)
-
-Isso garante que todas as informacoes finais ficam salvas no Agendamento.
-
----
-
-## 4. ATUALIZACAO DE STATUS/LABELS
-
-### Arquivo `src/data/mockData.ts`
-
-**Alterar labels de status:**
-- "Aguardando Chegada" -> "Aguardando Conferencia"
-
-```typescript
-export const statusCargaLabels: Record<string, string> = {
-  aguardando_chegada: 'Aguardando Conferencia',  // ALTERADO
-  em_conferencia: 'Conferindo',                   // ALTERADO
-  conferido: 'Conferido',
-  no_show: 'No-show',                             // ALTERADO (hifen)
-  recusado: 'Recusado',
-};
-```
-
----
-
-## 5. COMPONENTE DE CONFIRMACAO
-
-### Novo Componente: ConfirmDialog
-
-Criar um componente reutilizavel para confirmacao:
-
+### Operacional - Acesso Direto via URL
 ```text
-src/components/ui/confirm-dialog.tsx
+Usuário digita: /dashboard
+Sistema redireciona para: /docas
+
+Usuário digita: /agendamento
+Sistema redireciona para: /docas
+
+Usuário digita: /fornecedores
+Sistema redireciona para: /docas
 ```
 
-**Props:**
-- open: boolean
-- onClose: () => void
-- onConfirm: () => void
-- title: string
-- message: string
-
-**Uso:**
-"Tem certeza que deseja marcar como No-show?"
-[Cancelar] [Confirmar]
-
----
-
-## 6. RESUMO DOS ARQUIVOS A MODIFICAR
-
-| Arquivo | Alteracoes |
-|---------|------------|
-| `src/pages/Agendamento.tsx` | Nova estrutura de colunas, botao "Acoes da Carga" com DropdownMenu, dialogo de confirmacao |
-| `src/pages/Docas.tsx` | Remover coluna Data, botoes contextuais por perfil, fluxo COMECAR/TERMINAR, liberacao automatica |
-| `src/components/docas/DocaModal.tsx` | Ajustar titulo para "Comecar Conferencia" e "Terminar Conferencia" |
-| `src/data/mockData.ts` | Atualizar labels de status |
-
----
-
-## 7. DETALHES TECNICOS
-
-### Botao "Acoes da Carga" - Implementacao
-
-Usar componente DropdownMenu do shadcn/ui:
-
-```typescript
-<DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <Button variant="outline" size="sm">
-      Acoes da Carga
-    </Button>
-  </DropdownMenuTrigger>
-  <DropdownMenuContent>
-    <DropdownMenuItem onClick={() => setConfirmNoShow(true)}>
-      Marcar como No-show
-    </DropdownMenuItem>
-    <DropdownMenuItem onClick={() => setConfirmRecusado(true)}>
-      Marcar como Recusado
-    </DropdownMenuItem>
-  </DropdownMenuContent>
-</DropdownMenu>
-```
-
-### Dialogo de Confirmacao - Implementacao
-
-Usar AlertDialog do shadcn/ui:
-
-```typescript
-<AlertDialog open={confirmNoShow} onOpenChange={setConfirmNoShow}>
-  <AlertDialogContent>
-    <AlertDialogHeader>
-      <AlertDialogTitle>Confirmar acao</AlertDialogTitle>
-      <AlertDialogDescription>
-        Tem certeza que deseja marcar esta carga como No-show?
-      </AlertDialogDescription>
-    </AlertDialogHeader>
-    <AlertDialogFooter>
-      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-      <AlertDialogAction onClick={handleNoShow}>Confirmar</AlertDialogAction>
-    </AlertDialogFooter>
-  </AlertDialogContent>
-</AlertDialog>
-```
-
-### Controle de Acesso nas Docas
-
-```typescript
-// Em Docas.tsx
-const { isAdmin } = useProfile();
-
-// Doca livre - apenas admin pode vincular
-{doca.status === 'livre' && isAdmin && (
-  <Button onClick={() => handleVincularCarga(doca)}>
-    Vincular Carga
-  </Button>
-)}
-
-// Doca ocupada - todos podem comecar conferencia
-{doca.status === 'ocupada' && (
-  <Button variant="default" className="bg-blue-600">
-    COMECAR CONFERENCIA
-  </Button>
-)}
-
-// Doca em conferencia - todos podem terminar
-{doca.status === 'em_conferencia' && (
-  <Button variant="default" className="bg-green-600">
-    TERMINAR CONFERENCIA
-  </Button>
-)}
-```
-
----
-
-## 8. VISUAL FINAL ESPERADO
-
-### Tela Agendamento
-
-```text
-+------+-------------+--------+----------+----------+------------+------------+-----------+--------------+
-| Data | Fornecedor  | NF(s)  | Vol.Prev | Vol.Rec  | Conferente | Divergencia| Status    | Acoes        |
-+------+-------------+--------+----------+----------+------------+------------+-----------+--------------+
-| 24/01| ABC Ltda    | NF-001 | 150      | 148      | Joao Silva | 2 faltando | Conferido | -            |
-| 24/01| Nacional SA | NF-003 | 80       | -        | Maria S.   | -          | Conferindo| [Acoes ▼]    |
-| 24/01| Express     | NF-004 | 250      | -        | -          | -          | Aguardando| [Acoes ▼]    |
-+------+-------------+--------+----------+----------+------------+------------+-----------+--------------+
-```
-
-### Tela Docas (Admin)
-
+### Operacional - Tela de Docas
 ```text
 +------+-------------+--------+----------+-------------+---------------------------+
 | Doca | Fornecedor  | NF(s)  | Vol.Prev | Status      | Acoes                     |
 +------+-------------+--------+----------+-------------+---------------------------+
 | #1   | ABC Ltda    | NF-001 | 150      | Conferindo  | [TERMINAR CONFERENCIA]    |
-| #2   | -           | -      | -        | Livre       | [Vincular] [Uso Consumo]  |
+| #2   | -           | -      | -        | Livre       | -  (sem acoes)            |
 | #3   | Nacional    | NF-003 | 80       | Ocupada     | [COMECAR CONFERENCIA]     |
-| #4   | -           | -      | -        | Uso Consumo | [Liberar]                 |
-+------+-------------+--------+----------+-------------+---------------------------+
-```
-
-### Tela Docas (Operacional)
-
-```text
-+------+-------------+--------+----------+-------------+---------------------------+
-| Doca | Fornecedor  | NF(s)  | Vol.Prev | Status      | Acoes                     |
-+------+-------------+--------+----------+-------------+---------------------------+
-| #1   | ABC Ltda    | NF-001 | 150      | Conferindo  | [TERMINAR CONFERENCIA]    |
-| #2   | -           | -      | -        | Livre       | -                         |
-| #3   | Nacional    | NF-003 | 80       | Ocupada     | [COMECAR CONFERENCIA]     |
-| #4   | -           | -      | -        | Uso Consumo | -                         |
+| #4   | -           | -      | -        | Uso Consumo | -  (sem acoes)            |
 +------+-------------+--------+----------+-------------+---------------------------+
 ```
 
 ---
 
-## 9. ORDEM DE IMPLEMENTACAO
+## 7. ORDEM DE IMPLEMENTACAO
 
-1. Atualizar labels em `src/data/mockData.ts`
-2. Atualizar cores de status em ambas as telas
-3. Reestruturar tabela de Agendamento (novas colunas)
-4. Implementar botao "Acoes da Carga" com DropdownMenu
-5. Implementar dialogos de confirmacao
-6. Simplificar tabela de Docas (remover coluna Data)
-7. Implementar controle de acesso por perfil
-8. Ajustar botoes para COMECAR/TERMINAR CONFERENCIA
-9. Garantir integracao: dados salvos no Agendamento ao finalizar
-10. Testar fluxo completo
+1. Criar componente `ProtectedRoute` para protecao de rotas
+2. Atualizar `App.tsx` para usar ProtectedRoute nas rotas restritas
+3. Atualizar `Sidebar.tsx` para marcar todas as rotas exceto Docas como adminOnly
+4. Testar fluxo completo alternando entre perfis
 
+---
+
+## 8. TESTES DE VERIFICACAO
+
+Apos implementacao, verificar:
+
+**Como Operacional:**
+- [ ] Menu mostra apenas "Docas"
+- [ ] Acessar /dashboard redireciona para /docas
+- [ ] Acessar /agendamento redireciona para /docas
+- [ ] Acessar /fornecedores redireciona para /docas
+- [ ] Acessar /conferentes redireciona para /docas
+- [ ] Em Docas, nao aparece botao "Nova Doca"
+- [ ] Em Docas livres, nao aparece opcao de vincular carga
+- [ ] Em Docas com carga vinculada, pode iniciar conferencia
+- [ ] Em Docas em conferencia, pode terminar conferencia
+- [ ] Em Docas uso/consumo, nao aparece opcao de liberar
+
+**Como Administrador:**
+- [ ] Menu mostra todas as opcoes
+- [ ] Pode acessar todas as telas
+- [ ] Pode vincular cargas as docas
+- [ ] Pode marcar uso e consumo
+- [ ] Pode liberar docas
+- [ ] Pode criar novas docas
+
+---
+
+## 9. CONSIDERACOES FINAIS
+
+### Seguranca do Prototipo
+Este e um prototipo visual sem backend real. As restricoes sao apenas visuais para demonstracao.
+Em um sistema real, as permissoes seriam validadas no servidor.
+
+### Troca de Perfil
+O Header mantem os botoes de troca de perfil para facilitar a demonstracao.
+Ao alternar perfis, o usuario vera imediatamente as mudancas no menu e nas permissoes.
+
+### Experiencia do Operacional
+O sistema fica simples e direto:
+- Uma unica tela (Docas)
+- Duas acoes principais: COMECAR e TERMINAR conferencia
+- Sem distracao com metricas ou dados gerenciais
