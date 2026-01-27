@@ -16,7 +16,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { docasIniciais, cargasIniciais, conferentes, fornecedores, statusDocaLabels } from '@/data/mockData';
 import { Doca, Carga, StatusDoca, StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { Container, Plus, Coffee, Unlock, LogIn, CheckCircle, Play } from 'lucide-react';
+import { Container, Plus, Coffee, Unlock } from 'lucide-react';
 import { format } from 'date-fns';
 
 const statusStyles: Record<StatusDoca, string> = {
@@ -45,27 +45,26 @@ export default function Docas() {
   const [modalMode, setModalMode] = useState<'entrar' | 'finalizar'>('entrar');
 
   const getCarga = (cargaId?: string) => cargas.find(c => c.id === cargaId);
-  const getConferente = (conferenteId?: string) => conferentes.find(c => c.id === conferenteId);
   const getFornecedor = (fornecedorId?: string) => fornecedores.find(f => f.id === fornecedorId);
 
-  const cargasDisponiveis = useMemo(() => 
-    cargas.filter(c => c.status === 'aguardando_chegada' || c.status === 'em_conferencia'),
-  [cargas]);
+  // Cargas disponíveis: apenas do dia atual e com status aguardando_chegada
+  const cargasDisponiveis = useMemo(() => {
+    const hoje = format(new Date(2026, 0, 24), 'yyyy-MM-dd'); // Data simulada
+    return cargas.filter(c => c.data === hoje && c.status === 'aguardando_chegada');
+  }, [cargas]);
 
-  const handleClickDoca = (doca: Doca) => {
-    if (doca.status === 'livre') {
-      setSelectedDoca(doca);
-      setAssociarModalOpen(true);
-    }
+  const handleVincularCarga = (doca: Doca) => {
+    setSelectedDoca(doca);
+    setAssociarModalOpen(true);
   };
 
-  const handleIniciarConferencia = (doca: Doca) => {
+  const handleComecarConferencia = (doca: Doca) => {
     setSelectedDoca(doca);
     setModalMode('entrar');
     setModalOpen(true);
   };
 
-  const handleFinalizarConferencia = (doca: Doca) => {
+  const handleTerminarConferencia = (doca: Doca) => {
     setSelectedDoca(doca);
     setModalMode('finalizar');
     setModalOpen(true);
@@ -105,7 +104,7 @@ export default function Docas() {
     if (!selectedDoca) return;
 
     if (modalMode === 'entrar') {
-      // Inicia conferência - muda status da doca para em_conferencia
+      // COMEÇAR CONFERÊNCIA - muda status da doca para em_conferencia
       setDocas(docas.map(d => 
         d.id === selectedDoca.id ? { 
           ...d, 
@@ -117,52 +116,46 @@ export default function Docas() {
       
       if (selectedDoca.cargaId) {
         setCargas(cargas.map(c =>
-          c.id === selectedDoca.cargaId ? { ...c, status: 'em_conferencia' as StatusCarga, conferenteId: data.conferenteId } : c
+          c.id === selectedDoca.cargaId ? { 
+            ...c, 
+            status: 'em_conferencia' as StatusCarga, 
+            conferenteId: data.conferenteId,
+            rua: data.rua
+          } : c
         ));
       }
       toast.success(`Conferência iniciada na Doca ${selectedDoca.numero}`);
     } else {
-      if (data.status === 'conferido') {
-        // Finaliza conferência - muda status da doca para conferido
-        setDocas(docas.map(d => 
-          d.id === selectedDoca.id ? { 
-            ...d, 
-            status: 'conferido' as StatusDoca,
+      // TERMINAR CONFERÊNCIA - libera a doca e atualiza a carga no agendamento
+      const conferenteAtual = selectedDoca.conferenteId;
+      const ruaAtual = selectedDoca.rua;
+      
+      // Libera a doca (volta para livre)
+      setDocas(docas.map(d => 
+        d.id === selectedDoca.id ? { 
+          ...d, 
+          status: 'livre' as StatusDoca,
+          cargaId: undefined,
+          conferenteId: undefined,
+          volumeConferido: undefined,
+          rua: undefined
+        } : d
+      ));
+      
+      // Atualiza a carga no agendamento com todas as informações finais
+      if (selectedDoca.cargaId) {
+        setCargas(cargas.map(c =>
+          c.id === selectedDoca.cargaId ? { 
+            ...c, 
+            status: 'conferido' as StatusCarga, 
             volumeConferido: data.volume,
-            rua: data.rua
-          } : d
+            conferenteId: conferenteAtual,
+            rua: ruaAtual,
+            divergencia: data.divergencia
+          } : c
         ));
-        
-        if (selectedDoca.cargaId) {
-          setCargas(cargas.map(c =>
-            c.id === selectedDoca.cargaId ? { 
-              ...c, 
-              status: 'conferido' as StatusCarga, 
-              volumeConferido: data.volume,
-              rua: data.rua,
-              divergencia: data.divergencia
-            } : c
-          ));
-        }
-        toast.success(`Doca ${selectedDoca.numero} conferida com ${data.volume} volumes`);
-      } else {
-        // No Show ou Recusado - libera a doca mas mantém a carga com seu status
-        setDocas(docas.map(d => 
-          d.id === selectedDoca.id ? { 
-            ...d, 
-            status: 'livre' as StatusDoca,
-            cargaId: undefined,
-            conferenteId: undefined
-          } : d
-        ));
-        
-        if (selectedDoca.cargaId) {
-          setCargas(cargas.map(c =>
-            c.id === selectedDoca.cargaId ? { ...c, status: data.status } : c
-          ));
-        }
-        toast.success(`Doca ${selectedDoca.numero} - ${data.status === 'no_show' ? 'No Show' : 'Recusado'}`);
       }
+      toast.success(`Conferência finalizada - Doca ${selectedDoca.numero} liberada`);
     }
   };
 
@@ -201,130 +194,99 @@ export default function Docas() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-20">Doca</TableHead>
-                <TableHead className="w-36">Status</TableHead>
-                <TableHead className="w-28">Data</TableHead>
                 <TableHead>Fornecedor</TableHead>
                 <TableHead>NF(s)</TableHead>
-                <TableHead className="text-right w-24">Volume</TableHead>
-                <TableHead>Conferente</TableHead>
+                <TableHead className="text-right w-28">Vol. Previsto</TableHead>
+                <TableHead className="w-36">Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {docas.map((doca) => {
                 const carga = getCarga(doca.cargaId);
-                const conferente = getConferente(doca.conferenteId);
                 const fornecedor = carga ? getFornecedor(carga.fornecedorId) : undefined;
 
                 return (
-                  <TableRow 
-                    key={doca.id}
-                    className={doca.status === 'livre' ? 'cursor-pointer hover:bg-muted/50' : ''}
-                    onClick={() => doca.status === 'livre' && handleClickDoca(doca)}
-                  >
+                  <TableRow key={doca.id}>
                     <TableCell className="font-bold text-lg">#{doca.numero}</TableCell>
+                    <TableCell>{fornecedor?.nome || '-'}</TableCell>
+                    <TableCell>{carga?.nfs.join(', ') || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      {carga?.volumePrevisto || '-'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={statusStyles[doca.status]}>
                         {statusDocaLabels[doca.status]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {carga ? format(new Date(carga.data), 'dd/MM/yyyy') : '-'}
-                    </TableCell>
-                    <TableCell>{fornecedor?.nome || '-'}</TableCell>
-                    <TableCell>{carga?.nfs.join(', ') || '-'}</TableCell>
                     <TableCell className="text-right">
-                      {doca.volumeConferido ? (
-                        <span className="font-bold text-primary">{doca.volumeConferido}</span>
-                      ) : carga?.volumePrevisto || '-'}
-                    </TableCell>
-                    <TableCell>{conferente?.nome || '-'}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        {doca.status === 'livre' && (
+                      <div className="flex justify-end gap-2">
+                        {/* Doca LIVRE - Admin: Vincular Carga + Uso e Consumo */}
+                        {doca.status === 'livre' && isAdmin && (
                           <>
                             <Button 
-                              variant="ghost" 
+                              variant="outline" 
                               size="sm"
-                              onClick={(e) => { e.stopPropagation(); handleClickDoca(doca); }}
-                              title="Associar Carga"
+                              onClick={() => handleVincularCarga(doca)}
                             >
-                              <LogIn className="h-4 w-4" />
+                              Vincular Carga
                             </Button>
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={(e) => { e.stopPropagation(); handleUsoConsumo(doca); }}
+                              onClick={() => handleUsoConsumo(doca)}
                               title="Uso e Consumo"
                             >
                               <Coffee className="h-4 w-4" />
                             </Button>
                           </>
                         )}
+
+                        {/* Doca OCUPADA - Todos: Começar Conferência */}
                         {doca.status === 'ocupada' && (
-                          <>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleIniciarConferencia(doca)}
-                              title="Iniciar Conferência"
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              <Play className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleLiberar(doca)}
-                              className="text-green-600 hover:text-green-700"
-                              title="Liberar"
-                            >
-                              <Unlock className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                        {doca.status === 'em_conferencia' && (
-                          <>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleFinalizarConferencia(doca)}
-                              title="Finalizar Conferência"
-                              className="text-emerald-600 hover:text-emerald-700"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleLiberar(doca)}
-                              className="text-green-600 hover:text-green-700"
-                              title="Liberar"
-                            >
-                              <Unlock className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                        {doca.status === 'conferido' && (
                           <Button 
-                            variant="ghost" 
                             size="sm"
-                            onClick={() => handleLiberar(doca)}
-                            className="text-green-600 hover:text-green-700"
-                            title="Liberar Doca"
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                            onClick={() => handleComecarConferencia(doca)}
                           >
-                            <Unlock className="h-4 w-4" />
+                            COMEÇAR CONFERÊNCIA
                           </Button>
                         )}
-                        {doca.status === 'uso_consumo' && (
+
+                        {/* Doca EM CONFERÊNCIA - Todos: Terminar Conferência */}
+                        {doca.status === 'em_conferencia' && (
                           <Button 
-                            variant="ghost" 
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white font-semibold"
+                            onClick={() => handleTerminarConferencia(doca)}
+                          >
+                            TERMINAR CONFERÊNCIA
+                          </Button>
+                        )}
+
+                        {/* Doca CONFERIDO - Admin: Liberar (se não liberou automaticamente) */}
+                        {doca.status === 'conferido' && isAdmin && (
+                          <Button 
+                            variant="outline" 
                             size="sm"
                             onClick={() => handleLiberar(doca)}
-                            className="text-green-600 hover:text-green-700"
-                            title="Liberar"
+                            className="gap-1"
                           >
                             <Unlock className="h-4 w-4" />
+                            Liberar Doca
+                          </Button>
+                        )}
+
+                        {/* Doca USO E CONSUMO - Admin: Liberar */}
+                        {doca.status === 'uso_consumo' && isAdmin && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleLiberar(doca)}
+                            className="gap-1"
+                          >
+                            <Unlock className="h-4 w-4" />
+                            Liberar
                           </Button>
                         )}
                       </div>
