@@ -4,6 +4,8 @@ export type StatusDoca = 'livre' | 'ocupada' | 'em_conferencia' | 'conferido' | 
 
 export type StatusCarga = 'aguardando_chegada' | 'em_conferencia' | 'conferido' | 'no_show' | 'recusado';
 
+export type StatusSenha = 'aguardando' | 'chamado' | 'recusado';
+
 export interface Fornecedor {
   id: string;
   nome: string;
@@ -28,6 +30,8 @@ export interface Carga {
   conferenteId?: string;
   rua?: string;
   divergencia?: string;
+  chegou?: boolean;
+  senhaId?: string;
 }
 
 export interface Doca {
@@ -38,6 +42,16 @@ export interface Doca {
   conferenteId?: string;
   volumeConferido?: number;
   rua?: string;
+}
+
+export interface Senha {
+  id: string;
+  numero: number;
+  fornecedorId: string;
+  cargaId?: string;
+  docaNumero?: number;
+  status: StatusSenha;
+  horaChegada: string;
 }
 
 export interface DashboardPorPeriodo {

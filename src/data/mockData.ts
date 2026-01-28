@@ -133,8 +133,8 @@ export const statusCargaLabels: Record<string, string> = {
 
 export const statusDocaLabels: Record<string, string> = {
   livre: 'Livre',
-  ocupada: 'Ocupada',
-  em_conferencia: 'Em Conferência',
+  ocupada: 'Carga Disponível',
+  em_conferencia: 'Conferindo',
   conferido: 'Conferido',
   uso_consumo: 'Uso e Consumo',
 };

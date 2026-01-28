@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,14 +10,24 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { DocaModal } from '@/components/docas/DocaModal';
 import { AssociarCargaModal } from '@/components/docas/AssociarCargaModal';
 import { useProfile } from '@/contexts/ProfileContext';
-import { docasIniciais, cargasIniciais, conferentes, fornecedores, statusDocaLabels } from '@/data/mockData';
-import { Doca, Carga, StatusDoca, StatusCarga } from '@/types';
+import { useSenha } from '@/contexts/SenhaContext';
+import { docasIniciais, conferentes, fornecedores, statusDocaLabels } from '@/data/mockData';
+import { Doca, StatusDoca, StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { Container, Plus, Coffee, Unlock } from 'lucide-react';
-import { format } from 'date-fns';
+import { Container, Plus, Coffee, Unlock, XCircle } from 'lucide-react';
 
 const statusStyles: Record<StatusDoca, string> = {
   livre: 'bg-green-100 text-green-800 border-green-300',
@@ -37,21 +47,22 @@ interface FinalizacaoData {
 
 export default function Docas() {
   const { isAdmin } = useProfile();
+  const { cargas, getCargasDisponiveis, vincularCargaADoca, recusarCarga, atualizarCarga } = useSenha();
   const [docas, setDocas] = useState<Doca[]>(docasIniciais);
-  const [cargas, setCargas] = useState<Carga[]>(cargasIniciais);
   const [modalOpen, setModalOpen] = useState(false);
   const [associarModalOpen, setAssociarModalOpen] = useState(false);
   const [selectedDoca, setSelectedDoca] = useState<Doca | null>(null);
   const [modalMode, setModalMode] = useState<'entrar' | 'finalizar'>('entrar');
+  
+  // State para confirmação de recusa
+  const [confirmRecusar, setConfirmRecusar] = useState(false);
+  const [docaToRecusar, setDocaToRecusar] = useState<Doca | null>(null);
 
   const getCarga = (cargaId?: string) => cargas.find(c => c.id === cargaId);
   const getFornecedor = (fornecedorId?: string) => fornecedores.find(f => f.id === fornecedorId);
 
-  // Cargas disponíveis: apenas do dia atual e com status aguardando_chegada
-  const cargasDisponiveis = useMemo(() => {
-    const hoje = format(new Date(2026, 0, 24), 'yyyy-MM-dd'); // Data simulada
-    return cargas.filter(c => c.data === hoje && c.status === 'aguardando_chegada');
-  }, [cargas]);
+  // Cargas disponíveis: do dia atual, com status aguardando_chegada e que chegaram
+  const cargasDisponiveis = getCargasDisponiveis();
 
   const handleVincularCarga = (doca: Doca) => {
     setSelectedDoca(doca);
@@ -76,6 +87,10 @@ export default function Docas() {
     setDocas(docas.map(d => 
       d.id === selectedDoca.id ? { ...d, status: 'ocupada' as StatusDoca, cargaId } : d
     ));
+    
+    // Atualizar a senha do caminhoneiro para mostrar "DIRIJA-SE À DOCA X"
+    vincularCargaADoca(cargaId, selectedDoca.numero);
+    
     toast.success(`Carga associada à Doca ${selectedDoca.numero}`);
   };
 
@@ -100,6 +115,34 @@ export default function Docas() {
     toast.success(`Doca ${doca.numero} liberada`);
   };
 
+  const openRecusarConfirm = (doca: Doca) => {
+    setDocaToRecusar(doca);
+    setConfirmRecusar(true);
+  };
+
+  const handleRecusarCarga = () => {
+    if (!docaToRecusar || !docaToRecusar.cargaId) return;
+    
+    // Recusar a carga (atualiza carga e senha)
+    recusarCarga(docaToRecusar.cargaId);
+    
+    // Liberar a doca
+    setDocas(docas.map(d => 
+      d.id === docaToRecusar.id ? { 
+        ...d, 
+        status: 'livre' as StatusDoca, 
+        cargaId: undefined, 
+        conferenteId: undefined,
+        volumeConferido: undefined,
+        rua: undefined
+      } : d
+    ));
+    
+    toast.success(`Carga recusada - Doca ${docaToRecusar.numero} liberada`);
+    setConfirmRecusar(false);
+    setDocaToRecusar(null);
+  };
+
   const handleModalConfirm = (data: FinalizacaoData) => {
     if (!selectedDoca) return;
 
@@ -115,14 +158,11 @@ export default function Docas() {
       ));
       
       if (selectedDoca.cargaId) {
-        setCargas(cargas.map(c =>
-          c.id === selectedDoca.cargaId ? { 
-            ...c, 
-            status: 'em_conferencia' as StatusCarga, 
-            conferenteId: data.conferenteId,
-            rua: data.rua
-          } : c
-        ));
+        atualizarCarga(selectedDoca.cargaId, {
+          status: 'em_conferencia' as StatusCarga,
+          conferenteId: data.conferenteId,
+          rua: data.rua
+        });
       }
       toast.success(`Conferência iniciada na Doca ${selectedDoca.numero}`);
     } else {
@@ -144,16 +184,13 @@ export default function Docas() {
       
       // Atualiza a carga no agendamento com todas as informações finais
       if (selectedDoca.cargaId) {
-        setCargas(cargas.map(c =>
-          c.id === selectedDoca.cargaId ? { 
-            ...c, 
-            status: 'conferido' as StatusCarga, 
-            volumeConferido: data.volume,
-            conferenteId: conferenteAtual,
-            rua: ruaAtual,
-            divergencia: data.divergencia
-          } : c
-        ));
+        atualizarCarga(selectedDoca.cargaId, {
+          status: 'conferido' as StatusCarga,
+          volumeConferido: data.volume,
+          conferenteId: conferenteAtual,
+          rua: ruaAtual,
+          divergencia: data.divergencia
+        });
       }
       toast.success(`Conferência finalizada - Doca ${selectedDoca.numero} liberada`);
     }
@@ -242,26 +279,50 @@ export default function Docas() {
                           </>
                         )}
 
-                        {/* Doca OCUPADA - Todos: Começar Conferência */}
+                        {/* Doca OCUPADA - Todos: Começar Conferência / Admin: Recusar */}
                         {doca.status === 'ocupada' && (
-                          <Button 
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                            onClick={() => handleComecarConferencia(doca)}
-                          >
-                            COMEÇAR CONFERÊNCIA
-                          </Button>
+                          <>
+                            <Button 
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                              onClick={() => handleComecarConferencia(doca)}
+                            >
+                              COMEÇAR CONFERÊNCIA
+                            </Button>
+                            {isAdmin && (
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => openRecusarConfirm(doca)}
+                                title="Recusar Carga"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </>
                         )}
 
-                        {/* Doca EM CONFERÊNCIA - Todos: Terminar Conferência */}
+                        {/* Doca EM CONFERÊNCIA - Todos: Terminar Conferência / Admin: Recusar */}
                         {doca.status === 'em_conferencia' && (
-                          <Button 
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700 text-white font-semibold"
-                            onClick={() => handleTerminarConferencia(doca)}
-                          >
-                            TERMINAR CONFERÊNCIA
-                          </Button>
+                          <>
+                            <Button 
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white font-semibold"
+                              onClick={() => handleTerminarConferencia(doca)}
+                            >
+                              TERMINAR CONFERÊNCIA
+                            </Button>
+                            {isAdmin && (
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => openRecusarConfirm(doca)}
+                                title="Recusar Carga"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </>
                         )}
 
                         {/* Doca CONFERIDO - Admin: Liberar (se não liberou automaticamente) */}
@@ -313,6 +374,32 @@ export default function Docas() {
           cargas={cargasDisponiveis}
           onConfirm={handleAssociarCarga}
         />
+
+        {/* Confirmation Dialog - Recusar Carga */}
+        <AlertDialog open={confirmRecusar} onOpenChange={setConfirmRecusar}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Recusar Carga</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja <strong>recusar</strong> esta carga?
+                {docaToRecusar && docaToRecusar.cargaId && (
+                  <span className="block mt-2 text-foreground">
+                    Doca: #{docaToRecusar.numero} - {getFornecedor(getCarga(docaToRecusar.cargaId)?.fornecedorId)?.nome}
+                  </span>
+                )}
+                <span className="block mt-2 text-red-600">
+                  O caminhoneiro será notificado que a carga foi recusada.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleRecusarCarga} className="bg-red-600 hover:bg-red-700">
+                Recusar Carga
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );
