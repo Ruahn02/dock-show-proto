@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Agendamento from "./pages/Agendamento";
 import Docas from "./pages/Docas";
+import ControleSenhas from "./pages/ControleSenhas";
 import Fornecedores from "./pages/Fornecedores";
 import Conferentes from "./pages/Conferentes";
 import SenhaCaminhoneiro from "./pages/SenhaCaminhoneiro";
@@ -36,6 +37,11 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/docas" element={<Docas />} />
+              <Route path="/senhas" element={
+                <ProtectedRoute adminOnly>
+                  <ControleSenhas />
+                </ProtectedRoute>
+              } />
               <Route path="/fornecedores" element={
                 <ProtectedRoute adminOnly>
                   <Fornecedores />
