@@ -75,3 +75,26 @@ export interface StatusCargaChart {
   value: number;
   color: string;
 }
+
+// Cross Docking Types
+export type StatusCross = 
+  | 'aguardando_decisao'
+  | 'cross_confirmado'
+  | 'aguardando_separacao'
+  | 'em_separacao'
+  | 'finalizado';
+
+export interface CrossDocking {
+  id: string;
+  cargaId: string;
+  fornecedorId: string;
+  nfs: string[];
+  data: string;
+  rua: string;
+  volumeRecebido: number;
+  status: StatusCross;
+  numeroCross?: string;
+  separadorId?: string;
+  temDivergencia?: boolean;
+  observacao?: string;
+}
