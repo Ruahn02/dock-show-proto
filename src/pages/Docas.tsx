@@ -24,6 +24,7 @@ import { DocaModal } from '@/components/docas/DocaModal';
 import { AssociarCargaModal } from '@/components/docas/AssociarCargaModal';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useSenha } from '@/contexts/SenhaContext';
+import { useCross } from '@/contexts/CrossContext';
 import { docasIniciais, conferentes, fornecedores, statusDocaLabels } from '@/data/mockData';
 import { Doca, StatusDoca, StatusCarga } from '@/types';
 import { toast } from 'sonner';
@@ -48,6 +49,7 @@ interface FinalizacaoData {
 export default function Docas() {
   const { isAdmin } = useProfile();
   const { cargas, getCargasDisponiveis, vincularCargaADoca, recusarCarga, atualizarCarga } = useSenha();
+  const { adicionarCross } = useCross();
   const [docas, setDocas] = useState<Doca[]>(docasIniciais);
   const [modalOpen, setModalOpen] = useState(false);
   const [associarModalOpen, setAssociarModalOpen] = useState(false);
@@ -169,6 +171,7 @@ export default function Docas() {
       // TERMINAR CONFERÊNCIA - libera a doca e atualiza a carga no agendamento
       const conferenteAtual = selectedDoca.conferenteId;
       const ruaAtual = selectedDoca.rua;
+      const carga = getCarga(selectedDoca.cargaId);
       
       // Libera a doca (volta para livre)
       setDocas(docas.map(d => 
@@ -191,6 +194,18 @@ export default function Docas() {
           rua: ruaAtual,
           divergencia: data.divergencia
         });
+        
+        // NOVO: Adicionar carga automaticamente à tela de Cross Docking
+        if (carga) {
+          adicionarCross({
+            cargaId: selectedDoca.cargaId,
+            fornecedorId: carga.fornecedorId,
+            nfs: carga.nfs,
+            data: carga.data,
+            rua: ruaAtual || data.rua || '',
+            volumeRecebido: data.volume || 0
+          });
+        }
       }
       toast.success(`Conferência finalizada - Doca ${selectedDoca.numero} liberada`);
     }

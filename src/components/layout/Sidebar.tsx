@@ -6,13 +6,15 @@ import {
   Container, 
   Building2, 
   Users,
-  Ticket
+  Ticket,
+  ArrowRightLeft
 } from 'lucide-react';
 
 const menuItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true },
   { to: '/agendamento', label: 'Agendamento', icon: Calendar, adminOnly: true },
   { to: '/docas', label: 'Docas', icon: Container, adminOnly: false },
+  { to: '/cross', label: 'Cross Docking', icon: ArrowRightLeft, adminOnly: false },
   { to: '/senhas', label: 'Controle de Senhas', icon: Ticket, adminOnly: true },
   { to: '/fornecedores', label: 'Fornecedores', icon: Building2, adminOnly: true },
   { to: '/conferentes', label: 'Conferentes', icon: Users, adminOnly: true },
