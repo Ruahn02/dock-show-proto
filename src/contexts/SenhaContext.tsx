@@ -1,7 +1,18 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Senha, StatusSenha, Carga } from '@/types';
+import { Senha, StatusSenha, Carga, TipoCaminhao } from '@/types';
 import { cargasIniciais, fornecedores } from '@/data/mockData';
 import { format } from 'date-fns';
+
+interface AdicionarCargaData {
+  data: string;
+  fornecedorId: string;
+  nfs: string[];
+  volumePrevisto: number;
+  horarioPrevisto?: string;
+  tipoCaminhao?: TipoCaminhao;
+  quantidadeVeiculos?: number;
+  solicitacaoId?: string;
+}
 
 interface SenhaContextType {
   senhas: Senha[];
@@ -15,6 +26,7 @@ interface SenhaContextType {
   marcarChegada: (cargaId: string, senhaId: string) => void;
   atualizarCarga: (cargaId: string, updates: Partial<Carga>) => void;
   getCargasDisponiveis: () => Carga[];
+  adicionarCarga: (data: AdicionarCargaData) => void;
 }
 
 const SenhaContext = createContext<SenhaContextType | undefined>(undefined);
@@ -131,6 +143,22 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
     );
   }, [cargas]);
 
+  const adicionarCarga = useCallback((data: AdicionarCargaData) => {
+    const novaCarga: Carga = {
+      id: `cg${Date.now()}`,
+      data: data.data,
+      fornecedorId: data.fornecedorId,
+      nfs: data.nfs,
+      volumePrevisto: data.volumePrevisto,
+      status: 'aguardando_chegada',
+      horarioPrevisto: data.horarioPrevisto,
+      tipoCaminhao: data.tipoCaminhao,
+      quantidadeVeiculos: data.quantidadeVeiculos,
+      solicitacaoId: data.solicitacaoId,
+    };
+    setCargas(prev => [...prev, novaCarga]);
+  }, []);
+
   return (
     <SenhaContext.Provider value={{
       senhas,
@@ -144,6 +172,7 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
       marcarChegada,
       atualizarCarga,
       getCargasDisponiveis,
+      adicionarCarga,
     }}>
       {children}
     </SenhaContext.Provider>

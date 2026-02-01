@@ -19,7 +19,7 @@ import { Conferente } from '@/types';
 import { toast } from 'sonner';
 import { Plus, Edit, Users } from 'lucide-react';
 
-export default function Conferentes() {
+export default function Funcionarios() {
   const { isAdmin } = useProfile();
   const navigate = useNavigate();
   const [conferentes, setConferentes] = useState<Conferente[]>(conferentesIniciais);
@@ -49,7 +49,7 @@ export default function Conferentes() {
       setConferentes(conferentes.map(c => 
         c.id === selectedConferente.id ? { ...c, ...data } : c
       ));
-      toast.success('Conferente atualizado!');
+      toast.success('Funcionário atualizado!');
     } else {
       const novoConferente: Conferente = {
         id: `c${Date.now()}`,
@@ -57,7 +57,7 @@ export default function Conferentes() {
         ativo: data.ativo ?? true,
       };
       setConferentes([...conferentes, novoConferente]);
-      toast.success('Conferente criado!');
+      toast.success('Funcionário criado!');
     }
   };
 
@@ -65,7 +65,7 @@ export default function Conferentes() {
     setConferentes(conferentes.map(c => 
       c.id === conferente.id ? { ...c, ativo: !c.ativo } : c
     ));
-    toast.success(`Conferente ${conferente.ativo ? 'desativado' : 'ativado'}!`);
+    toast.success(`Funcionário ${conferente.ativo ? 'desativado' : 'ativado'}!`);
   };
 
   return (
@@ -75,8 +75,8 @@ export default function Conferentes() {
           <div className="flex items-center gap-3">
             <Users className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="text-3xl font-bold">Conferentes</h1>
-              <p className="text-muted-foreground">Lista de conferentes</p>
+              <h1 className="text-3xl font-bold">Funcionários</h1>
+              <p className="text-muted-foreground">Conferentes e Separadores</p>
             </div>
           </div>
           <Button onClick={handleNovo} className="gap-2">

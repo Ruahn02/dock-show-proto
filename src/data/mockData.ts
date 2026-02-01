@@ -138,3 +138,16 @@ export const statusDocaLabels: Record<string, string> = {
   conferido: 'Conferido',
   uso_consumo: 'Uso e Consumo',
 };
+
+export const tipoCaminhaoLabels: Record<string, string> = {
+  truck: 'Truck',
+  carreta: 'Carreta',
+  bi_truck: 'Bi-Truck',
+  van: 'Van',
+};
+
+export const statusSolicitacaoLabels: Record<string, string> = {
+  pendente: 'Pendente',
+  aprovada: 'Aprovada',
+  recusada: 'Recusada',
+};
