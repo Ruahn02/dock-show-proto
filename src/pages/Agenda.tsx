@@ -1,0 +1,246 @@
+import { useMemo } from 'react';
+import { Layout } from '@/components/layout/Layout';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useSenha } from '@/contexts/SenhaContext';
+import { fornecedores, conferentes, statusCargaLabels } from '@/data/mockData';
+import { Carga, StatusCarga } from '@/types';
+import { toast } from 'sonner';
+import { CalendarCheck, MoreHorizontal } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { useState } from 'react';
+
+const statusStyles: Record<StatusCarga, string> = {
+  aguardando_chegada: 'bg-blue-100 text-blue-800 border-blue-300',
+  em_conferencia: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+  conferido: 'bg-green-100 text-green-800 border-green-300',
+  no_show: 'bg-gray-100 text-gray-800 border-gray-300',
+  recusado: 'bg-red-100 text-red-800 border-red-300',
+};
+
+export default function Agenda() {
+  const { cargas, atualizarCarga, recusarCarga } = useSenha();
+  
+  // Confirmation dialogs state
+  const [confirmNoShow, setConfirmNoShow] = useState(false);
+  const [confirmRecusado, setConfirmRecusado] = useState(false);
+  const [cargaToUpdate, setCargaToUpdate] = useState<Carga | null>(null);
+
+  // Data atual fixa (simulada)
+  const hoje = new Date(2026, 0, 24);
+  const hojeStr = format(hoje, 'yyyy-MM-dd');
+
+  const getFornecedorNome = (id: string) => {
+    return fornecedores.find(f => f.id === id)?.nome || 'N/A';
+  };
+
+  const getConferenteNome = (id?: string) => {
+    if (!id) return '-';
+    return conferentes.find(c => c.id === id)?.nome || '-';
+  };
+
+  // Função para determinar a cor do texto do fornecedor
+  const getFornecedorColor = (carga: Carga) => {
+    if (carga.status === 'recusado' || carga.status === 'no_show') {
+      return 'text-red-600';
+    }
+    if (carga.chegou) {
+      return 'text-green-600 font-semibold';
+    }
+    return '';
+  };
+
+  // Filter only today's cargas
+  const cargasDeHoje = useMemo(() => {
+    return cargas.filter(c => c.data === hojeStr);
+  }, [cargas, hojeStr]);
+
+  const openNoShowConfirm = (carga: Carga) => {
+    setCargaToUpdate(carga);
+    setConfirmNoShow(true);
+  };
+
+  const openRecusadoConfirm = (carga: Carga) => {
+    setCargaToUpdate(carga);
+    setConfirmRecusado(true);
+  };
+
+  const handleNoShow = () => {
+    if (!cargaToUpdate) return;
+    atualizarCarga(cargaToUpdate.id, { status: 'no_show' as StatusCarga });
+    toast.success(`Carga ${cargaToUpdate.nfs[0] || cargaToUpdate.id} marcada como No-show`);
+    setConfirmNoShow(false);
+    setCargaToUpdate(null);
+  };
+
+  const handleRecusado = () => {
+    if (!cargaToUpdate) return;
+    recusarCarga(cargaToUpdate.id);
+    toast.success(`Carga ${cargaToUpdate.nfs[0] || cargaToUpdate.id} marcada como Recusado`);
+    setConfirmRecusado(false);
+    setCargaToUpdate(null);
+  };
+
+  const canChangeStatus = (carga: Carga) => {
+    return carga.status === 'aguardando_chegada' || carga.status === 'em_conferencia';
+  };
+
+  return (
+    <Layout>
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <CalendarCheck className="h-8 w-8 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold">Agenda</h1>
+            <p className="text-muted-foreground">
+              {format(hoje, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </p>
+          </div>
+        </div>
+
+        <div className="border rounded-lg overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Horário</TableHead>
+                <TableHead>Fornecedor</TableHead>
+                <TableHead className="text-right">Vol. Previsto</TableHead>
+                <TableHead className="text-right">Vol. Recebido</TableHead>
+                <TableHead>Conferente</TableHead>
+                <TableHead>Rua</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {cargasDeHoje.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    Nenhuma entrega agendada para hoje
+                  </TableCell>
+                </TableRow>
+              ) : (
+                cargasDeHoje.map((carga) => (
+                  <TableRow key={carga.id}>
+                    <TableCell className="whitespace-nowrap">
+                      {carga.horarioPrevisto || '-'}
+                    </TableCell>
+                    <TableCell className={`font-medium ${getFornecedorColor(carga)}`}>
+                      {getFornecedorNome(carga.fornecedorId)}
+                    </TableCell>
+                    <TableCell className="text-right">{carga.volumePrevisto}</TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {carga.volumeConferido ?? '-'}
+                    </TableCell>
+                    <TableCell>{getConferenteNome(carga.conferenteId)}</TableCell>
+                    <TableCell>{carga.rua || '-'}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={statusStyles[carga.status]}
+                      >
+                        {statusCargaLabels[carga.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {canChangeStatus(carga) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="gap-1">
+                              Ações
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openNoShowConfirm(carga)}>
+                              Marcar como No-show
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => openRecusadoConfirm(carga)}
+                              className="text-red-600"
+                            >
+                              Marcar como Recusado
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Confirmation Dialog - No-show */}
+        <AlertDialog open={confirmNoShow} onOpenChange={setConfirmNoShow}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar ação</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja marcar esta carga como <strong>No-show</strong>?
+                {cargaToUpdate && (
+                  <span className="block mt-2 text-foreground">
+                    Fornecedor: {getFornecedorNome(cargaToUpdate.fornecedorId)}
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleNoShow}>Confirmar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Confirmation Dialog - Recusado */}
+        <AlertDialog open={confirmRecusado} onOpenChange={setConfirmRecusado}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar ação</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja marcar esta carga como <strong>Recusado</strong>?
+                {cargaToUpdate && (
+                  <span className="block mt-2 text-foreground">
+                    Fornecedor: {getFornecedorNome(cargaToUpdate.fornecedorId)}
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleRecusado} className="bg-red-600 hover:bg-red-700">
+                Confirmar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </Layout>
+  );
+}

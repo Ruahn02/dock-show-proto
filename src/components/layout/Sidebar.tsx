@@ -2,7 +2,9 @@ import { NavLink } from '@/components/NavLink';
 import { useProfile } from '@/contexts/ProfileContext';
 import { 
   LayoutDashboard, 
-  Calendar, 
+  ClipboardList,
+  CalendarPlus, 
+  CalendarCheck,
   Container, 
   Building2, 
   Users,
@@ -12,12 +14,14 @@ import {
 
 const menuItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true },
-  { to: '/agendamento', label: 'Agendamento', icon: Calendar, adminOnly: true },
+  { to: '/solicitacoes', label: 'Solicitações de Entrega', icon: ClipboardList, adminOnly: true },
+  { to: '/agendamento', label: 'Agendamento', icon: CalendarPlus, adminOnly: true },
+  { to: '/agenda', label: 'Agenda', icon: CalendarCheck, adminOnly: true },
   { to: '/docas', label: 'Docas', icon: Container, adminOnly: false },
   { to: '/cross', label: 'Cross Docking', icon: ArrowRightLeft, adminOnly: false },
   { to: '/senhas', label: 'Controle de Senhas', icon: Ticket, adminOnly: true },
   { to: '/fornecedores', label: 'Fornecedores', icon: Building2, adminOnly: true },
-  { to: '/conferentes', label: 'Conferentes', icon: Users, adminOnly: true },
+  { to: '/funcionarios', label: 'Funcionários', icon: Users, adminOnly: true },
 ];
 
 export function Sidebar() {

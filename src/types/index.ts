@@ -32,6 +32,10 @@ export interface Carga {
   divergencia?: string;
   chegou?: boolean;
   senhaId?: string;
+  horarioPrevisto?: string;
+  tipoCaminhao?: TipoCaminhao;
+  quantidadeVeiculos?: number;
+  solicitacaoId?: string;
 }
 
 export interface Doca {
@@ -97,4 +101,22 @@ export interface CrossDocking {
   separadorId?: string;
   temDivergencia?: boolean;
   observacao?: string;
+}
+
+// Solicitacao de Entrega Types
+export type StatusSolicitacao = 'pendente' | 'aprovada' | 'recusada';
+
+export type TipoCaminhao = 'truck' | 'carreta' | 'bi_truck' | 'van';
+
+export interface SolicitacaoEntrega {
+  id: string;
+  fornecedorId: string;
+  tipoCaminhao: TipoCaminhao;
+  quantidadeVeiculos: number;
+  volumePrevisto: number;
+  observacoes?: string;
+  status: StatusSolicitacao;
+  dataSolicitacao: string;
+  dataAgendada?: string;
+  horarioAgendado?: string;
 }
