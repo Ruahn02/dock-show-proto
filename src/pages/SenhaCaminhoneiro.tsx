@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -10,13 +11,15 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useSenha } from '@/contexts/SenhaContext';
-import { fornecedores } from '@/data/mockData';
-import { Senha } from '@/types';
+import { fornecedores, tipoCaminhaoLabels } from '@/data/mockData';
+import { Senha, TipoCaminhao } from '@/types';
 import { Truck, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SenhaCaminhoneiro() {
   const [fornecedorId, setFornecedorId] = useState<string>('');
+  const [nomeMotorista, setNomeMotorista] = useState<string>('');
+  const [tipoCaminhao, setTipoCaminhao] = useState<TipoCaminhao | ''>('');
   const [senhaGerada, setSenhaGerada] = useState<Senha | null>(null);
   const { gerarSenha, getSenhaById, senhas } = useSenha();
 
@@ -37,35 +40,63 @@ export default function SenhaCaminhoneiro() {
       toast.error('Selecione um fornecedor');
       return;
     }
-
-    const senha = gerarSenha(fornecedorId);
-    if (senha) {
-      setSenhaGerada(senha);
-      toast.success('Senha gerada com sucesso!');
-    } else {
-      toast.error('Nenhum agendamento encontrado para este fornecedor hoje');
+    if (!nomeMotorista.trim()) {
+      toast.error('Informe o nome do motorista');
+      return;
     }
+    if (!tipoCaminhao) {
+      toast.error('Selecione o tipo de veículo');
+      return;
+    }
+
+    const senha = gerarSenha({
+      fornecedorId,
+      nomeMotorista: nomeMotorista.trim(),
+      tipoCaminhao: tipoCaminhao as TipoCaminhao
+    });
+    setSenhaGerada(senha);
+    toast.success('Senha gerada com sucesso!');
   };
 
   const handleNovaSenha = () => {
     setSenhaGerada(null);
     setFornecedorId('');
+    setNomeMotorista('');
+    setTipoCaminhao('');
   };
 
   const getStatusDisplay = () => {
     if (!senhaGerada) return null;
 
     switch (senhaGerada.status) {
-      case 'aguardando':
+      case 'aguardando_doca':
         return {
-          text: 'AGUARDANDO CHAMADO',
+          text: 'AGUARDANDO DOCA',
           bgColor: 'bg-blue-500',
           textColor: 'text-white',
         };
-      case 'chamado':
+      case 'em_doca':
         return {
-          text: `DIRIJA-SE À DOCA ${senhaGerada.docaNumero}`,
+          text: 'EM DOCA',
+          bgColor: 'bg-yellow-500',
+          textColor: 'text-white',
+        };
+      case 'aguardando_conferencia':
+        return {
+          text: 'AGUARDANDO CONFERÊNCIA',
+          bgColor: 'bg-yellow-500',
+          textColor: 'text-white',
+        };
+      case 'conferindo':
+        return {
+          text: 'CONFERINDO',
           bgColor: 'bg-green-500',
+          textColor: 'text-white',
+        };
+      case 'conferido':
+        return {
+          text: 'CONFERIDO',
+          bgColor: 'bg-green-600',
           textColor: 'text-white',
         };
       case 'recusado':
@@ -100,17 +131,17 @@ export default function SenhaCaminhoneiro() {
         </div>
 
         {!senhaGerada ? (
-          // Tela de seleção de fornecedor
+          // Tela de geração de senha
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-center text-lg">Gerar Senha de Atendimento</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="fornecedor">Selecione o Fornecedor</Label>
+                <Label htmlFor="fornecedor">Fornecedor *</Label>
                 <Select value={fornecedorId} onValueChange={setFornecedorId}>
                   <SelectTrigger id="fornecedor" className="h-14 text-base">
-                    <SelectValue placeholder="Selecione..." />
+                    <SelectValue placeholder="Selecione o fornecedor..." />
                   </SelectTrigger>
                   <SelectContent>
                     {fornecedoresAtivos.map((f) => (
@@ -122,10 +153,37 @@ export default function SenhaCaminhoneiro() {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="motorista">Nome do Motorista *</Label>
+                <Input
+                  id="motorista"
+                  value={nomeMotorista}
+                  onChange={(e) => setNomeMotorista(e.target.value)}
+                  placeholder="Digite seu nome..."
+                  className="h-14 text-base"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tipoCaminhao">Tipo de Veículo *</Label>
+                <Select value={tipoCaminhao} onValueChange={(val) => setTipoCaminhao(val as TipoCaminhao)}>
+                  <SelectTrigger id="tipoCaminhao" className="h-14 text-base">
+                    <SelectValue placeholder="Selecione o tipo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(tipoCaminhaoLabels).map(([value, label]) => (
+                      <SelectItem key={value} value={value} className="text-base py-3">
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Button 
                 onClick={handleGerarSenha} 
                 className="w-full h-14 text-lg font-semibold"
-                disabled={!fornecedorId}
+                disabled={!fornecedorId || !nomeMotorista.trim() || !tipoCaminhao}
               >
                 GERAR SENHA
               </Button>
@@ -135,12 +193,19 @@ export default function SenhaCaminhoneiro() {
           // Tela de exibição da senha
           <Card className="shadow-lg">
             <CardContent className="pt-6 space-y-6">
-              {/* Info do fornecedor e senha */}
+              {/* Info do fornecedor */}
               <div className="text-center space-y-1">
                 <p className="text-slate-600 text-sm">Fornecedor</p>
                 <p className="font-semibold text-lg">{getFornecedorNome(senhaGerada.fornecedorId)}</p>
               </div>
 
+              {/* Tipo de veículo */}
+              <div className="text-center space-y-1">
+                <p className="text-slate-600 text-sm">Veículo</p>
+                <p className="font-medium">{tipoCaminhaoLabels[senhaGerada.tipoCaminhao]}</p>
+              </div>
+
+              {/* Número da senha */}
               <div className="text-center">
                 <p className="text-slate-600 text-sm">Sua Senha</p>
                 <p className="font-bold text-5xl text-primary">
@@ -163,8 +228,8 @@ export default function SenhaCaminhoneiro() {
                 Hora de chegada: {senhaGerada.horaChegada}
               </div>
 
-              {/* Botão Nova Senha - só mostra se não está aguardando */}
-              {senhaGerada.status !== 'aguardando' && (
+              {/* Botão Nova Senha - só mostra se conferido ou recusado */}
+              {(senhaGerada.status === 'conferido' || senhaGerada.status === 'recusado') && (
                 <Button 
                   onClick={handleNovaSenha} 
                   variant="outline"

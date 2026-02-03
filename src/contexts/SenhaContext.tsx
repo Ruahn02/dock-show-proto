@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Senha, StatusSenha, Carga, TipoCaminhao } from '@/types';
+import { Senha, StatusSenha, LocalSenha, Carga, TipoCaminhao } from '@/types';
 import { cargasIniciais, fornecedores } from '@/data/mockData';
 import { format } from 'date-fns';
 
@@ -14,13 +14,26 @@ interface AdicionarCargaData {
   solicitacaoId?: string;
 }
 
+interface GerarSenhaData {
+  fornecedorId: string;
+  nomeMotorista: string;
+  tipoCaminhao: TipoCaminhao;
+}
+
 interface SenhaContextType {
   senhas: Senha[];
   cargas: Carga[];
-  gerarSenha: (fornecedorId: string) => Senha | null;
+  gerarSenha: (data: GerarSenhaData) => Senha;
   atualizarSenha: (senhaId: string, updates: Partial<Senha>) => void;
   getSenhaById: (senhaId: string) => Senha | undefined;
   getSenhaByFornecedor: (fornecedorId: string) => Senha | undefined;
+  getSenhasAtivas: () => Senha[];
+  vincularSenhaADoca: (senhaId: string, docaNumero: number) => void;
+  liberarSenha: (senhaId: string) => void;
+  moverParaPatio: (senhaId: string, rua: string) => void;
+  retomarDoPatio: (senhaId: string, docaNumero: number) => void;
+  atualizarLocalSenha: (senhaId: string, local: LocalSenha) => void;
+  atualizarStatusSenha: (senhaId: string, status: StatusSenha) => void;
   vincularCargaADoca: (cargaId: string, docaNumero: number) => void;
   recusarCarga: (cargaId: string) => void;
   marcarChegada: (cargaId: string, senhaId: string) => void;
@@ -37,47 +50,23 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
   const [senhas, setSenhas] = useState<Senha[]>([]);
   const [cargas, setCargas] = useState<Carga[]>(cargasIniciais);
 
-  const gerarSenha = useCallback((fornecedorId: string): Senha | null => {
-    // Verificar se o fornecedor tem carga agendada para hoje
-    const hoje = format(new Date(2026, 0, 24), 'yyyy-MM-dd'); // Data simulada
-    const cargaHoje = cargas.find(
-      c => c.fornecedorId === fornecedorId && 
-           c.data === hoje && 
-           c.status === 'aguardando_chegada' &&
-           !c.chegou
-    );
-
-    if (!cargaHoje) {
-      return null;
-    }
-
-    // Verificar se já existe senha ativa para este fornecedor
-    const senhaExistente = senhas.find(
-      s => s.fornecedorId === fornecedorId && s.status !== 'recusado'
-    );
-
-    if (senhaExistente) {
-      return senhaExistente;
-    }
-
+  // Gerar nova senha - permite múltiplas senhas do mesmo fornecedor
+  const gerarSenha = useCallback((data: GerarSenhaData): Senha => {
     const novaSenha: Senha = {
       id: `s${Date.now()}`,
       numero: contadorSenha++,
-      fornecedorId,
-      cargaId: cargaHoje.id,
-      status: 'aguardando',
+      fornecedorId: data.fornecedorId,
+      nomeMotorista: data.nomeMotorista,
+      tipoCaminhao: data.tipoCaminhao,
+      status: 'aguardando_doca',
+      localAtual: 'aguardando_doca',
       horaChegada: format(new Date(), 'HH:mm'),
+      liberada: false,
     };
 
     setSenhas(prev => [...prev, novaSenha]);
-    
-    // Marcar a carga como "chegou"
-    setCargas(prev => prev.map(c => 
-      c.id === cargaHoje.id ? { ...c, chegou: true, senhaId: novaSenha.id } : c
-    ));
-
     return novaSenha;
-  }, [senhas, cargas]);
+  }, []);
 
   const atualizarSenha = useCallback((senhaId: string, updates: Partial<Senha>) => {
     setSenhas(prev => prev.map(s => 
@@ -91,9 +80,62 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
 
   const getSenhaByFornecedor = useCallback((fornecedorId: string) => {
     return senhas.find(
-      s => s.fornecedorId === fornecedorId && s.status !== 'recusado'
+      s => s.fornecedorId === fornecedorId && !s.liberada
     );
   }, [senhas]);
+
+  // Retorna senhas que não foram liberadas (para controle admin)
+  const getSenhasAtivas = useCallback(() => {
+    return senhas.filter(s => !s.liberada);
+  }, [senhas]);
+
+  // Vincular senha a uma doca
+  const vincularSenhaADoca = useCallback((senhaId: string, docaNumero: number) => {
+    setSenhas(prev => prev.map(s => 
+      s.id === senhaId 
+        ? { ...s, status: 'em_doca' as StatusSenha, localAtual: 'em_doca' as LocalSenha, docaNumero } 
+        : s
+    ));
+  }, []);
+
+  // Liberar senha (ação final do admin)
+  const liberarSenha = useCallback((senhaId: string) => {
+    setSenhas(prev => prev.map(s => 
+      s.id === senhaId ? { ...s, liberada: true } : s
+    ));
+  }, []);
+
+  // Mover senha para pátio
+  const moverParaPatio = useCallback((senhaId: string, rua: string) => {
+    setSenhas(prev => prev.map(s => 
+      s.id === senhaId 
+        ? { ...s, localAtual: 'em_patio' as LocalSenha, rua, docaNumero: undefined } 
+        : s
+    ));
+  }, []);
+
+  // Retomar do pátio para doca
+  const retomarDoPatio = useCallback((senhaId: string, docaNumero: number) => {
+    setSenhas(prev => prev.map(s => 
+      s.id === senhaId 
+        ? { ...s, localAtual: 'em_doca' as LocalSenha, status: 'em_doca' as StatusSenha, docaNumero, rua: undefined } 
+        : s
+    ));
+  }, []);
+
+  // Atualizar local da senha
+  const atualizarLocalSenha = useCallback((senhaId: string, local: LocalSenha) => {
+    setSenhas(prev => prev.map(s => 
+      s.id === senhaId ? { ...s, localAtual: local } : s
+    ));
+  }, []);
+
+  // Atualizar status da senha
+  const atualizarStatusSenha = useCallback((senhaId: string, status: StatusSenha) => {
+    setSenhas(prev => prev.map(s => 
+      s.id === senhaId ? { ...s, status } : s
+    ));
+  }, []);
 
   const vincularCargaADoca = useCallback((cargaId: string, docaNumero: number) => {
     // Encontrar a senha relacionada a esta carga
@@ -101,7 +143,7 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
     if (carga?.senhaId) {
       setSenhas(prev => prev.map(s => 
         s.id === carga.senhaId 
-          ? { ...s, status: 'chamado' as StatusSenha, docaNumero } 
+          ? { ...s, status: 'em_doca' as StatusSenha, localAtual: 'em_doca' as LocalSenha, docaNumero } 
           : s
       ));
     }
@@ -167,6 +209,13 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
       atualizarSenha,
       getSenhaById,
       getSenhaByFornecedor,
+      getSenhasAtivas,
+      vincularSenhaADoca,
+      liberarSenha,
+      moverParaPatio,
+      retomarDoPatio,
+      atualizarLocalSenha,
+      atualizarStatusSenha,
       vincularCargaADoca,
       recusarCarga,
       marcarChegada,

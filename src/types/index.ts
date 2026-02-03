@@ -4,7 +4,17 @@ export type StatusDoca = 'livre' | 'ocupada' | 'em_conferencia' | 'conferido' | 
 
 export type StatusCarga = 'aguardando_chegada' | 'em_conferencia' | 'conferido' | 'no_show' | 'recusado';
 
-export type StatusSenha = 'aguardando' | 'chamado' | 'recusado';
+// Status da senha do caminhoneiro
+export type StatusSenha = 
+  | 'aguardando_doca'        // Chegou, aguardando doca
+  | 'em_doca'                // Vinculado a uma doca
+  | 'aguardando_conferencia' // Na doca, aguardando iniciar
+  | 'conferindo'             // Conferência em andamento
+  | 'conferido'              // Conferência finalizada
+  | 'recusado';              // Carga recusada
+
+// Local atual do caminhão
+export type LocalSenha = 'aguardando_doca' | 'em_doca' | 'em_patio';
 
 export interface Fornecedor {
   id: string;
@@ -46,6 +56,7 @@ export interface Doca {
   conferenteId?: string;
   volumeConferido?: number;
   rua?: string;
+  senhaId?: string; // Referência à senha vinculada
 }
 
 export interface Senha {
@@ -56,6 +67,13 @@ export interface Senha {
   docaNumero?: number;
   status: StatusSenha;
   horaChegada: string;
+  // Novos campos
+  nomeMotorista: string;
+  tipoCaminhao: TipoCaminhao;
+  horarioPrevisto?: string;
+  localAtual: LocalSenha;
+  rua?: string;
+  liberada: boolean;
 }
 
 export interface DashboardPorPeriodo {
