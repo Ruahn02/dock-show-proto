@@ -151,3 +151,20 @@ export const statusSolicitacaoLabels: Record<string, string> = {
   aprovada: 'Aprovada',
   recusada: 'Recusada',
 };
+
+// Labels para status da senha (exibição caminhoneiro)
+export const statusSenhaLabels: Record<string, string> = {
+  aguardando_doca: 'Aguardando Doca',
+  em_doca: 'Em Doca',
+  aguardando_conferencia: 'Aguardando Conferência',
+  conferindo: 'Conferindo',
+  conferido: 'Conferido',
+  recusado: 'Recusado',
+};
+
+// Labels para local atual da senha
+export const localSenhaLabels: Record<string, string> = {
+  aguardando_doca: 'Aguardando Doca',
+  em_doca: 'Em Doca',
+  em_patio: 'Em Pátio',
+};

@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -20,15 +23,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { DocaModal } from '@/components/docas/DocaModal';
 import { AssociarCargaModal } from '@/components/docas/AssociarCargaModal';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useSenha } from '@/contexts/SenhaContext';
 import { useCross } from '@/contexts/CrossContext';
-import { docasIniciais, conferentes, fornecedores, statusDocaLabels } from '@/data/mockData';
-import { Doca, StatusDoca, StatusCarga } from '@/types';
+import { docasIniciais, conferentes, fornecedores, statusDocaLabels, tipoCaminhaoLabels } from '@/data/mockData';
+import { Doca, StatusDoca, StatusCarga, Senha } from '@/types';
 import { toast } from 'sonner';
-import { Container, Plus, Coffee, Unlock, XCircle } from 'lucide-react';
+import { Container, Plus, Coffee, Unlock, XCircle, MapPin, RotateCcw } from 'lucide-react';
 
 const statusStyles: Record<StatusDoca, string> = {
   livre: 'bg-green-100 text-green-800 border-green-300',
@@ -48,7 +65,17 @@ interface FinalizacaoData {
 
 export default function Docas() {
   const { isAdmin } = useProfile();
-  const { cargas, getCargasDisponiveis, vincularCargaADoca, recusarCarga, atualizarCarga } = useSenha();
+  const { 
+    senhas, 
+    cargas, 
+    getCargasDisponiveis, 
+    vincularCargaADoca, 
+    recusarCarga, 
+    atualizarCarga,
+    moverParaPatio,
+    retomarDoPatio,
+    atualizarStatusSenha
+  } = useSenha();
   const { adicionarCross } = useCross();
   const [docas, setDocas] = useState<Doca[]>(docasIniciais);
   const [modalOpen, setModalOpen] = useState(false);
@@ -59,9 +86,26 @@ export default function Docas() {
   // State para confirmação de recusa
   const [confirmRecusar, setConfirmRecusar] = useState(false);
   const [docaToRecusar, setDocaToRecusar] = useState<Doca | null>(null);
+  
+  // State para mover para pátio
+  const [patioModalOpen, setPatioModalOpen] = useState(false);
+  const [patioSenhaId, setPatioSenhaId] = useState<string | null>(null);
+  const [ruaPatio, setRuaPatio] = useState('');
+  const [docaToLiberar, setDocaToLiberar] = useState<Doca | null>(null);
+  
+  // State para retomar do pátio
+  const [retomarModalOpen, setRetomarModalOpen] = useState(false);
+  const [retomarSenhaId, setRetomarSenhaId] = useState<string | null>(null);
+  const [selectedDocaNumero, setSelectedDocaNumero] = useState<string>('');
 
   const getCarga = (cargaId?: string) => cargas.find(c => c.id === cargaId);
   const getFornecedor = (fornecedorId?: string) => fornecedores.find(f => f.id === fornecedorId);
+  
+  // Senhas em pátio (para seção inferior)
+  const senhasEmPatio = senhas.filter(s => s.localAtual === 'em_patio' && !s.liberada);
+  
+  // Docas livres (para modal de retomar)
+  const docasLivres = docas.filter(d => d.status === 'livre');
 
   // Cargas disponíveis: do dia atual, com status aguardando_chegada e que chegaram
   const cargasDisponiveis = getCargasDisponiveis();
@@ -111,7 +155,8 @@ export default function Docas() {
         cargaId: undefined, 
         conferenteId: undefined,
         volumeConferido: undefined,
-        rua: undefined
+        rua: undefined,
+        senhaId: undefined
       } : d
     ));
     toast.success(`Doca ${doca.numero} liberada`);
@@ -136,13 +181,82 @@ export default function Docas() {
         cargaId: undefined, 
         conferenteId: undefined,
         volumeConferido: undefined,
-        rua: undefined
+        rua: undefined,
+        senhaId: undefined
       } : d
     ));
     
     toast.success(`Carga recusada - Doca ${docaToRecusar.numero} liberada`);
     setConfirmRecusar(false);
     setDocaToRecusar(null);
+  };
+
+  // Mover para pátio
+  const handleOpenPatio = (doca: Doca) => {
+    const carga = getCarga(doca.cargaId);
+    if (carga?.senhaId) {
+      setPatioSenhaId(carga.senhaId);
+      setDocaToLiberar(doca);
+      setRuaPatio('');
+      setPatioModalOpen(true);
+    }
+  };
+
+  const handleConfirmPatio = () => {
+    if (!patioSenhaId || !ruaPatio.trim() || !docaToLiberar) {
+      toast.error('Informe a rua do pátio');
+      return;
+    }
+    
+    // Mover senha para pátio
+    moverParaPatio(patioSenhaId, ruaPatio.trim());
+    
+    // Liberar a doca
+    setDocas(docas.map(d => 
+      d.id === docaToLiberar.id ? { 
+        ...d, 
+        status: 'livre' as StatusDoca, 
+        cargaId: undefined, 
+        conferenteId: undefined,
+        volumeConferido: undefined,
+        rua: undefined,
+        senhaId: undefined
+      } : d
+    ));
+    
+    toast.success(`Caminhão movido para pátio - Rua ${ruaPatio}`);
+    setPatioModalOpen(false);
+  };
+
+  // Retomar do pátio
+  const handleOpenRetomar = (senhaId: string) => {
+    setRetomarSenhaId(senhaId);
+    setSelectedDocaNumero('');
+    setRetomarModalOpen(true);
+  };
+
+  const handleConfirmRetomar = () => {
+    if (!retomarSenhaId || !selectedDocaNumero) return;
+    
+    const docaNumero = parseInt(selectedDocaNumero);
+    const doca = docas.find(d => d.numero === docaNumero);
+    
+    if (!doca) return;
+    
+    // Atualizar doca para ocupada
+    setDocas(docas.map(d => 
+      d.id === doca.id ? { 
+        ...d, 
+        status: 'ocupada' as StatusDoca,
+        senhaId: retomarSenhaId
+      } : d
+    ));
+    
+    // Retomar senha do pátio
+    retomarDoPatio(retomarSenhaId, docaNumero);
+    
+    toast.success(`Caminhão retomado para Doca ${docaNumero}`);
+    setRetomarModalOpen(false);
   };
 
   const handleModalConfirm = (data: FinalizacaoData) => {
@@ -165,6 +279,12 @@ export default function Docas() {
           conferenteId: data.conferenteId,
           rua: data.rua
         });
+        
+        // Atualizar status da senha
+        const carga = getCarga(selectedDoca.cargaId);
+        if (carga?.senhaId) {
+          atualizarStatusSenha(carga.senhaId, 'conferindo');
+        }
       }
       toast.success(`Conferência iniciada na Doca ${selectedDoca.numero}`);
     } else {
@@ -181,7 +301,8 @@ export default function Docas() {
           cargaId: undefined,
           conferenteId: undefined,
           volumeConferido: undefined,
-          rua: undefined
+          rua: undefined,
+          senhaId: undefined
         } : d
       ));
       
@@ -195,7 +316,12 @@ export default function Docas() {
           divergencia: data.divergencia
         });
         
-        // NOVO: Adicionar carga automaticamente à tela de Cross Docking
+        // Atualizar status da senha para conferido (MAS NÃO LIBERA)
+        if (carga?.senhaId) {
+          atualizarStatusSenha(carga.senhaId, 'conferido');
+        }
+        
+        // Adicionar carga automaticamente à tela de Cross Docking
         if (carga) {
           adicionarCross({
             cargaId: selectedDoca.cargaId,
@@ -241,6 +367,7 @@ export default function Docas() {
           )}
         </div>
 
+        {/* Seção: Docas */}
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
@@ -294,7 +421,7 @@ export default function Docas() {
                           </>
                         )}
 
-                        {/* Doca OCUPADA - Todos: Começar Conferência / Admin: Recusar */}
+                        {/* Doca OCUPADA - Todos: Começar Conferência / Admin: Recusar + Pátio */}
                         {doca.status === 'ocupada' && (
                           <>
                             <Button 
@@ -305,19 +432,29 @@ export default function Docas() {
                               COMEÇAR CONFERÊNCIA
                             </Button>
                             {isAdmin && (
-                              <Button 
-                                variant="destructive" 
-                                size="sm"
-                                onClick={() => openRecusarConfirm(doca)}
-                                title="Recusar Carga"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </Button>
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleOpenPatio(doca)}
+                                  title="Mover para Pátio"
+                                >
+                                  <MapPin className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm"
+                                  onClick={() => openRecusarConfirm(doca)}
+                                  title="Recusar Carga"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </>
                             )}
                           </>
                         )}
 
-                        {/* Doca EM CONFERÊNCIA - Todos: Terminar Conferência / Admin: Recusar */}
+                        {/* Doca EM CONFERÊNCIA - Todos: Terminar Conferência / Admin: Recusar + Pátio */}
                         {doca.status === 'em_conferencia' && (
                           <>
                             <Button 
@@ -328,14 +465,24 @@ export default function Docas() {
                               TERMINAR CONFERÊNCIA
                             </Button>
                             {isAdmin && (
-                              <Button 
-                                variant="destructive" 
-                                size="sm"
-                                onClick={() => openRecusarConfirm(doca)}
-                                title="Recusar Carga"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </Button>
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleOpenPatio(doca)}
+                                  title="Mover para Pátio"
+                                >
+                                  <MapPin className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm"
+                                  onClick={() => openRecusarConfirm(doca)}
+                                  title="Recusar Carga"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </>
                             )}
                           </>
                         )}
@@ -373,6 +520,62 @@ export default function Docas() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Seção: Cargas em Pátio */}
+        {senhasEmPatio.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Cargas em Pátio
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-20">Senha</TableHead>
+                    <TableHead>Fornecedor</TableHead>
+                    <TableHead>Motorista</TableHead>
+                    <TableHead>Veículo</TableHead>
+                    <TableHead>Rua</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {senhasEmPatio.map((senha) => (
+                    <TableRow key={senha.id}>
+                      <TableCell className="font-mono font-semibold">
+                        {String(senha.numero).padStart(4, '0')}
+                      </TableCell>
+                      <TableCell>{getFornecedor(senha.fornecedorId)?.nome || '-'}</TableCell>
+                      <TableCell>{senha.nomeMotorista}</TableCell>
+                      <TableCell>{tipoCaminhaoLabels[senha.tipoCaminhao]}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                          {senha.rua}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isAdmin && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleOpenRetomar(senha.id)}
+                            className="gap-1"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            Retomar para Doca
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         <DocaModal
           open={modalOpen}
@@ -415,6 +618,66 @@ export default function Docas() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Modal: Mover para Pátio */}
+        <Dialog open={patioModalOpen} onOpenChange={setPatioModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Mover para Pátio</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                A carga será removida da doca e movida para o pátio.
+              </p>
+              <div className="space-y-2">
+                <Label>Rua do Pátio *</Label>
+                <Input
+                  value={ruaPatio}
+                  onChange={(e) => setRuaPatio(e.target.value)}
+                  placeholder="Ex: A-15"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPatioModalOpen(false)}>Cancelar</Button>
+              <Button onClick={handleConfirmPatio} disabled={!ruaPatio.trim()}>Confirmar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Retomar do Pátio */}
+        <Dialog open={retomarModalOpen} onOpenChange={setRetomarModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Retomar para Doca</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Selecione a Doca</Label>
+                <Select value={selectedDocaNumero} onValueChange={setSelectedDocaNumero}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma doca livre..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {docasLivres.length === 0 ? (
+                      <SelectItem value="-" disabled>Nenhuma doca livre</SelectItem>
+                    ) : (
+                      docasLivres.map((doca) => (
+                        <SelectItem key={doca.id} value={String(doca.numero)}>
+                          Doca {doca.numero}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRetomarModalOpen(false)}>Cancelar</Button>
+              <Button onClick={handleConfirmRetomar} disabled={!selectedDocaNumero}>Retomar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
