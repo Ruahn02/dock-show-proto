@@ -20,6 +20,7 @@ export interface Fornecedor {
   id: string;
   nome: string;
   ativo: boolean;
+  email?: string;
 }
 
 export interface Conferente {
@@ -137,4 +138,5 @@ export interface SolicitacaoEntrega {
   dataSolicitacao: string;
   dataAgendada?: string;
   horarioAgendado?: string;
+  emailContato: string;
 }

@@ -23,7 +23,8 @@ const solicitacoesIniciais: SolicitacaoEntrega[] = [
     volumePrevisto: 180,
     observacoes: 'Entregar pela manhã',
     status: 'pendente',
-    dataSolicitacao: '2026-01-24',
+    dataSolicitacao: '2026-02-03',
+    emailContato: 'contato@abc.com.br',
   },
   {
     id: 'sol2',
@@ -32,7 +33,19 @@ const solicitacoesIniciais: SolicitacaoEntrega[] = [
     quantidadeVeiculos: 2,
     volumePrevisto: 350,
     status: 'pendente',
-    dataSolicitacao: '2026-01-24',
+    dataSolicitacao: '2026-02-03',
+    emailContato: 'agendamento@logexpress.com',
+  },
+  {
+    id: 'sol3',
+    fornecedorId: 'f8',
+    tipoCaminhao: 'bi_truck',
+    quantidadeVeiculos: 1,
+    volumePrevisto: 200,
+    observacoes: 'Carga frágil',
+    status: 'pendente',
+    dataSolicitacao: '2026-02-04',
+    emailContato: 'agendamento@megaatacado.com',
   },
 ];
 
