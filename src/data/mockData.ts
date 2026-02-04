@@ -1,16 +1,16 @@
 import { Fornecedor, Conferente, Carga, Doca, DashboardPorPeriodo, ProdutividadeConferente, StatusCargaChart } from '@/types';
 
 export const fornecedores: Fornecedor[] = [
-  { id: 'f1', nome: 'Distribuidora ABC Ltda', ativo: true },
-  { id: 'f2', nome: 'Atacado Nacional S.A.', ativo: true },
-  { id: 'f3', nome: 'Logística Express', ativo: true },
-  { id: 'f4', nome: 'Fornecedor Master', ativo: true },
-  { id: 'f5', nome: 'Central de Cargas', ativo: true },
-  { id: 'f6', nome: 'Transporte Rápido', ativo: true },
-  { id: 'f7', nome: 'Distribuidora Sul', ativo: false },
-  { id: 'f8', nome: 'Mega Atacado', ativo: true },
-  { id: 'f9', nome: 'Comércio Global', ativo: true },
-  { id: 'f10', nome: 'Norte Logística', ativo: false },
+  { id: 'f1', nome: 'Distribuidora ABC Ltda', ativo: true, email: 'contato@abc.com.br' },
+  { id: 'f2', nome: 'Atacado Nacional S.A.', ativo: true, email: 'logistica@atacadonacional.com' },
+  { id: 'f3', nome: 'Logística Express', ativo: true, email: 'agendamento@logexpress.com' },
+  { id: 'f4', nome: 'Fornecedor Master', ativo: true, email: 'entregas@master.com.br' },
+  { id: 'f5', nome: 'Central de Cargas', ativo: true, email: 'operacoes@centralcargas.com' },
+  { id: 'f6', nome: 'Transporte Rápido', ativo: true, email: 'atendimento@transporterapido.com' },
+  { id: 'f7', nome: 'Distribuidora Sul', ativo: false, email: 'contato@distsul.com.br' },
+  { id: 'f8', nome: 'Mega Atacado', ativo: true, email: 'agendamento@megaatacado.com' },
+  { id: 'f9', nome: 'Comércio Global', ativo: true, email: 'entregas@comercioglobal.com' },
+  { id: 'f10', nome: 'Norte Logística', ativo: false, email: 'contato@nortelogistica.com' },
 ];
 
 export const conferentes: Conferente[] = [
@@ -24,31 +24,37 @@ export const conferentes: Conferente[] = [
   { id: 'c8', nome: 'Fernanda Souza', ativo: true },
 ];
 
+// Data atual do sistema: 2026-02-04
 export const cargasIniciais: Carga[] = [
-  { id: 'cg1', data: '2026-01-24', fornecedorId: 'f1', nfs: ['NF-001', 'NF-002'], volumePrevisto: 150, status: 'conferido', volumeConferido: 148, docaId: 'd1', conferenteId: 'c1', rua: 'A-15' },
-  { id: 'cg2', data: '2026-01-24', fornecedorId: 'f2', nfs: ['NF-003'], volumePrevisto: 80, status: 'em_conferencia', docaId: 'd2', conferenteId: 'c2' },
-  { id: 'cg3', data: '2026-01-24', fornecedorId: 'f3', nfs: ['NF-004', 'NF-005', 'NF-006'], volumePrevisto: 250, status: 'aguardando_chegada' },
-  { id: 'cg4', data: '2026-01-24', fornecedorId: 'f4', nfs: ['NF-007'], volumePrevisto: 45, status: 'conferido', volumeConferido: 45, conferenteId: 'c3', rua: 'B-08' },
-  { id: 'cg5', data: '2026-01-24', fornecedorId: 'f5', nfs: ['NF-008'], volumePrevisto: 120, status: 'no_show' },
-  { id: 'cg6', data: '2026-01-24', fornecedorId: 'f6', nfs: ['NF-009', 'NF-010'], volumePrevisto: 200, status: 'conferido', volumeConferido: 195, conferenteId: 'c4', rua: 'C-22', divergencia: '5 volumes faltantes' },
-  { id: 'cg7', data: '2026-01-24', fornecedorId: 'f8', nfs: ['NF-011'], volumePrevisto: 90, status: 'recusado' },
-  { id: 'cg8', data: '2026-01-24', fornecedorId: 'f9', nfs: ['NF-012'], volumePrevisto: 175, status: 'aguardando_chegada' },
-  { id: 'cg9', data: '2026-01-24', fornecedorId: 'f1', nfs: ['NF-013', 'NF-014'], volumePrevisto: 130, status: 'conferido', volumeConferido: 130, conferenteId: 'c5', rua: 'A-03' },
-  { id: 'cg10', data: '2026-01-24', fornecedorId: 'f2', nfs: ['NF-015'], volumePrevisto: 60, status: 'aguardando_chegada' },
-  { id: 'cg11', data: '2026-01-25', fornecedorId: 'f3', nfs: ['NF-016'], volumePrevisto: 85, status: 'aguardando_chegada' },
-  { id: 'cg12', data: '2026-01-25', fornecedorId: 'f4', nfs: ['NF-017', 'NF-018'], volumePrevisto: 110, status: 'aguardando_chegada' },
-  { id: 'cg13', data: '2026-01-26', fornecedorId: 'f5', nfs: ['NF-019'], volumePrevisto: 95, status: 'aguardando_chegada' },
-  { id: 'cg14', data: '2026-01-26', fornecedorId: 'f6', nfs: ['NF-020'], volumePrevisto: 70, status: 'aguardando_chegada' },
-  { id: 'cg15', data: '2026-01-27', fornecedorId: 'f8', nfs: ['NF-021', 'NF-022'], volumePrevisto: 220, status: 'aguardando_chegada' },
+  // Cargas vinculadas às senhas (do dia atual)
+  { id: 'cg_d2', data: '2026-02-04', fornecedorId: 'f1', nfs: ['NF-101'], volumePrevisto: 150, status: 'aguardando_chegada', chegou: true, senhaId: 's1' },
+  { id: 'cg_d6', data: '2026-02-04', fornecedorId: 'f3', nfs: ['NF-102', 'NF-103'], volumePrevisto: 280, status: 'em_conferencia', chegou: true, senhaId: 's2', conferenteId: 'c2', rua: 'B-05' },
+  { id: 'cg_ag1', data: '2026-02-04', fornecedorId: 'f5', nfs: ['NF-104'], volumePrevisto: 95, status: 'aguardando_chegada', chegou: true, senhaId: 's3' },
+  { id: 'cg_patio', data: '2026-02-04', fornecedorId: 'f2', nfs: ['NF-105'], volumePrevisto: 120, status: 'aguardando_chegada', chegou: true, senhaId: 's4' },
+  
+  // Cargas conferidas (histórico do dia)
+  { id: 'cg1', data: '2026-02-04', fornecedorId: 'f4', nfs: ['NF-001'], volumePrevisto: 180, status: 'conferido', volumeConferido: 180, conferenteId: 'c1', rua: 'A-15' },
+  { id: 'cg2', data: '2026-02-04', fornecedorId: 'f6', nfs: ['NF-002'], volumePrevisto: 220, status: 'conferido', volumeConferido: 215, conferenteId: 'c4', rua: 'C-22', divergencia: '5 volumes faltantes' },
+  
+  // Carga no-show
+  { id: 'cg3', data: '2026-02-04', fornecedorId: 'f8', nfs: ['NF-003'], volumePrevisto: 75, status: 'no_show' },
+  
+  // Cargas aguardando (sem chegada ainda)
+  { id: 'cg4', data: '2026-02-04', fornecedorId: 'f9', nfs: ['NF-006'], volumePrevisto: 160, status: 'aguardando_chegada', horarioPrevisto: '14:00' },
+  
+  // Cargas de dias futuros
+  { id: 'cg5', data: '2026-02-05', fornecedorId: 'f3', nfs: ['NF-016'], volumePrevisto: 85, status: 'aguardando_chegada', horarioPrevisto: '08:00' },
+  { id: 'cg6', data: '2026-02-05', fornecedorId: 'f4', nfs: ['NF-017', 'NF-018'], volumePrevisto: 110, status: 'aguardando_chegada', horarioPrevisto: '10:30' },
+  { id: 'cg7', data: '2026-02-06', fornecedorId: 'f5', nfs: ['NF-019'], volumePrevisto: 95, status: 'aguardando_chegada' },
 ];
 
 export const docasIniciais: Doca[] = [
-  { id: 'd1', numero: 1, status: 'conferido', cargaId: 'cg1', conferenteId: 'c1', volumeConferido: 148, rua: 'A-15' },
-  { id: 'd2', numero: 2, status: 'em_conferencia', cargaId: 'cg2', conferenteId: 'c2' },
+  { id: 'd1', numero: 1, status: 'livre' },
+  { id: 'd2', numero: 2, status: 'ocupada', cargaId: 'cg_d2', senhaId: 's1' },
   { id: 'd3', numero: 3, status: 'livre' },
   { id: 'd4', numero: 4, status: 'uso_consumo' },
   { id: 'd5', numero: 5, status: 'livre' },
-  { id: 'd6', numero: 6, status: 'ocupada', cargaId: 'cg6', conferenteId: 'c4', volumeConferido: 195, rua: 'C-22' },
+  { id: 'd6', numero: 6, status: 'em_conferencia', cargaId: 'cg_d6', senhaId: 's2', conferenteId: 'c2', rua: 'B-05' },
 ];
 
 export const dashboardPorPeriodo: Record<'dia' | 'semana' | 'mes', DashboardPorPeriodo> = {
@@ -57,8 +63,8 @@ export const dashboardPorPeriodo: Record<'dia' | 'semana' | 'mes', DashboardPorP
     cargasConferidas: 4, 
     cargasNoShow: 1,
     cargasRecusadas: 1,
-    docasLivres: 2, 
-    docasOcupadas: 2,
+    docasLivres: 3, 
+    docasOcupadas: 1,
     docasEmConferencia: 1
   },
   semana: { 
@@ -66,8 +72,8 @@ export const dashboardPorPeriodo: Record<'dia' | 'semana' | 'mes', DashboardPorP
     cargasConferidas: 28, 
     cargasNoShow: 3,
     cargasRecusadas: 2,
-    docasLivres: 2, 
-    docasOcupadas: 2,
+    docasLivres: 3, 
+    docasOcupadas: 1,
     docasEmConferencia: 1
   },
   mes: { 
@@ -75,16 +81,16 @@ export const dashboardPorPeriodo: Record<'dia' | 'semana' | 'mes', DashboardPorP
     cargasConferidas: 145, 
     cargasNoShow: 12,
     cargasRecusadas: 8,
-    docasLivres: 2, 
-    docasOcupadas: 2,
+    docasLivres: 3, 
+    docasOcupadas: 1,
     docasEmConferencia: 1
   },
 };
 
 export const produtividadeConferentes: Record<'dia' | 'semana' | 'mes', ProdutividadeConferente[]> = {
   dia: [
-    { id: 'c1', nome: 'João Silva', volumes: 148 },
-    { id: 'c4', nome: 'Ana Costa', volumes: 195 },
+    { id: 'c1', nome: 'João Silva', volumes: 180 },
+    { id: 'c4', nome: 'Ana Costa', volumes: 215 },
     { id: 'c3', nome: 'Pedro Oliveira', volumes: 45 },
     { id: 'c5', nome: 'Carlos Ferreira', volumes: 130 },
     { id: 'c2', nome: 'Maria Santos', volumes: 0 },

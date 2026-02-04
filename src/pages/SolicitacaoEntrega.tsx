@@ -21,6 +21,7 @@ export default function SolicitacaoEntrega() {
   const [tipoCaminhao, setTipoCaminhao] = useState<TipoCaminhao | ''>('');
   const [quantidadeVeiculos, setQuantidadeVeiculos] = useState('1');
   const [volumePrevisto, setVolumePrevisto] = useState('');
+  const [emailContato, setEmailContato] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [enviado, setEnviado] = useState(false);
 
@@ -31,7 +32,7 @@ export default function SolicitacaoEntrega() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!fornecedorId || !tipoCaminhao || !volumePrevisto) {
+    if (!fornecedorId || !tipoCaminhao || !volumePrevisto || !emailContato) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
@@ -47,6 +48,7 @@ export default function SolicitacaoEntrega() {
     setTipoCaminhao('');
     setQuantidadeVeiculos('1');
     setVolumePrevisto('');
+    setEmailContato('');
     setObservacoes('');
     setEnviado(false);
   };
@@ -136,6 +138,17 @@ export default function SolicitacaoEntrega() {
                 value={volumePrevisto}
                 onChange={(e) => setVolumePrevisto(e.target.value)}
                 placeholder="Quantidade de volumes"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">E-mail para Contato *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={emailContato}
+                onChange={(e) => setEmailContato(e.target.value)}
+                placeholder="email@exemplo.com"
               />
             </div>
 

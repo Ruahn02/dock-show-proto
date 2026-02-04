@@ -120,6 +120,7 @@ export default function Solicitacoes() {
             <TableHeader>
               <TableRow>
                 <TableHead>Fornecedor</TableHead>
+                <TableHead>E-mail Contato</TableHead>
                 <TableHead>Tipo Caminhão</TableHead>
                 <TableHead className="text-center">Qtd Veículos</TableHead>
                 <TableHead className="text-right">Volume</TableHead>
@@ -131,7 +132,7 @@ export default function Solicitacoes() {
             <TableBody>
               {solicitacoes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Nenhuma solicitação encontrada
                   </TableCell>
                 </TableRow>
@@ -140,6 +141,9 @@ export default function Solicitacoes() {
                   <TableRow key={sol.id}>
                     <TableCell className="font-medium">
                       {getFornecedorNome(sol.fornecedorId)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {sol.emailContato}
                     </TableCell>
                     <TableCell>{tipoCaminhaoLabels[sol.tipoCaminhao]}</TableCell>
                     <TableCell className="text-center">{sol.quantidadeVeiculos}</TableCell>
@@ -196,6 +200,9 @@ export default function Solicitacoes() {
                   <p className="font-medium">{getFornecedorNome(selectedSolicitacao.fornecedorId)}</p>
                   <p className="text-sm text-muted-foreground">
                     Volume: {selectedSolicitacao.volumePrevisto} | Tipo: {tipoCaminhaoLabels[selectedSolicitacao.tipoCaminhao]}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    E-mail: {selectedSolicitacao.emailContato}
                   </p>
                   {selectedSolicitacao.observacoes && (
                     <p className="text-sm text-muted-foreground">

@@ -191,11 +191,11 @@ export default function Docas() {
     setDocaToRecusar(null);
   };
 
-  // Mover para pátio
+  // Mover para pátio - funciona com ou sem senhaId
   const handleOpenPatio = (doca: Doca) => {
     const carga = getCarga(doca.cargaId);
-    if (carga?.senhaId) {
-      setPatioSenhaId(carga.senhaId);
+    if (carga) {
+      setPatioSenhaId(carga.senhaId || null);
       setDocaToLiberar(doca);
       setRuaPatio('');
       setPatioModalOpen(true);
@@ -203,13 +203,15 @@ export default function Docas() {
   };
 
   const handleConfirmPatio = () => {
-    if (!patioSenhaId || !ruaPatio.trim() || !docaToLiberar) {
+    if (!ruaPatio.trim() || !docaToLiberar) {
       toast.error('Informe a rua do pátio');
       return;
     }
     
-    // Mover senha para pátio
-    moverParaPatio(patioSenhaId, ruaPatio.trim());
+    // Se tiver senha vinculada, mover para pátio
+    if (patioSenhaId) {
+      moverParaPatio(patioSenhaId, ruaPatio.trim());
+    }
     
     // Liberar a doca
     setDocas(docas.map(d => 
@@ -226,6 +228,7 @@ export default function Docas() {
     
     toast.success(`Caminhão movido para pátio - Rua ${ruaPatio}`);
     setPatioModalOpen(false);
+    setPatioSenhaId(null);
   };
 
   // Retomar do pátio
