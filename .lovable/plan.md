@@ -1,216 +1,243 @@
 
-# Plano - Correcao de Falhas Funcionais e Dados Ficticios
+
+# Plano - Correcao da Logica de Patio e Gerenciamento de Doca
 
 ## Resumo
 
-Este plano corrige tres problemas especificos:
-1. Campo de e-mail faltante na Solicitacao de Entrega
-2. Botao de Mover para Patio que nao executa acao corretamente
-3. Dados ficticios desatualizados e inconsistentes
+Corrigir a logica de gerenciamento de docas e patio, removendo o conceito incorreto de "rua do patio" e adicionando a opcao de "Trocar de doca".
 
 ---
 
-## 1. ADICIONAR CAMPO DE E-MAIL NA SOLICITACAO
+## 1. REMOVER CONCEITO DE RUA DO PATIO
 
 ### Problema Identificado
-A tela de Solicitacao de Entrega nao possui campo de e-mail, impossibilitando contato com o fornecedor.
+O sistema atualmente solicita "Rua do Patio" ao mover uma carga, mas PATIO e apenas um estado de localizacao, nao possui rua.
 
-### Alteracoes Necessarias
+### Arquivos Afetados
 
-**Arquivo: src/types/index.ts**
-- Adicionar campo `emailContato: string` na interface `SolicitacaoEntrega`
+**src/pages/Docas.tsx**
+- Remover campo de input "Rua do Patio" do modal (linhas 635-641)
+- Alterar modal para apenas confirmacao simples: "Mover carga para patio?"
+- Remover validacao `!ruaPatio.trim()` do handleConfirmPatio
+- Remover estado `ruaPatio` e `setRuaPatio`
+- Remover coluna "Rua" da secao "Cargas em Patio" (linhas 544 e 557-559)
 
-**Arquivo: src/pages/SolicitacaoEntrega.tsx**
-- Adicionar estado `email`
-- Adicionar campo de input para e-mail (obrigatorio)
-- Incluir validacao simples (campo nao vazio)
-- Resetar campo no formulario
+**src/pages/ControleSenhas.tsx**
+- Remover campo "Rua do Patio" do modal de patio (linhas 352-359)
+- Alterar para confirmacao simples
+- Remover estado `ruaPatio`
+- Remover exibicao de rua na coluna Local (linha 236-238): alterar para apenas "Patio"
 
-**Arquivo: src/pages/Solicitacoes.tsx (Admin)**
-- Exibir e-mail na tabela
-- Exibir e-mail no modal de aprovacao
+**src/contexts/SenhaContext.tsx**
+- Alterar funcao `moverParaPatio` para nao receber parametro `rua`
+- Remover atribuicao de `rua` ao mover para patio
+- Assinatura nova: `moverParaPatio(senhaId: string) => void`
 
-**Arquivo: src/contexts/SolicitacaoContext.tsx**
-- Atualizar mock data inicial com e-mails
+**src/types/index.ts**
+- Campo `rua` na interface Senha deve permanecer (usado para conferencia, nao patio)
+- Nao alterar tipos
 
 ---
 
-## 2. CORRIGIR ACAO MOVER PARA PATIO
+## 2. ADICIONAR OPCAO "TROCAR DE DOCA"
 
 ### Problema Identificado
-O botao de mover para patio (icone MapPin) existe mas nao executa acao porque a funcao `handleOpenPatio` exige que a carga tenha `senhaId`. Se nao houver senha vinculada, nada acontece.
+O botao MapPin apenas abre modal de "Mover para Patio", mas deveria oferecer duas opcoes.
 
-### Causa Raiz
-```typescript
-const handleOpenPatio = (doca: Doca) => {
-  const carga = getCarga(doca.cargaId);
-  if (carga?.senhaId) {  // <-- So abre se tiver senhaId
-    // ...
-  }
-};
-```
+### Solucao
 
-### Correcao Necessaria
+**src/pages/Docas.tsx**
 
-**Arquivo: src/pages/Docas.tsx**
+Criar novo modal de gerenciamento com duas opcoes:
+1. "Mover para Patio"
+2. "Trocar de Doca"
 
-1. Modificar `handleOpenPatio` para funcionar mesmo sem senhaId
-2. Se houver senhaId: mover senha para patio
-3. Se nao houver senhaId: apenas liberar a doca (remover carga)
-4. Em ambos os casos: abrir modal para confirmar e informar rua
+Ao clicar no botao MapPin:
+- Abrir modal com as duas opcoes (nao dropdown, um modal simples)
 
-O modal deve:
-- Abrir sempre que houver carga na doca
-- Pedir confirmacao
-- Solicitar rua do patio
-- Executar a acao apropriada
+**Mover para Patio:**
+- Modal de confirmacao: "Mover carga para patio?"
+- Ao confirmar: doca = null, local = patio, manter demais dados
 
-### Logica Corrigida
+**Trocar de Doca:**
+- Modal com lista de docas livres
+- Ao confirmar: atualizar doca da carga, manter status atual
+
+### Logica do Modal
 ```text
-Ao clicar em Mover para Patio:
-  1. Abrir modal
-  2. Solicitar rua
-  3. Ao confirmar:
-     - Se carga tem senhaId: mover senha para patio
-     - Sempre: liberar a doca
-  4. Carga aparece na secao "Cargas em Patio"
+[Botao MapPin clicado]
+         |
+         v
++---------------------------+
+|   GERENCIAR LOCALIZACAO   |
++---------------------------+
+|                           |
+|  [Mover para Patio]       |
+|  [Trocar de Doca]         |
+|                           |
+|  [Cancelar]               |
++---------------------------+
 ```
 
 ---
 
-## 3. RECRIAR DADOS FICTICIOS
+## 3. ACOES PARA CARGA EM PATIO
 
 ### Problema Identificado
-Os dados atuais estao desconectados e nao permitem testes completos do sistema.
+Cargas em patio so podem "Retomar para Doca", mas deveriam permitir conferencia e recusa.
 
-### Arquivos a Modificar
+### Solucao
 
-**Arquivo: src/data/mockData.ts**
+**src/pages/Docas.tsx - Secao Cargas em Patio**
 
-Adicionar campo `email` na interface Fornecedor (apenas dados, nao tipo):
+Adicionar acoes para cada carga em patio:
+- Comecar Conferencia (abre DocaModal no modo 'entrar')
+- Terminar Conferencia (se ja estiver conferindo)
+- Recusar Carga
 
-| ID | Nome | Email | Ativo |
-|----|------|-------|-------|
-| f1 | Distribuidora ABC Ltda | contato@abc.com.br | true |
-| f2 | Atacado Nacional S.A. | logistica@atacadonacional.com | true |
-| f3 | Logistica Express | agendamento@logexpress.com | true |
-| f4 | Fornecedor Master | entregas@master.com.br | true |
-| f5 | Central de Cargas | operacoes@centralcargas.com | true |
-| f6 | Transporte Rapido | atendimento@transporterapido.com | true |
-| f7 | Distribuidora Sul | contato@distsul.com.br | false |
-| f8 | Mega Atacado | agendamento@megaatacado.com | true |
+As acoes funcionam igual as de docas, porem sem vincular a uma doca fisica.
 
-**Arquivo: src/types/index.ts**
-Adicionar campo opcional `email?: string` na interface Fornecedor
-
-**Arquivo: src/contexts/SenhaContext.tsx**
-Adicionar senhas iniciais para permitir testes:
-
-| Senha | Fornecedor | Motorista | Veiculo | Status | Local |
-|-------|------------|-----------|---------|--------|-------|
-| 0001 | f1 | Carlos Pereira | Truck | em_doca | em_doca (Doca 2) |
-| 0002 | f3 | Roberto Mendes | Carreta | conferindo | em_doca (Doca 6) |
-| 0003 | f5 | Antonio Lima | Bi-Truck | aguardando_doca | aguardando_doca |
-| 0004 | f2 | Jose Santos | Van | em_patio | em_patio (Rua B-12) |
-
-**Arquivo: src/data/mockData.ts - Docas**
-Atualizar docas para refletir cenarios reais:
-
-| Doca | Status | Carga | Senha |
-|------|--------|-------|-------|
-| 1 | livre | - | - |
-| 2 | ocupada | cg_d2 | s1 |
-| 3 | livre | - | - |
-| 4 | uso_consumo | - | - |
-| 5 | livre | - | - |
-| 6 | em_conferencia | cg_d6 | s2 |
-
-**Arquivo: src/data/mockData.ts - Cargas**
-Criar cargas vinculadas a senhas:
-
-| ID | Data | Fornecedor | NFs | Vol. Prev | Status | SenhaId |
-|----|------|------------|-----|-----------|--------|---------|
-| cg_d2 | 2026-02-04 | f1 | NF-101 | 150 | aguardando_chegada | s1 |
-| cg_d6 | 2026-02-04 | f3 | NF-102,NF-103 | 280 | em_conferencia | s2 |
-| cg_ag1 | 2026-02-04 | f5 | NF-104 | 95 | aguardando_chegada | s3 |
-| cg_patio | 2026-02-04 | f2 | NF-105 | 120 | aguardando_chegada | s4 |
-| cg1 | 2026-02-04 | f4 | NF-001 | 180 | conferido | - |
-| cg2 | 2026-02-04 | f6 | NF-002 | 220 | conferido | - |
-| cg3 | 2026-02-04 | f8 | NF-003 | 75 | no_show | - |
-
-**Arquivo: src/contexts/SolicitacaoContext.tsx**
-Atualizar solicitacoes iniciais com e-mail:
-
-| ID | Fornecedor | Email | Tipo | Qtd | Volume | Status |
-|----|------------|-------|------|-----|--------|--------|
-| sol1 | f1 | contato@abc.com.br | truck | 1 | 180 | pendente |
-| sol2 | f3 | agendamento@logexpress.com | carreta | 2 | 350 | pendente |
-| sol3 | f8 | agendamento@megaatacado.com | bi_truck | 1 | 200 | pendente |
+### Logica de Conferencia em Patio
+- Conferencia em patio funciona igual a doca
+- Nao precisa vincular a doca para conferir
+- Apos conferir, carga continua visivel no Controle de Senhas
 
 ---
 
 ## 4. RESUMO DAS ALTERACOES
 
 ### Arquivos a Modificar
+
 | Arquivo | Alteracao |
 |---------|-----------|
-| src/types/index.ts | Adicionar emailContato em SolicitacaoEntrega, email em Fornecedor |
-| src/pages/SolicitacaoEntrega.tsx | Adicionar campo e-mail |
-| src/pages/Solicitacoes.tsx | Exibir e-mail na tabela e modal |
-| src/pages/Docas.tsx | Corrigir handleOpenPatio para funcionar sem senhaId |
-| src/data/mockData.ts | Adicionar emails aos fornecedores, atualizar docas e cargas |
-| src/contexts/SenhaContext.tsx | Adicionar senhas iniciais com cenarios de teste |
-| src/contexts/SolicitacaoContext.tsx | Adicionar e-mail nas solicitacoes iniciais |
+| src/contexts/SenhaContext.tsx | Alterar moverParaPatio para nao receber rua |
+| src/pages/Docas.tsx | Remover rua, adicionar modal de gerenciamento, acoes em patio |
+| src/pages/ControleSenhas.tsx | Remover campo rua do modal |
+| src/data/mockData.ts | Remover rua dos dados ficticios de senhas em patio |
 
-### Nenhum Arquivo Novo Sera Criado
-
-### Nenhuma Tela Nova Sera Criada
-
-### Nenhum Banco de Dados Sera Criado
+### Nao Alterar
+- Layout visual
+- Design de telas
+- Tipos existentes (exceto assinatura de funcao)
+- Outras funcionalidades
 
 ---
 
-## 5. CENARIOS DE TESTE HABILITADOS
+## 5. DETALHES TECNICOS
 
-Apos as correcoes, sera possivel testar:
+### Alteracao no SenhaContext
 
-1. **Solicitacao de Entrega**
-   - Preencher formulario com e-mail
-   - Ver e-mail na tela de aprovacao do admin
+```typescript
+// ANTES
+const moverParaPatio = useCallback((senhaId: string, rua: string) => {
+  setSenhas(prev => prev.map(s => 
+    s.id === senhaId 
+      ? { ...s, localAtual: 'em_patio' as LocalSenha, rua, docaNumero: undefined } 
+      : s
+  ));
+}, []);
 
-2. **Docas - Mover para Patio**
-   - Doca 2 (ocupada): clicar MapPin, informar rua, confirmar
-   - Carga move para secao "Cargas em Patio"
+// DEPOIS
+const moverParaPatio = useCallback((senhaId: string) => {
+  setSenhas(prev => prev.map(s => 
+    s.id === senhaId 
+      ? { ...s, localAtual: 'em_patio' as LocalSenha, docaNumero: undefined } 
+      : s
+  ));
+}, []);
+```
 
-3. **Controle de Senhas**
-   - 4 senhas ja disponiveis para teste
-   - Senha em patio (Jose Santos) para testar retomar
-   - Senhas em doca para testar mover para patio
+### Modal de Gerenciamento de Local (Docas.tsx)
 
-4. **Fluxo Completo**
-   - Senha 0003 aguardando doca - vincular
-   - Senha 0001 em doca - mover para patio
-   - Senha 0004 em patio - retomar para doca
+Novo modal com opcoes:
+- Titulo: "Gerenciar Localizacao"
+- Opcao 1: Botao "Mover para Patio"
+- Opcao 2: Botao "Trocar de Doca"
+- Botao "Cancelar"
+
+### Confirmacao de Mover para Patio
+
+Modal simples de confirmacao:
+- Titulo: "Mover para Patio"
+- Texto: "Confirma mover esta carga para o patio?"
+- Botoes: "Cancelar" | "Confirmar"
+
+### Modal Trocar de Doca
+
+Modal com select de docas livres:
+- Titulo: "Trocar de Doca"
+- Select: "Selecione a nova doca"
+- Botoes: "Cancelar" | "Confirmar"
 
 ---
 
-## 6. ORDEM DE IMPLEMENTACAO
+## 6. ACOES NA SECAO PATIO
 
-1. Alterar tipos (email em SolicitacaoEntrega e Fornecedor)
-2. Atualizar mockData com fornecedores com email
-3. Atualizar SenhaContext com senhas e cargas iniciais
-4. Atualizar SolicitacaoContext com e-mails
-5. Atualizar SolicitacaoEntrega.tsx (campo email)
-6. Atualizar Solicitacoes.tsx (exibir email)
-7. Corrigir Docas.tsx (handleOpenPatio)
-8. Testar cenarios
+### Colunas Atualizadas (sem Rua)
+| Coluna | Descricao |
+|--------|-----------|
+| Senha | Numero da senha |
+| Fornecedor | Nome do fornecedor |
+| Motorista | Nome do motorista |
+| Veiculo | Tipo do caminhao |
+| Status | Status atual (aguardando/conferindo/conferido) |
+| Acoes | Botoes de acao |
+
+### Botoes de Acao por Status
+
+**Se status = aguardando_doca ou em_doca:**
+- Comecar Conferencia
+- Recusar Carga
+- Retomar para Doca
+
+**Se status = conferindo:**
+- Terminar Conferencia
+- Recusar Carga
+- Retomar para Doca
+
+**Se status = conferido:**
+- Retomar para Doca (para vincular a outra doca)
 
 ---
 
-## 7. RESTRICOES RESPEITADAS
+## 7. DADOS FICTICIOS
+
+### Atualizar senha em patio (s4)
+
+```typescript
+// ANTES
+{ id: 's4', ..., rua: 'B-12', liberada: false }
+
+// DEPOIS
+{ id: 's4', ..., liberada: false }
+// Sem campo rua
+```
+
+---
+
+## 8. ORDEM DE IMPLEMENTACAO
+
+1. Alterar SenhaContext.tsx (remover rua do moverParaPatio)
+2. Atualizar dados ficticios (remover rua de senha em patio)
+3. Alterar Docas.tsx:
+   - Remover campo rua do modal
+   - Adicionar modal de gerenciamento com opcoes
+   - Adicionar modal de trocar doca
+   - Adicionar acoes na secao patio
+   - Remover coluna rua da secao patio
+4. Alterar ControleSenhas.tsx:
+   - Remover campo rua do modal
+   - Alterar exibicao de local para "Patio" sem rua
+
+---
+
+## 9. RESTRICOES RESPEITADAS
 
 - Nenhuma tela nova criada
 - Nenhum layout alterado
-- Nenhum banco de dados criado
-- Nenhuma funcionalidade nova alem do solicitado
-- Apenas correcoes e complementos operacionais
+- Nenhum campo desnecessario adicionado
+- Apenas correcao de comportamento
+- Patio e apenas estado de localizacao
+- Nada some automaticamente
+- Toda acao exige confirmacao
+
