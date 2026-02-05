@@ -74,7 +74,8 @@ export default function Docas() {
     atualizarCarga,
     moverParaPatio,
     retomarDoPatio,
-    atualizarStatusSenha
+    atualizarStatusSenha,
+    vincularSenhaADoca
   } = useSenha();
   const { adicionarCross } = useCross();
   const [docas, setDocas] = useState<Doca[]>(docasIniciais);
@@ -87,10 +88,11 @@ export default function Docas() {
   const [confirmRecusar, setConfirmRecusar] = useState(false);
   const [docaToRecusar, setDocaToRecusar] = useState<Doca | null>(null);
   
-  // State para mover para pátio
-  const [patioModalOpen, setPatioModalOpen] = useState(false);
+  // State para mover para pátio e gerenciamento de localização
+  const [gerenciarModalOpen, setGerenciarModalOpen] = useState(false);
+  const [patioConfirmOpen, setPatioConfirmOpen] = useState(false);
+  const [trocarDocaModalOpen, setTrocarDocaModalOpen] = useState(false);
   const [patioSenhaId, setPatioSenhaId] = useState<string | null>(null);
-  const [ruaPatio, setRuaPatio] = useState('');
   const [docaToLiberar, setDocaToLiberar] = useState<Doca | null>(null);
   
   // State para retomar do pátio
@@ -191,26 +193,23 @@ export default function Docas() {
     setDocaToRecusar(null);
   };
 
-  // Mover para pátio - funciona com ou sem senhaId
-  const handleOpenPatio = (doca: Doca) => {
+  // Abrir modal de gerenciamento de localização
+  const handleOpenGerenciarLocal = (doca: Doca) => {
     const carga = getCarga(doca.cargaId);
     if (carga) {
       setPatioSenhaId(carga.senhaId || null);
       setDocaToLiberar(doca);
-      setRuaPatio('');
-      setPatioModalOpen(true);
+      setGerenciarModalOpen(true);
     }
   };
 
+  // Mover para pátio (sem rua)
   const handleConfirmPatio = () => {
-    if (!ruaPatio.trim() || !docaToLiberar) {
-      toast.error('Informe a rua do pátio');
-      return;
-    }
+    if (!docaToLiberar) return;
     
     // Se tiver senha vinculada, mover para pátio
     if (patioSenhaId) {
-      moverParaPatio(patioSenhaId, ruaPatio.trim());
+      moverParaPatio(patioSenhaId);
     }
     
     // Liberar a doca
@@ -226,9 +225,59 @@ export default function Docas() {
       } : d
     ));
     
-    toast.success(`Caminhão movido para pátio - Rua ${ruaPatio}`);
-    setPatioModalOpen(false);
+    toast.success(`Caminhão movido para pátio`);
+    setPatioConfirmOpen(false);
+    setGerenciarModalOpen(false);
     setPatioSenhaId(null);
+  };
+
+  // Trocar de doca
+  const handleConfirmTrocarDoca = () => {
+    if (!docaToLiberar || !selectedDocaNumero) return;
+    
+    const novaDocaNumero = parseInt(selectedDocaNumero);
+    const novaDoca = docas.find(d => d.numero === novaDocaNumero);
+    
+    if (!novaDoca) return;
+    
+    const carga = getCarga(docaToLiberar.cargaId);
+    
+    // Liberar doca antiga
+    setDocas(prev => prev.map(d => {
+      if (d.id === docaToLiberar.id) {
+        return { 
+          ...d, 
+          status: 'livre' as StatusDoca, 
+          cargaId: undefined, 
+          conferenteId: undefined,
+          volumeConferido: undefined,
+          rua: undefined,
+          senhaId: undefined
+        };
+      }
+      if (d.id === novaDoca.id) {
+        return { 
+          ...d, 
+          status: docaToLiberar.status,
+          cargaId: docaToLiberar.cargaId,
+          conferenteId: docaToLiberar.conferenteId,
+          volumeConferido: docaToLiberar.volumeConferido,
+          rua: docaToLiberar.rua,
+          senhaId: docaToLiberar.senhaId
+        };
+      }
+      return d;
+    }));
+    
+    // Atualizar senha se existir
+    if (patioSenhaId) {
+      vincularSenhaADoca(patioSenhaId, novaDocaNumero);
+    }
+    
+    toast.success(`Carga movida para Doca ${novaDocaNumero}`);
+    setTrocarDocaModalOpen(false);
+    setGerenciarModalOpen(false);
+    setSelectedDocaNumero('');
   };
 
   // Retomar do pátio
@@ -265,16 +314,22 @@ export default function Docas() {
   const handleModalConfirm = (data: FinalizacaoData) => {
     if (!selectedDoca) return;
 
+    // Verificar se é uma doca real ou uma conferência no pátio
+    const isPatioConferencia = selectedDoca.id.startsWith('patio_');
+
     if (modalMode === 'entrar') {
-      // COMEÇAR CONFERÊNCIA - muda status da doca para em_conferencia
-      setDocas(docas.map(d => 
-        d.id === selectedDoca.id ? { 
-          ...d, 
-          status: 'em_conferencia' as StatusDoca,
-          conferenteId: data.conferenteId,
-          rua: data.rua
-        } : d
-      ));
+      // COMEÇAR CONFERÊNCIA
+      if (!isPatioConferencia) {
+        // Doca real - muda status da doca para em_conferencia
+        setDocas(docas.map(d => 
+          d.id === selectedDoca.id ? { 
+            ...d, 
+            status: 'em_conferencia' as StatusDoca,
+            conferenteId: data.conferenteId,
+            rua: data.rua
+          } : d
+        ));
+      }
       
       if (selectedDoca.cargaId) {
         atualizarCarga(selectedDoca.cargaId, {
@@ -288,26 +343,33 @@ export default function Docas() {
         if (carga?.senhaId) {
           atualizarStatusSenha(carga.senhaId, 'conferindo');
         }
+      } else if (selectedDoca.senhaId) {
+        // Se não tem cargaId mas tem senhaId (conferência no pátio sem carga vinculada)
+        atualizarStatusSenha(selectedDoca.senhaId, 'conferindo');
       }
-      toast.success(`Conferência iniciada na Doca ${selectedDoca.numero}`);
+      
+      const localMsg = isPatioConferencia ? 'no Pátio' : `na Doca ${selectedDoca.numero}`;
+      toast.success(`Conferência iniciada ${localMsg}`);
     } else {
-      // TERMINAR CONFERÊNCIA - libera a doca e atualiza a carga no agendamento
-      const conferenteAtual = selectedDoca.conferenteId;
-      const ruaAtual = selectedDoca.rua;
+      // TERMINAR CONFERÊNCIA
+      const conferenteAtual = selectedDoca.conferenteId || data.conferenteId;
+      const ruaAtual = selectedDoca.rua || data.rua;
       const carga = getCarga(selectedDoca.cargaId);
       
-      // Libera a doca (volta para livre)
-      setDocas(docas.map(d => 
-        d.id === selectedDoca.id ? { 
-          ...d, 
-          status: 'livre' as StatusDoca,
-          cargaId: undefined,
-          conferenteId: undefined,
-          volumeConferido: undefined,
-          rua: undefined,
-          senhaId: undefined
-        } : d
-      ));
+      if (!isPatioConferencia) {
+        // Libera a doca (volta para livre)
+        setDocas(docas.map(d => 
+          d.id === selectedDoca.id ? { 
+            ...d, 
+            status: 'livre' as StatusDoca,
+            cargaId: undefined,
+            conferenteId: undefined,
+            volumeConferido: undefined,
+            rua: undefined,
+            senhaId: undefined
+          } : d
+        ));
+      }
       
       // Atualiza a carga no agendamento com todas as informações finais
       if (selectedDoca.cargaId) {
@@ -335,8 +397,13 @@ export default function Docas() {
             volumeRecebido: data.volume || 0
           });
         }
+      } else if (selectedDoca.senhaId) {
+        // Se não tem cargaId mas tem senhaId
+        atualizarStatusSenha(selectedDoca.senhaId, 'conferido');
       }
-      toast.success(`Conferência finalizada - Doca ${selectedDoca.numero} liberada`);
+      
+      const localMsg = isPatioConferencia ? 'Pátio' : `Doca ${selectedDoca.numero}`;
+      toast.success(`Conferência finalizada - ${localMsg}`);
     }
   };
 
@@ -439,8 +506,8 @@ export default function Docas() {
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  onClick={() => handleOpenPatio(doca)}
-                                  title="Mover para Pátio"
+                                  onClick={() => handleOpenGerenciarLocal(doca)}
+                                  title="Gerenciar Localização"
                                 >
                                   <MapPin className="h-4 w-4" />
                                 </Button>
@@ -472,8 +539,8 @@ export default function Docas() {
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  onClick={() => handleOpenPatio(doca)}
-                                  title="Mover para Pátio"
+                                  onClick={() => handleOpenGerenciarLocal(doca)}
+                                  title="Gerenciar Localização"
                                 >
                                   <MapPin className="h-4 w-4" />
                                 </Button>
@@ -541,39 +608,125 @@ export default function Docas() {
                     <TableHead>Fornecedor</TableHead>
                     <TableHead>Motorista</TableHead>
                     <TableHead>Veículo</TableHead>
-                    <TableHead>Rua</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {senhasEmPatio.map((senha) => (
-                    <TableRow key={senha.id}>
-                      <TableCell className="font-mono font-semibold">
-                        {String(senha.numero).padStart(4, '0')}
-                      </TableCell>
-                      <TableCell>{getFornecedor(senha.fornecedorId)?.nome || '-'}</TableCell>
-                      <TableCell>{senha.nomeMotorista}</TableCell>
-                      <TableCell>{tipoCaminhaoLabels[senha.tipoCaminhao]}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-                          {senha.rua}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {isAdmin && (
-                          <Button 
+                  {senhasEmPatio.map((senha) => {
+                    const cargaDaSenha = cargas.find(c => c.senhaId === senha.id);
+                    
+                    return (
+                      <TableRow key={senha.id}>
+                        <TableCell className="font-mono font-semibold">
+                          {String(senha.numero).padStart(4, '0')}
+                        </TableCell>
+                        <TableCell>{getFornecedor(senha.fornecedorId)?.nome || '-'}</TableCell>
+                        <TableCell>{senha.nomeMotorista}</TableCell>
+                        <TableCell>{tipoCaminhaoLabels[senha.tipoCaminhao]}</TableCell>
+                        <TableCell>
+                          <Badge 
                             variant="outline" 
-                            size="sm"
-                            onClick={() => handleOpenRetomar(senha.id)}
-                            className="gap-1"
+                            className={
+                              senha.status === 'conferindo' 
+                                ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                : senha.status === 'conferido'
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                  : 'bg-orange-50 text-orange-700 border-orange-200'
+                            }
                           >
-                            <RotateCcw className="h-4 w-4" />
-                            Retomar para Doca
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            {senha.status === 'conferindo' ? 'Conferindo' 
+                              : senha.status === 'conferido' ? 'Conferido' 
+                              : 'Aguardando'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            {/* Começar Conferência - se não está conferindo nem conferido */}
+                            {senha.status !== 'conferindo' && senha.status !== 'conferido' && (
+                              <Button 
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                onClick={() => {
+                                  // Criar uma doca virtual para o modal
+                                  const docaVirtual: Doca = {
+                                    id: `patio_${senha.id}`,
+                                    numero: 0,
+                                    status: 'ocupada',
+                                    cargaId: cargaDaSenha?.id,
+                                    senhaId: senha.id
+                                  };
+                                  setSelectedDoca(docaVirtual);
+                                  setModalMode('entrar');
+                                  setModalOpen(true);
+                                }}
+                              >
+                                Começar
+                              </Button>
+                            )}
+                            
+                            {/* Terminar Conferência - se está conferindo */}
+                            {senha.status === 'conferindo' && (
+                              <Button 
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => {
+                                  const docaVirtual: Doca = {
+                                    id: `patio_${senha.id}`,
+                                    numero: 0,
+                                    status: 'em_conferencia',
+                                    cargaId: cargaDaSenha?.id,
+                                    senhaId: senha.id,
+                                    conferenteId: cargaDaSenha?.conferenteId,
+                                    rua: cargaDaSenha?.rua
+                                  };
+                                  setSelectedDoca(docaVirtual);
+                                  setModalMode('finalizar');
+                                  setModalOpen(true);
+                                }}
+                              >
+                                Terminar
+                              </Button>
+                            )}
+                            
+                            {/* Recusar - se não está conferido */}
+                            {isAdmin && senha.status !== 'conferido' && cargaDaSenha && (
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => {
+                                  const docaVirtual: Doca = {
+                                    id: `patio_${senha.id}`,
+                                    numero: 0,
+                                    status: 'ocupada',
+                                    cargaId: cargaDaSenha.id
+                                  };
+                                  setDocaToRecusar(docaVirtual);
+                                  setConfirmRecusar(true);
+                                }}
+                                title="Recusar Carga"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+                            
+                            {/* Retomar para Doca */}
+                            {isAdmin && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleOpenRetomar(senha.id)}
+                                className="gap-1"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                                Retomar
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -622,28 +775,102 @@ export default function Docas() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Modal: Mover para Pátio */}
-        <Dialog open={patioModalOpen} onOpenChange={setPatioModalOpen}>
+        {/* Modal: Gerenciar Localização */}
+        <Dialog open={gerenciarModalOpen} onOpenChange={setGerenciarModalOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Mover para Pátio</DialogTitle>
+              <DialogTitle>Gerenciar Localização</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <p className="text-sm text-muted-foreground">
-                A carga será removida da doca e movida para o pátio.
+                Escolha a ação para esta carga:
               </p>
-              <div className="space-y-2">
-                <Label>Rua do Pátio *</Label>
-                <Input
-                  value={ruaPatio}
-                  onChange={(e) => setRuaPatio(e.target.value)}
-                  placeholder="Ex: A-15"
-                />
+              <div className="flex flex-col gap-2">
+                <Button 
+                  variant="outline" 
+                  className="justify-start gap-2"
+                  onClick={() => {
+                    setGerenciarModalOpen(false);
+                    setPatioConfirmOpen(true);
+                  }}
+                >
+                  <MapPin className="h-4 w-4" />
+                  Mover para Pátio
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="justify-start gap-2"
+                  onClick={() => {
+                    setGerenciarModalOpen(false);
+                    setSelectedDocaNumero('');
+                    setTrocarDocaModalOpen(true);
+                  }}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Trocar de Doca
+                </Button>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setPatioModalOpen(false)}>Cancelar</Button>
-              <Button onClick={handleConfirmPatio} disabled={!ruaPatio.trim()}>Confirmar</Button>
+              <Button variant="outline" onClick={() => setGerenciarModalOpen(false)}>Cancelar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Confirmação Mover para Pátio */}
+        <AlertDialog open={patioConfirmOpen} onOpenChange={setPatioConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Mover para Pátio</AlertDialogTitle>
+              <AlertDialogDescription>
+                Confirma mover esta carga para o pátio?
+                <span className="block mt-2 text-muted-foreground">
+                  A carga será removida da doca e ficará aguardando no pátio.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmPatio}>
+                Confirmar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Modal: Trocar de Doca */}
+        <Dialog open={trocarDocaModalOpen} onOpenChange={setTrocarDocaModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Trocar de Doca</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                Selecione a nova doca para esta carga:
+              </p>
+              <div className="space-y-2">
+                <Label>Selecione a Doca</Label>
+                <Select value={selectedDocaNumero} onValueChange={setSelectedDocaNumero}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma doca livre..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {docasLivres.length === 0 ? (
+                      <SelectItem value="-" disabled>Nenhuma doca livre</SelectItem>
+                    ) : (
+                      docasLivres.map((doca) => (
+                        <SelectItem key={doca.id} value={String(doca.numero)}>
+                          Doca {doca.numero}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setTrocarDocaModalOpen(false)}>Cancelar</Button>
+              <Button onClick={handleConfirmTrocarDoca} disabled={!selectedDocaNumero}>Confirmar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
