@@ -24,7 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
@@ -43,13 +42,12 @@ export default function ControleSenhas() {
   
   // Modal states
   const [vincularModalOpen, setVincularModalOpen] = useState(false);
-  const [patioModalOpen, setPatioModalOpen] = useState(false);
+  const [patioConfirmOpen, setPatioConfirmOpen] = useState(false);
   const [retomarModalOpen, setRetomarModalOpen] = useState(false);
   const [liberarConfirmOpen, setLiberarConfirmOpen] = useState(false);
   
   const [selectedSenhaId, setSelectedSenhaId] = useState<string | null>(null);
   const [selectedDoca, setSelectedDoca] = useState<string>('');
-  const [ruaPatio, setRuaPatio] = useState<string>('');
   
   const senhaUrl = `${window.location.origin}/senha`;
   const senhasAtivas = getSenhasAtivas();
@@ -111,19 +109,15 @@ export default function ControleSenhas() {
 
   const handleOpenPatio = (senhaId: string) => {
     setSelectedSenhaId(senhaId);
-    setRuaPatio('');
-    setPatioModalOpen(true);
+    setPatioConfirmOpen(true);
   };
 
   const handleConfirmPatio = () => {
-    if (!selectedSenhaId || !ruaPatio.trim()) {
-      toast.error('Informe a rua do pátio');
-      return;
-    }
+    if (!selectedSenhaId) return;
     
-    moverParaPatio(selectedSenhaId, ruaPatio.trim());
-    toast.success(`Caminhão movido para o pátio - Rua ${ruaPatio}`);
-    setPatioModalOpen(false);
+    moverParaPatio(selectedSenhaId);
+    toast.success(`Caminhão movido para o pátio`);
+    setPatioConfirmOpen(false);
   };
 
   const handleOpenRetomar = (senhaId: string) => {
@@ -234,7 +228,7 @@ export default function ControleSenhas() {
                         <TableCell>
                           <Badge variant="outline" className={getLocalBadgeClass(senha.localAtual)}>
                             {senha.localAtual === 'em_patio' 
-                              ? `Pátio - ${senha.rua}` 
+                              ? 'Pátio' 
                               : localSenhaLabels[senha.localAtual]}
                           </Badge>
                         </TableCell>
@@ -337,33 +331,31 @@ export default function ControleSenhas() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Mover para Pátio */}
-      <Dialog open={patioModalOpen} onOpenChange={setPatioModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Mover para Pátio</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {selectedSenha && (
-              <div className="text-sm text-muted-foreground">
-                Senha: <strong>{String(selectedSenha.numero).padStart(4, '0')}</strong> - {getFornecedorNome(selectedSenha.fornecedorId)}
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Rua do Pátio *</Label>
-              <Input
-                value={ruaPatio}
-                onChange={(e) => setRuaPatio(e.target.value)}
-                placeholder="Ex: A-15"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPatioModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleConfirmPatio} disabled={!ruaPatio.trim()}>Confirmar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Confirmação: Mover para Pátio */}
+      <AlertDialog open={patioConfirmOpen} onOpenChange={setPatioConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mover para Pátio</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedSenha && (
+                <>
+                  Confirma mover a senha <strong>{String(selectedSenha.numero).padStart(4, '0')}</strong> para o pátio?
+                  <br /><br />
+                  Fornecedor: {getFornecedorNome(selectedSenha.fornecedorId)}
+                  <br />
+                  Motorista: {selectedSenha.nomeMotorista}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmPatio}>
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modal: Retomar do Pátio */}
       <Dialog open={retomarModalOpen} onOpenChange={setRetomarModalOpen}>
@@ -376,7 +368,7 @@ export default function ControleSenhas() {
               <div className="text-sm text-muted-foreground">
                 Senha: <strong>{String(selectedSenha.numero).padStart(4, '0')}</strong> - {getFornecedorNome(selectedSenha.fornecedorId)}
                 <br />
-                Local atual: Pátio - {selectedSenha.rua}
+                Local atual: Pátio
               </div>
             )}
             <div className="space-y-2">

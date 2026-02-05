@@ -30,7 +30,7 @@ interface SenhaContextType {
   getSenhasAtivas: () => Senha[];
   vincularSenhaADoca: (senhaId: string, docaNumero: number) => void;
   liberarSenha: (senhaId: string) => void;
-  moverParaPatio: (senhaId: string, rua: string) => void;
+  moverParaPatio: (senhaId: string) => void;
   retomarDoPatio: (senhaId: string, docaNumero: number) => void;
   atualizarLocalSenha: (senhaId: string, local: LocalSenha) => void;
   atualizarStatusSenha: (senhaId: string, status: StatusSenha) => void;
@@ -49,7 +49,7 @@ const senhasIniciais: Senha[] = [
   { id: 's1', numero: 1, fornecedorId: 'f1', nomeMotorista: 'Carlos Pereira', tipoCaminhao: 'truck', status: 'em_doca', localAtual: 'em_doca', horaChegada: '07:30', docaNumero: 2, liberada: false },
   { id: 's2', numero: 2, fornecedorId: 'f3', nomeMotorista: 'Roberto Mendes', tipoCaminhao: 'carreta', status: 'conferindo', localAtual: 'em_doca', horaChegada: '08:15', docaNumero: 6, liberada: false },
   { id: 's3', numero: 3, fornecedorId: 'f5', nomeMotorista: 'Antonio Lima', tipoCaminhao: 'bi_truck', status: 'aguardando_doca', localAtual: 'aguardando_doca', horaChegada: '09:00', liberada: false },
-  { id: 's4', numero: 4, fornecedorId: 'f2', nomeMotorista: 'José Santos', tipoCaminhao: 'van', status: 'aguardando_doca', localAtual: 'em_patio', horaChegada: '08:45', rua: 'B-12', liberada: false },
+  { id: 's4', numero: 4, fornecedorId: 'f2', nomeMotorista: 'José Santos', tipoCaminhao: 'van', status: 'aguardando_doca', localAtual: 'em_patio', horaChegada: '08:45', liberada: false },
 ];
 
 let contadorSenha = 5; // Começa em 5 pois já temos 4 senhas iniciais
@@ -113,11 +113,11 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
     ));
   }, []);
 
-  // Mover senha para pátio
-  const moverParaPatio = useCallback((senhaId: string, rua: string) => {
+  // Mover senha para pátio (pátio é apenas estado de localização, sem rua)
+  const moverParaPatio = useCallback((senhaId: string) => {
     setSenhas(prev => prev.map(s => 
       s.id === senhaId 
-        ? { ...s, localAtual: 'em_patio' as LocalSenha, rua, docaNumero: undefined } 
+        ? { ...s, localAtual: 'em_patio' as LocalSenha, docaNumero: undefined } 
         : s
     ));
   }, []);
