@@ -10,7 +10,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { dashboardPorPeriodo, produtividadeConferentes, statusCargasChart } from '@/data/mockData';
 import { useProfile } from '@/contexts/ProfileContext';
-import { Package, CheckCircle, AlertCircle, XCircle, Container, FileSpreadsheet, FileText, CalendarIcon, CalendarRange } from 'lucide-react';
+import { Package, CheckCircle, AlertCircle, XCircle, Container, FileSpreadsheet, FileText, CalendarIcon, CalendarRange, ArrowRightLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -228,6 +228,28 @@ export default function Dashboard() {
             value={indicadores.docasEmConferencia}
             icon={Container}
             color="info"
+          />
+        </div>
+
+        {/* Indicadores Cross Docking */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard
+            title="Total Cross"
+            value={indicadores.totalCross ?? 0}
+            icon={ArrowRightLeft}
+            color="info"
+          />
+          <StatCard
+            title="Cross Finalizados"
+            value={indicadores.crossFinalizados ?? 0}
+            icon={CheckCircle}
+            color="success"
+          />
+          <StatCard
+            title="Cross em Separação"
+            value={indicadores.crossEmSeparacao ?? 0}
+            icon={ArrowRightLeft}
+            color="warning"
           />
         </div>
 

@@ -50,9 +50,10 @@ const senhasIniciais: Senha[] = [
   { id: 's2', numero: 2, fornecedorId: 'f3', nomeMotorista: 'Roberto Mendes', tipoCaminhao: 'carreta', status: 'conferindo', localAtual: 'em_doca', horaChegada: '08:15', docaNumero: 6, liberada: false },
   { id: 's3', numero: 3, fornecedorId: 'f5', nomeMotorista: 'Antonio Lima', tipoCaminhao: 'bi_truck', status: 'aguardando_doca', localAtual: 'aguardando_doca', horaChegada: '09:00', liberada: false },
   { id: 's4', numero: 4, fornecedorId: 'f2', nomeMotorista: 'José Santos', tipoCaminhao: 'van', status: 'aguardando_doca', localAtual: 'em_patio', horaChegada: '08:45', liberada: false },
+  { id: 's5', numero: 5, fornecedorId: 'f4', nomeMotorista: 'Marcos Ribeiro', tipoCaminhao: 'truck', status: 'conferido', localAtual: 'em_doca', horaChegada: '07:00', docaNumero: 3, liberada: false },
 ];
 
-let contadorSenha = 5; // Começa em 5 pois já temos 4 senhas iniciais
+let contadorSenha = 6; // Começa em 6 pois já temos 5 senhas iniciais
 
 export function SenhaProvider({ children }: { children: ReactNode }) {
   const [senhas, setSenhas] = useState<Senha[]>(senhasIniciais);
@@ -185,7 +186,7 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getCargasDisponiveis = useCallback(() => {
-    const hoje = format(new Date(2026, 0, 24), 'yyyy-MM-dd');
+    const hoje = '2026-02-04';
     return cargas.filter(c => 
       c.data === hoje && 
       c.status === 'aguardando_chegada' &&
