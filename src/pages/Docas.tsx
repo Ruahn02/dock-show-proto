@@ -132,7 +132,7 @@ export default function Docas() {
   const handleAssociarCarga = (cargaId: string) => {
     if (!selectedDoca) return;
     
-    setDocas(docas.map(d => 
+    setDocas(prev => prev.map(d => 
       d.id === selectedDoca.id ? { ...d, status: 'ocupada' as StatusDoca, cargaId } : d
     ));
     
@@ -143,14 +143,14 @@ export default function Docas() {
   };
 
   const handleUsoConsumo = (doca: Doca) => {
-    setDocas(docas.map(d => 
+    setDocas(prev => prev.map(d => 
       d.id === doca.id ? { ...d, status: 'uso_consumo' as StatusDoca } : d
     ));
     toast.success(`Doca ${doca.numero} marcada como Uso e Consumo`);
   };
 
   const handleLiberar = (doca: Doca) => {
-    setDocas(docas.map(d => 
+    setDocas(prev => prev.map(d => 
       d.id === doca.id ? { 
         ...d, 
         status: 'livre' as StatusDoca, 
@@ -176,7 +176,7 @@ export default function Docas() {
     recusarCarga(docaToRecusar.cargaId);
     
     // Liberar a doca
-    setDocas(docas.map(d => 
+    setDocas(prev => prev.map(d => 
       d.id === docaToRecusar.id ? { 
         ...d, 
         status: 'livre' as StatusDoca, 
@@ -213,7 +213,7 @@ export default function Docas() {
     }
     
     // Liberar a doca
-    setDocas(docas.map(d => 
+    setDocas(prev => prev.map(d => 
       d.id === docaToLiberar.id ? { 
         ...d, 
         status: 'livre' as StatusDoca, 
@@ -296,7 +296,7 @@ export default function Docas() {
     if (!doca) return;
     
     // Atualizar doca para ocupada
-    setDocas(docas.map(d => 
+    setDocas(prev => prev.map(d => 
       d.id === doca.id ? { 
         ...d, 
         status: 'ocupada' as StatusDoca,
@@ -321,7 +321,7 @@ export default function Docas() {
       // COMEÇAR CONFERÊNCIA
       if (!isPatioConferencia) {
         // Doca real - muda status da doca para em_conferencia
-        setDocas(docas.map(d => 
+        setDocas(prev => prev.map(d => 
           d.id === selectedDoca.id ? { 
             ...d, 
             status: 'em_conferencia' as StatusDoca,
@@ -358,7 +358,7 @@ export default function Docas() {
       
       if (!isPatioConferencia) {
         // Libera a doca (volta para livre)
-        setDocas(docas.map(d => 
+        setDocas(prev => prev.map(d => 
           d.id === selectedDoca.id ? { 
             ...d, 
             status: 'livre' as StatusDoca,

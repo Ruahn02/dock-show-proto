@@ -47,6 +47,29 @@ const solicitacoesIniciais: SolicitacaoEntrega[] = [
     dataSolicitacao: '2026-02-04',
     emailContato: 'agendamento@megaatacado.com',
   },
+  {
+    id: 'sol4',
+    fornecedorId: 'f5',
+    tipoCaminhao: 'truck',
+    quantidadeVeiculos: 1,
+    volumePrevisto: 150,
+    status: 'aprovada',
+    dataSolicitacao: '2026-02-01',
+    dataAgendada: '2026-02-04',
+    horarioAgendado: '14:00',
+    emailContato: 'operacoes@centralcargas.com',
+  },
+  {
+    id: 'sol5',
+    fornecedorId: 'f2',
+    tipoCaminhao: 'van',
+    quantidadeVeiculos: 1,
+    volumePrevisto: 60,
+    observacoes: 'Volume incompatível',
+    status: 'recusada',
+    dataSolicitacao: '2026-02-01',
+    emailContato: 'logistica@atacadonacional.com',
+  },
 ];
 
 export function SolicitacaoProvider({ children }: { children: ReactNode }) {

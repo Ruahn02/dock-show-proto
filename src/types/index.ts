@@ -85,6 +85,9 @@ export interface DashboardPorPeriodo {
   docasLivres: number;
   docasOcupadas: number;
   docasEmConferencia: number;
+  totalCross?: number;
+  crossFinalizados?: number;
+  crossEmSeparacao?: number;
 }
 
 export interface ProdutividadeConferente {

@@ -24,8 +24,17 @@ interface CrossContextType {
 
 const CrossContext = createContext<CrossContextType | undefined>(undefined);
 
+// Dados iniciais de cross docking
+const crossIniciais: CrossDocking[] = [
+  { id: 'cross1', cargaId: 'cg1', fornecedorId: 'f4', nfs: ['NF-001'], data: '2026-02-04', rua: 'A-15', volumeRecebido: 180, status: 'aguardando_decisao' },
+  { id: 'cross2', cargaId: 'cg2', fornecedorId: 'f6', nfs: ['NF-002'], data: '2026-02-04', rua: 'C-22', volumeRecebido: 215, status: 'cross_confirmado', numeroCross: 'CX-001' },
+  { id: 'cross3', cargaId: 'cg10', fornecedorId: 'f1', nfs: ['NF-070'], data: '2026-02-03', rua: 'D-02', volumeRecebido: 130, status: 'aguardando_separacao', numeroCross: 'CX-002' },
+  { id: 'cross4', cargaId: 'cg11', fornecedorId: 'f2', nfs: ['NF-071'], data: '2026-02-03', rua: 'E-10', volumeRecebido: 185, status: 'em_separacao', numeroCross: 'CX-003', separadorId: 'c6' },
+  { id: 'cross5', cargaId: 'cg12', fornecedorId: 'f4', nfs: ['NF-072'], data: '2026-02-03', rua: 'A-08', volumeRecebido: 90, status: 'finalizado', numeroCross: 'CX-004', separadorId: 'c8', temDivergencia: false },
+];
+
 export function CrossProvider({ children }: { children: ReactNode }) {
-  const [crossItems, setCrossItems] = useState<CrossDocking[]>([]);
+  const [crossItems, setCrossItems] = useState<CrossDocking[]>(crossIniciais);
 
   const adicionarCross = (data: NovoCrossData) => {
     const novoCross: CrossDocking = {

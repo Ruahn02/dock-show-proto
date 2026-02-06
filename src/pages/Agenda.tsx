@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,14 +26,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useSenha } from '@/contexts/SenhaContext';
 import { fornecedores, conferentes, statusCargaLabels } from '@/data/mockData';
 import { Carga, StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { CalendarCheck, MoreHorizontal } from 'lucide-react';
+import { CalendarCheck, CalendarIcon, MoreHorizontal } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 const statusStyles: Record<StatusCarga, string> = {
   aguardando_chegada: 'bg-blue-100 text-blue-800 border-blue-300',
@@ -51,9 +53,10 @@ export default function Agenda() {
   const [confirmRecusado, setConfirmRecusado] = useState(false);
   const [cargaToUpdate, setCargaToUpdate] = useState<Carga | null>(null);
 
-  // Data atual fixa (simulada)
-  const hoje = new Date(2026, 0, 24);
-  const hojeStr = format(hoje, 'yyyy-MM-dd');
+  // Data selecionada (padrão: 2026-02-04)
+  const [dataSelecionada, setDataSelecionada] = useState<Date>(new Date(2026, 1, 4));
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const hojeStr = format(dataSelecionada, 'yyyy-MM-dd');
 
   const getFornecedorNome = (id: string) => {
     return fornecedores.find(f => f.id === id)?.nome || 'N/A';
@@ -113,14 +116,38 @@ export default function Agenda() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <CalendarCheck className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold">Agenda</h1>
-            <p className="text-muted-foreground">
-              {format(hoje, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CalendarCheck className="h-8 w-8 text-primary" />
+            <div>
+              <h1 className="text-3xl font-bold">Agenda</h1>
+              <p className="text-muted-foreground">
+                {format(dataSelecionada, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              </p>
+            </div>
           </div>
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                {format(dataSelecionada, 'dd/MM/yyyy')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={dataSelecionada}
+                onSelect={(date) => {
+                  if (date) {
+                    setDataSelecionada(date);
+                    setPopoverOpen(false);
+                  }
+                }}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="border rounded-lg overflow-x-auto">

@@ -48,9 +48,20 @@ export default function ControleSenhas() {
   
   const [selectedSenhaId, setSelectedSenhaId] = useState<string | null>(null);
   const [selectedDoca, setSelectedDoca] = useState<string>('');
+
+  // Filtros
+  const [filtroStatus, setFiltroStatus] = useState<string>('todos');
+  const [filtroFornecedor, setFiltroFornecedor] = useState<string>('todos');
+  const [filtroLocal, setFiltroLocal] = useState<string>('todos');
   
   const senhaUrl = `${window.location.origin}/senha`;
   const senhasAtivas = getSenhasAtivas();
+
+  // Aplicar filtros
+  const senhasFiltradas = senhasAtivas
+    .filter(s => filtroStatus === 'todos' || s.status === filtroStatus)
+    .filter(s => filtroFornecedor === 'todos' || s.fornecedorId === filtroFornecedor)
+    .filter(s => filtroLocal === 'todos' || s.localAtual === filtroLocal);
   
   // Docas livres
   const docasLivres = docas.filter(d => d.status === 'livre');
@@ -190,7 +201,52 @@ export default function ControleSenhas() {
               <CardTitle className="text-lg">Lista de Senhas</CardTitle>
             </CardHeader>
             <CardContent>
-              {senhasAtivas.length === 0 ? (
+              {/* Filtros */}
+              <div className="flex flex-wrap gap-3 mb-4">
+                <div className="w-48">
+                  <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os Status</SelectItem>
+                      <SelectItem value="aguardando_doca">Aguardando Doca</SelectItem>
+                      <SelectItem value="em_doca">Em Doca</SelectItem>
+                      <SelectItem value="conferindo">Conferindo</SelectItem>
+                      <SelectItem value="conferido">Conferido</SelectItem>
+                      <SelectItem value="recusado">Recusado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-56">
+                  <Select value={filtroFornecedor} onValueChange={setFiltroFornecedor}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Fornecedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os Fornecedores</SelectItem>
+                      {fornecedores.filter(f => f.ativo).map(f => (
+                        <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-48">
+                  <Select value={filtroLocal} onValueChange={setFiltroLocal}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Local" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os Locais</SelectItem>
+                      <SelectItem value="aguardando_doca">Aguardando Doca</SelectItem>
+                      <SelectItem value="em_doca">Em Doca</SelectItem>
+                      <SelectItem value="em_patio">Pátio</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {senhasFiltradas.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   Nenhuma senha ativa no momento
                 </div>
@@ -209,7 +265,7 @@ export default function ControleSenhas() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {senhasAtivas.map((senha) => (
+                    {senhasFiltradas.map((senha) => (
                       <TableRow key={senha.id}>
                         <TableCell className="font-mono font-semibold text-lg">
                           {String(senha.numero).padStart(4, '0')}
