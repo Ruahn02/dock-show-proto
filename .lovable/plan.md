@@ -1,243 +1,247 @@
 
 
-# Plano - Correcao da Logica de Patio e Gerenciamento de Doca
+# Plano - Correcoes Funcionais, Filtros e Dados Ficticios
 
 ## Resumo
 
-Corrigir a logica de gerenciamento de docas e patio, removendo o conceito incorreto de "rua do patio" e adicionando a opcao de "Trocar de doca".
+Corrigir 4 bugs/faltas funcionais e recriar dados ficticios coerentes:
+1. Agenda: adicionar filtro por data
+2. Docas: corrigir bug do botao de transferir (stale closure)
+3. Controle de Senhas: adicionar filtros por status, fornecedor e local
+4. Dashboard: adicionar visao de Cross Docking
+5. Dados ficticios: recriar todos coerentes
 
 ---
 
-## 1. REMOVER CONCEITO DE RUA DO PATIO
+## 1. AGENDA — FILTRO DE DATA
 
-### Problema Identificado
-O sistema atualmente solicita "Rua do Patio" ao mover uma carga, mas PATIO e apenas um estado de localizacao, nao possui rua.
+### Problema
+A data esta hardcoded como `2026-01-24` (linha 55) e nao existe filtro.
+Os dados sao de `2026-02-04`. Resultado: a tabela aparece vazia.
 
-### Arquivos Afetados
+### Correcao
 
-**src/pages/Docas.tsx**
-- Remover campo de input "Rua do Patio" do modal (linhas 635-641)
-- Alterar modal para apenas confirmacao simples: "Mover carga para patio?"
-- Remover validacao `!ruaPatio.trim()` do handleConfirmPatio
-- Remover estado `ruaPatio` e `setRuaPatio`
-- Remover coluna "Rua" da secao "Cargas em Patio" (linhas 544 e 557-559)
+**Arquivo: src/pages/Agenda.tsx**
 
-**src/pages/ControleSenhas.tsx**
-- Remover campo "Rua do Patio" do modal de patio (linhas 352-359)
-- Alterar para confirmacao simples
-- Remover estado `ruaPatio`
-- Remover exibicao de rua na coluna Local (linha 236-238): alterar para apenas "Patio"
+- Trocar data fixa por estado com `useState`
+- Adicionar um seletor de data (Popover + Calendar, ja usado em outras telas)
+- Ao selecionar data, atualizar o filtro da tabela
+- Manter layout atual (titulo + tabela)
 
-**src/contexts/SenhaContext.tsx**
-- Alterar funcao `moverParaPatio` para nao receber parametro `rua`
-- Remover atribuicao de `rua` ao mover para patio
-- Assinatura nova: `moverParaPatio(senhaId: string) => void`
-
-**src/types/index.ts**
-- Campo `rua` na interface Senha deve permanecer (usado para conferencia, nao patio)
-- Nao alterar tipos
-
----
-
-## 2. ADICIONAR OPCAO "TROCAR DE DOCA"
-
-### Problema Identificado
-O botao MapPin apenas abre modal de "Mover para Patio", mas deveria oferecer duas opcoes.
-
-### Solucao
-
-**src/pages/Docas.tsx**
-
-Criar novo modal de gerenciamento com duas opcoes:
-1. "Mover para Patio"
-2. "Trocar de Doca"
-
-Ao clicar no botao MapPin:
-- Abrir modal com as duas opcoes (nao dropdown, um modal simples)
-
-**Mover para Patio:**
-- Modal de confirmacao: "Mover carga para patio?"
-- Ao confirmar: doca = null, local = patio, manter demais dados
-
-**Trocar de Doca:**
-- Modal com lista de docas livres
-- Ao confirmar: atualizar doca da carga, manter status atual
-
-### Logica do Modal
+### Logica
 ```text
-[Botao MapPin clicado]
-         |
-         v
-+---------------------------+
-|   GERENCIAR LOCALIZACAO   |
-+---------------------------+
-|                           |
-|  [Mover para Patio]       |
-|  [Trocar de Doca]         |
-|                           |
-|  [Cancelar]               |
-+---------------------------+
+[Data selecionada: 04/02/2026]  [Icone calendario]
+                |
+                v
+Tabela filtra cargas onde carga.data === dataSelecionada
 ```
 
----
-
-## 3. ACOES PARA CARGA EM PATIO
-
-### Problema Identificado
-Cargas em patio so podem "Retomar para Doca", mas deveriam permitir conferencia e recusa.
-
-### Solucao
-
-**src/pages/Docas.tsx - Secao Cargas em Patio**
-
-Adicionar acoes para cada carga em patio:
-- Comecar Conferencia (abre DocaModal no modo 'entrar')
-- Terminar Conferencia (se ja estiver conferindo)
-- Recusar Carga
-
-As acoes funcionam igual as de docas, porem sem vincular a uma doca fisica.
-
-### Logica de Conferencia em Patio
-- Conferencia em patio funciona igual a doca
-- Nao precisa vincular a doca para conferir
-- Apos conferir, carga continua visivel no Controle de Senhas
+### Componentes reutilizados
+- `Calendar` (ja existe em @/components/ui/calendar)
+- `Popover` (ja existe)
+- Padrao identico ao usado em AgendamentoPlanejamento.tsx
 
 ---
 
-## 4. RESUMO DAS ALTERACOES
+## 2. DOCAS — BUG DO BOTAO TRANSFERIR
 
-### Arquivos a Modificar
+### Problema
+Apos transferir uma carga para patio, o botao de gerenciamento para de funcionar.
+
+### Causa Raiz
+Stale closure: varios handlers usam `docas.map(d =>` diretamente em vez de `setDocas(prev => prev.map(...))`.
+
+Handlers afetados:
+- `handleConfirmPatio` (linha 216): usa `docas.map`
+- `handleAssociarCarga` (linha 135): usa `docas.map`
+- `handleUsoConsumo` (linha 147): usa `docas.map`
+- `handleLiberar` (linha 153): usa `docas.map`
+- `handleRecusarCarga` (linha 179): usa `docas.map`
+- `handleComecarConferencia/handleModalConfirm` (linha 324): usa `docas.map`
+- `handleTerminarConferencia/handleModalConfirm` (linha 361): usa `docas.map`
+
+### Correcao
+
+**Arquivo: src/pages/Docas.tsx**
+
+Substituir todas as chamadas `setDocas(docas.map(...))` por `setDocas(prev => prev.map(...))`.
+
+Isso garante que o estado mais recente seja sempre usado, evitando o bug de stale closure.
+
+---
+
+## 3. CONTROLE DE SENHAS — FILTROS
+
+### Problema
+Nao existe forma de filtrar senhas por status, fornecedor ou local.
+
+### Correcao
+
+**Arquivo: src/pages/ControleSenhas.tsx**
+
+Adicionar 3 selects simples acima da tabela:
+
+| Filtro | Opcoes |
+|--------|--------|
+| Status | Todos / Aguardando Doca / Em Doca / Conferindo / Conferido / Recusado |
+| Fornecedor | Todos / Lista de fornecedores |
+| Local | Todos / Aguardando Doca / Em Doca / Patio |
+
+### Logica
+```text
+senhasFiltradas = senhasAtivas
+  .filter(s => filtroStatus === 'todos' || s.status === filtroStatus)
+  .filter(s => filtroFornecedor === 'todos' || s.fornecedorId === filtroFornecedor)
+  .filter(s => filtroLocal === 'todos' || s.localAtual === filtroLocal)
+```
+
+### Componentes reutilizados
+- `Select` (ja existe em @/components/ui/select)
+
+---
+
+## 4. DASHBOARD — FILTRO/VISAO DE CROSS
+
+### Problema
+O Dashboard nao exibe informacoes de Cross Docking.
+
+### Correcao
+
+**Arquivo: src/data/mockData.ts**
+
+Adicionar dados de cross ao dashboard:
+- Novos campos em `DashboardPorPeriodo`: `totalCross`, `crossFinalizados`, `crossEmSeparacao`
+- Novo grafico: `statusCrossChart`
+
+**Arquivo: src/types/index.ts**
+
+Adicionar campos opcionais em `DashboardPorPeriodo`:
+- `totalCross?: number`
+- `crossFinalizados?: number`
+- `crossEmSeparacao?: number`
+
+**Arquivo: src/pages/Dashboard.tsx**
+
+Adicionar uma terceira linha de cards com indicadores de Cross:
+- Total Cross
+- Cross Finalizados
+- Cross em Separacao
+
+Adicionar toggle ou secao visual "Conferencia | Cross" para separar as visoes dos graficos.
+
+### Nao criar graficos novos
+Apenas adicionar cards de indicadores e usar o StatusChart existente com dados de cross.
+
+---
+
+## 5. DADOS FICTICIOS — RECRIAR TODOS
+
+### Data base do sistema: 2026-02-04
+
+### Problema
+- Agenda usa data `2026-01-24`, dados sao de `2026-02-04`
+- Cross Docking comeca vazio (sem dados iniciais)
+- Solicitacoes tem poucas entradas
+
+### Correcao
+
+**Arquivo: src/data/mockData.ts**
+
+Manter fornecedores e conferentes atuais (ja estao bons).
+
+Recriar cargas com datas variadas para testar filtro da Agenda:
+
+| ID | Data | Fornecedor | Status | Horario | Chegou | SenhaId |
+|----|------|------------|--------|---------|--------|---------|
+| cg_d2 | 2026-02-04 | f1 | aguardando_chegada | 07:30 | true | s1 |
+| cg_d6 | 2026-02-04 | f3 | em_conferencia | 08:00 | true | s2 |
+| cg_ag1 | 2026-02-04 | f5 | aguardando_chegada | 09:00 | true | s3 |
+| cg_patio | 2026-02-04 | f2 | aguardando_chegada | 08:30 | true | s4 |
+| cg1 | 2026-02-04 | f4 | conferido | - | true | - |
+| cg2 | 2026-02-04 | f6 | conferido | - | true | - |
+| cg3 | 2026-02-04 | f8 | no_show | 10:00 | false | - |
+| cg4 | 2026-02-04 | f9 | aguardando_chegada | 14:00 | false | - |
+| cg10 | 2026-02-03 | f1 | conferido | 08:00 | true | - |
+| cg11 | 2026-02-03 | f2 | conferido | 09:00 | true | - |
+| cg12 | 2026-02-03 | f4 | no_show | 11:00 | false | - |
+| cg5 | 2026-02-05 | f3 | aguardando_chegada | 08:00 | false | - |
+| cg6 | 2026-02-05 | f4 | aguardando_chegada | 10:30 | false | - |
+| cg7 | 2026-02-06 | f5 | aguardando_chegada | - | false | - |
+
+**Arquivo: src/contexts/CrossContext.tsx**
+
+Adicionar dados iniciais de cross para que a tela nao fique vazia:
+
+| ID | Fornecedor | NFs | Rua | Volume | Status |
+|----|------------|-----|-----|--------|--------|
+| cross1 | f4 | NF-001 | A-15 | 180 | aguardando_decisao |
+| cross2 | f6 | NF-002 | C-22 | 215 | cross_confirmado |
+| cross3 | f9 | NF-050 | D-10 | 145 | aguardando_separacao |
+| cross4 | f1 | NF-060 | A-08 | 90 | em_separacao |
+
+**Arquivo: src/contexts/SolicitacaoContext.tsx**
+
+Adicionar mais solicitacoes para variedade:
+
+| ID | Fornecedor | Email | Status | Data |
+|----|------------|-------|--------|------|
+| sol1 | f1 | contato@abc.com.br | pendente | 2026-02-03 |
+| sol2 | f3 | agendamento@logexpress.com | pendente | 2026-02-03 |
+| sol3 | f8 | agendamento@megaatacado.com | pendente | 2026-02-04 |
+| sol4 | f5 | operacoes@centralcargas.com | aprovada | 2026-02-01 |
+| sol5 | f2 | logistica@atacadonacional.com | recusada | 2026-02-01 |
+
+**Arquivo: src/contexts/SenhaContext.tsx**
+
+Atualizar `getCargasDisponiveis` para usar `2026-02-04` em vez de `2026-01-24`.
+
+Manter senhas iniciais existentes (s1-s4) mas adicionar mais uma para teste:
+
+| Senha | Fornecedor | Motorista | Status | Local |
+|-------|------------|-----------|--------|-------|
+| s1 | f1 | Carlos Pereira | em_doca | em_doca (Doca 2) |
+| s2 | f3 | Roberto Mendes | conferindo | em_doca (Doca 6) |
+| s3 | f5 | Antonio Lima | aguardando_doca | aguardando_doca |
+| s4 | f2 | Jose Santos | aguardando_doca | em_patio |
+| s5 | f4 | Marcos Ribeiro | conferido | em_doca |
+
+---
+
+## 6. RESUMO DOS ARQUIVOS
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| src/contexts/SenhaContext.tsx | Alterar moverParaPatio para nao receber rua |
-| src/pages/Docas.tsx | Remover rua, adicionar modal de gerenciamento, acoes em patio |
-| src/pages/ControleSenhas.tsx | Remover campo rua do modal |
-| src/data/mockData.ts | Remover rua dos dados ficticios de senhas em patio |
-
-### Nao Alterar
-- Layout visual
-- Design de telas
-- Tipos existentes (exceto assinatura de funcao)
-- Outras funcionalidades
-
----
-
-## 5. DETALHES TECNICOS
-
-### Alteracao no SenhaContext
-
-```typescript
-// ANTES
-const moverParaPatio = useCallback((senhaId: string, rua: string) => {
-  setSenhas(prev => prev.map(s => 
-    s.id === senhaId 
-      ? { ...s, localAtual: 'em_patio' as LocalSenha, rua, docaNumero: undefined } 
-      : s
-  ));
-}, []);
-
-// DEPOIS
-const moverParaPatio = useCallback((senhaId: string) => {
-  setSenhas(prev => prev.map(s => 
-    s.id === senhaId 
-      ? { ...s, localAtual: 'em_patio' as LocalSenha, docaNumero: undefined } 
-      : s
-  ));
-}, []);
-```
-
-### Modal de Gerenciamento de Local (Docas.tsx)
-
-Novo modal com opcoes:
-- Titulo: "Gerenciar Localizacao"
-- Opcao 1: Botao "Mover para Patio"
-- Opcao 2: Botao "Trocar de Doca"
-- Botao "Cancelar"
-
-### Confirmacao de Mover para Patio
-
-Modal simples de confirmacao:
-- Titulo: "Mover para Patio"
-- Texto: "Confirma mover esta carga para o patio?"
-- Botoes: "Cancelar" | "Confirmar"
-
-### Modal Trocar de Doca
-
-Modal com select de docas livres:
-- Titulo: "Trocar de Doca"
-- Select: "Selecione a nova doca"
-- Botoes: "Cancelar" | "Confirmar"
+| src/pages/Agenda.tsx | Adicionar filtro de data, corrigir data base |
+| src/pages/Docas.tsx | Corrigir stale closures (docas.map -> prev => prev.map) |
+| src/pages/ControleSenhas.tsx | Adicionar 3 filtros (status, fornecedor, local) |
+| src/pages/Dashboard.tsx | Adicionar secao Cross com cards de indicadores |
+| src/types/index.ts | Adicionar campos de cross no DashboardPorPeriodo |
+| src/data/mockData.ts | Recriar cargas com datas variadas, adicionar dados cross no dashboard |
+| src/contexts/CrossContext.tsx | Adicionar dados iniciais de cross |
+| src/contexts/SolicitacaoContext.tsx | Adicionar mais solicitacoes |
+| src/contexts/SenhaContext.tsx | Corrigir data base, adicionar senha s5 |
 
 ---
 
-## 6. ACOES NA SECAO PATIO
+## 7. ORDEM DE IMPLEMENTACAO
 
-### Colunas Atualizadas (sem Rua)
-| Coluna | Descricao |
-|--------|-----------|
-| Senha | Numero da senha |
-| Fornecedor | Nome do fornecedor |
-| Motorista | Nome do motorista |
-| Veiculo | Tipo do caminhao |
-| Status | Status atual (aguardando/conferindo/conferido) |
-| Acoes | Botoes de acao |
-
-### Botoes de Acao por Status
-
-**Se status = aguardando_doca ou em_doca:**
-- Comecar Conferencia
-- Recusar Carga
-- Retomar para Doca
-
-**Se status = conferindo:**
-- Terminar Conferencia
-- Recusar Carga
-- Retomar para Doca
-
-**Se status = conferido:**
-- Retomar para Doca (para vincular a outra doca)
+1. Corrigir tipos (DashboardPorPeriodo com campos cross)
+2. Atualizar mockData (cargas, dashboard com cross)
+3. Corrigir SenhaContext (data base + senha s5)
+4. Atualizar CrossContext (dados iniciais)
+5. Atualizar SolicitacaoContext (mais dados)
+6. Corrigir Docas.tsx (stale closures)
+7. Adicionar filtro na Agenda.tsx
+8. Adicionar filtros no ControleSenhas.tsx
+9. Adicionar secao Cross no Dashboard.tsx
 
 ---
 
-## 7. DADOS FICTICIOS
-
-### Atualizar senha em patio (s4)
-
-```typescript
-// ANTES
-{ id: 's4', ..., rua: 'B-12', liberada: false }
-
-// DEPOIS
-{ id: 's4', ..., liberada: false }
-// Sem campo rua
-```
-
----
-
-## 8. ORDEM DE IMPLEMENTACAO
-
-1. Alterar SenhaContext.tsx (remover rua do moverParaPatio)
-2. Atualizar dados ficticios (remover rua de senha em patio)
-3. Alterar Docas.tsx:
-   - Remover campo rua do modal
-   - Adicionar modal de gerenciamento com opcoes
-   - Adicionar modal de trocar doca
-   - Adicionar acoes na secao patio
-   - Remover coluna rua da secao patio
-4. Alterar ControleSenhas.tsx:
-   - Remover campo rua do modal
-   - Alterar exibicao de local para "Patio" sem rua
-
----
-
-## 9. RESTRICOES RESPEITADAS
+## 8. RESTRICOES RESPEITADAS
 
 - Nenhuma tela nova criada
 - Nenhum layout alterado
-- Nenhum campo desnecessario adicionado
-- Apenas correcao de comportamento
-- Patio e apenas estado de localizacao
-- Nada some automaticamente
-- Toda acao exige confirmacao
+- Nenhum banco de dados criado
+- Apenas correcoes de bugs e complementos operacionais
+- Filtros simples sem logica complexa
 
