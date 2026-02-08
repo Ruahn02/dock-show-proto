@@ -7,8 +7,12 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, adminOnly = false }: ProtectedRouteProps) {
-  const { isAdmin } = useProfile();
+  const { autenticado, isAdmin } = useProfile();
   
+  if (!autenticado) {
+    return <Navigate to="/login" replace />;
+  }
+
   if (adminOnly && !isAdmin) {
     return <Navigate to="/docas" replace />;
   }

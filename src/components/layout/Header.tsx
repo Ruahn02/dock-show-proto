@@ -1,9 +1,16 @@
 import { useProfile } from '@/contexts/ProfileContext';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Warehouse, Shield, User } from 'lucide-react';
+import { Warehouse, LogOut, Shield, User } from 'lucide-react';
 
 export function Header() {
-  const { perfil, setPerfil, isAdmin } = useProfile();
+  const { perfil, logout } = useProfile();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <header className="h-16 border-b bg-card px-6 flex items-center justify-between">
@@ -15,25 +22,18 @@ export function Header() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground mr-2">Perfil:</span>
-        <Button
-          variant={isAdmin ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setPerfil('administrador')}
-          className="gap-2"
-        >
-          <Shield className="h-4 w-4" />
-          Administrador
-        </Button>
-        <Button
-          variant={!isAdmin ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setPerfil('operacional')}
-          className="gap-2"
-        >
-          <User className="h-4 w-4" />
-          Operacional
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {perfil === 'administrador' ? (
+            <Shield className="h-4 w-4" />
+          ) : (
+            <User className="h-4 w-4" />
+          )}
+          <span className="capitalize">{perfil}</span>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2">
+          <LogOut className="h-4 w-4" />
+          Sair
         </Button>
       </div>
     </header>

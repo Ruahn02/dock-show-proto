@@ -5,17 +5,43 @@ interface ProfileContextType {
   perfil: Perfil;
   setPerfil: (perfil: Perfil) => void;
   isAdmin: boolean;
+  autenticado: boolean;
+  login: (perfil: Perfil, codigo: string) => boolean;
+  logout: () => void;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
+const CODIGOS: Record<Perfil, string> = {
+  administrador: 'admin123',
+  operacional: 'ACESSO123',
+};
+
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [perfil, setPerfil] = useState<Perfil>('administrador');
+  const [perfil, setPerfilState] = useState<Perfil>('administrador');
+  const [autenticado, setAutenticado] = useState(false);
+
+  const login = (perfilAlvo: Perfil, codigo: string): boolean => {
+    if (codigo === CODIGOS[perfilAlvo]) {
+      setPerfilState(perfilAlvo);
+      setAutenticado(true);
+      return true;
+    }
+    return false;
+  };
+
+  const logout = () => {
+    setAutenticado(false);
+    setPerfilState('administrador');
+  };
 
   const value = {
     perfil,
-    setPerfil,
+    setPerfil: setPerfilState,
     isAdmin: perfil === 'administrador',
+    autenticado,
+    login,
+    logout,
   };
 
   return (
