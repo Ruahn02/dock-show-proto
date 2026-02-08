@@ -17,6 +17,7 @@ import CrossDockingPage from "./pages/CrossDocking";
 import ControleSenhas from "./pages/ControleSenhas";
 import Fornecedores from "./pages/Fornecedores";
 import Funcionarios from "./pages/Funcionarios";
+import Acessos from "./pages/Acessos";
 import SenhaCaminhoneiro from "./pages/SenhaCaminhoneiro";
 import PainelSenhas from "./pages/PainelSenhas";
 import SolicitacaoEntrega from "./pages/SolicitacaoEntrega";
@@ -78,6 +79,11 @@ const App = () => (
                   <Route path="/funcionarios" element={
                     <ProtectedRoute adminOnly>
                       <Funcionarios />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/acessos" element={
+                    <ProtectedRoute adminOnly>
+                      <Acessos />
                     </ProtectedRoute>
                   } />
 
