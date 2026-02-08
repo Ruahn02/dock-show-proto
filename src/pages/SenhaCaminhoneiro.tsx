@@ -21,7 +21,7 @@ export default function SenhaCaminhoneiro() {
   const [nomeMotorista, setNomeMotorista] = useState<string>('');
   const [tipoCaminhao, setTipoCaminhao] = useState<TipoCaminhao | ''>('');
   const [senhaGerada, setSenhaGerada] = useState<Senha | null>(null);
-  const { gerarSenha, getSenhaById, senhas } = useSenha();
+  const { gerarSenha, getSenhaById, senhas, cargas } = useSenha();
 
   // Atualizar senha quando houver mudanças no contexto
   useEffect(() => {
@@ -33,7 +33,10 @@ export default function SenhaCaminhoneiro() {
     }
   }, [senhas, senhaGerada, getSenhaById]);
 
-  const fornecedoresAtivos = fornecedores.filter(f => f.ativo);
+  const dataHoje = '2026-02-04';
+  const fornecedoresAgendados = fornecedores.filter(f => 
+    f.ativo && cargas.some(c => c.fornecedorId === f.id && c.data === dataHoje)
+  );
 
   const handleGerarSenha = () => {
     if (!fornecedorId) {
@@ -144,7 +147,7 @@ export default function SenhaCaminhoneiro() {
                     <SelectValue placeholder="Selecione o fornecedor..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {fornecedoresAtivos.map((f) => (
+                    {fornecedoresAgendados.map((f) => (
                       <SelectItem key={f.id} value={f.id} className="text-base py-3">
                         {f.nome}
                       </SelectItem>
@@ -183,7 +186,7 @@ export default function SenhaCaminhoneiro() {
               <Button 
                 onClick={handleGerarSenha} 
                 className="w-full h-14 text-lg font-semibold"
-                disabled={!fornecedorId || !nomeMotorista.trim() || !tipoCaminhao}
+                disabled={!fornecedorId || !nomeMotorista.trim() || !tipoCaminhao || fornecedoresAgendados.length === 0}
               >
                 GERAR SENHA
               </Button>

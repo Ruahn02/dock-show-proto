@@ -295,12 +295,14 @@ export default function Docas() {
     
     if (!doca) return;
     
-    // Atualizar doca para ocupada
+    // Atualizar doca para ocupada, preservando cargaId
+    const cargaDaSenha = cargas.find(c => c.senhaId === retomarSenhaId);
     setDocas(prev => prev.map(d => 
       d.id === doca.id ? { 
         ...d, 
         status: 'ocupada' as StatusDoca,
-        senhaId: retomarSenhaId
+        senhaId: retomarSenhaId,
+        cargaId: cargaDaSenha?.id
       } : d
     ));
     
