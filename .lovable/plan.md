@@ -1,247 +1,195 @@
 
 
-# Plano - Correcoes Funcionais, Filtros e Dados Ficticios
+# Plano - Ajustes Operacionais
 
 ## Resumo
 
-Corrigir 4 bugs/faltas funcionais e recriar dados ficticios coerentes:
-1. Agenda: adicionar filtro por data
-2. Docas: corrigir bug do botao de transferir (stale closure)
-3. Controle de Senhas: adicionar filtros por status, fornecedor e local
-4. Dashboard: adicionar visao de Cross Docking
-5. Dados ficticios: recriar todos coerentes
+Tres correcoes/complementos reais identificados apos analise do codigo atual. Varios itens solicitados ja estao implementados (filtros no Controle de Senhas, cards de Cross no Dashboard, acoes no patio, botao de transferencia). O foco sera nos itens que realmente faltam.
 
 ---
 
-## 1. AGENDA — FILTRO DE DATA
+## O QUE JA EXISTE (NAO SERA ALTERADO)
+
+- Filtros no Controle de Senhas (status, fornecedor, local) - linhas 53-64 e 205-247 de ControleSenhas.tsx
+- Cards de Cross Docking no Dashboard - linhas 234-254 de Dashboard.tsx
+- Acoes para cargas em patio (comecar, terminar, recusar) - linhas 645-724 de Docas.tsx
+- Modal de gerenciamento de localizacao (mover patio / trocar doca) - linhas 778-876 de Docas.tsx
+- Dados ficticios coerentes com data base 2026-02-04
+
+---
+
+## 1. ALERTA INFORMATIVO AO APROVAR AGENDAMENTO
 
 ### Problema
-A data esta hardcoded como `2026-01-24` (linha 55) e nao existe filtro.
-Os dados sao de `2026-02-04`. Resultado: a tabela aparece vazia.
+Ao aprovar uma solicitacao em Solicitacoes.tsx, o admin nao ve quanto volume ja esta comprometido no dia selecionado.
 
 ### Correcao
 
-**Arquivo: src/pages/Agenda.tsx**
+**Arquivo: src/pages/Solicitacoes.tsx**
 
-- Trocar data fixa por estado com `useState`
-- Adicionar um seletor de data (Popover + Calendar, ja usado em outras telas)
-- Ao selecionar data, atualizar o filtro da tabela
-- Manter layout atual (titulo + tabela)
+- Importar `useSenha` para acessar cargas
+- Quando o admin selecionar uma data no modal de aprovacao, calcular:
+  - Total de cargas agendadas para aquele dia
+  - Soma dos volumes previstos
+- Exibir um alerta informativo (nao bloqueante) abaixo do seletor de data
 
-### Logica
+### Exemplo visual
 ```text
-[Data selecionada: 04/02/2026]  [Icone calendario]
-                |
-                v
-Tabela filtra cargas onde carga.data === dataSelecionada
+[Data do Agendamento: 04/02/2026]
+
+! Neste dia ja existem 5 cargas agendadas
+  com total de 845 volumes previstos.
+
+[Horario Previsto: 08:00]
 ```
 
-### Componentes reutilizados
-- `Calendar` (ja existe em @/components/ui/calendar)
-- `Popover` (ja existe)
-- Padrao identico ao usado em AgendamentoPlanejamento.tsx
+### Componente usado
+- `Alert` + `AlertDescription` (ja existe em @/components/ui/alert)
 
 ---
 
-## 2. DOCAS — BUG DO BOTAO TRANSFERIR
+## 2. FORNECEDORES FILTRADOS NA TELA DO CAMINHONEIRO
 
 ### Problema
-Apos transferir uma carga para patio, o botao de gerenciamento para de funcionar.
+A tela /senha (SenhaCaminhoneiro.tsx) exibe TODOS os fornecedores ativos. Deveria exibir apenas fornecedores com cargas agendadas para o dia atual.
 
-### Causa Raiz
-Stale closure: varios handlers usam `docas.map(d =>` diretamente em vez de `setDocas(prev => prev.map(...))`.
+### Correcao
 
-Handlers afetados:
-- `handleConfirmPatio` (linha 216): usa `docas.map`
-- `handleAssociarCarga` (linha 135): usa `docas.map`
-- `handleUsoConsumo` (linha 147): usa `docas.map`
-- `handleLiberar` (linha 153): usa `docas.map`
-- `handleRecusarCarga` (linha 179): usa `docas.map`
-- `handleComecarConferencia/handleModalConfirm` (linha 324): usa `docas.map`
-- `handleTerminarConferencia/handleModalConfirm` (linha 361): usa `docas.map`
+**Arquivo: src/pages/SenhaCaminhoneiro.tsx**
+
+- Importar `useSenha` (ja importado) e usar `cargas`
+- Filtrar fornecedores que possuem cargas agendadas para `2026-02-04`
+- Se nenhum fornecedor tiver carga no dia, exibir mensagem informativa
+- Manter a regra de permitir multiplas senhas do mesmo fornecedor
+
+### Logica
+```text
+fornecedoresAgendados = fornecedoresAtivos.filter(f => 
+  cargas.some(c => c.fornecedorId === f.id && c.data === '2026-02-04')
+)
+```
+
+---
+
+## 3. VISUALIZACAO PUBLICA DE SENHAS (PAINEL TV/CELULAR)
+
+### Problema
+Nao existe tela publica para acompanhamento de senhas em TV ou celular.
+
+### Correcao
+
+**Novo arquivo: src/pages/PainelSenhas.tsx**
+
+Criar pagina publica (sem login, sem Layout) que exibe:
+- Lista de todas as senhas ativas
+- Colunas: Senha, Fornecedor, Status
+- Status com cores claras e texto grande (otimizado para TV)
+- Auto-refresh via useEffect que observa mudancas no contexto (ja reativo por usar useSenha)
+- Sem acoes - somente leitura
+
+### Status exibidos
+| Status interno | Texto no painel |
+|---------------|-----------------|
+| aguardando_doca | AGUARDANDO DOCA |
+| em_doca | DIRIJA-SE A DOCA X |
+| conferindo | CONFERINDO |
+| conferido | CONFERIDO |
+| recusado | RECUSADO |
+
+### Rota
+
+**Arquivo: src/App.tsx**
+
+Adicionar rota publica:
+```text
+/painel -> PainelSenhas (sem ProtectedRoute)
+```
+
+### Design
+- Fundo escuro (dark) para visibilidade em TV
+- Texto grande e contrastante
+- Layout responsivo (funciona em celular e TV)
+- Header simples: "Painel de Senhas"
+- Sem sidebar, sem header de navegacao
+
+---
+
+## 4. PRESERVACAO DE DADOS AO MOVER CARGA (DOCAS)
+
+### Problema identificado
+Ao mover para patio em Docas.tsx (handleConfirmPatio, linha 216), a doca e limpa completamente (cargaId, conferenteId, etc). Porem, a carga no contexto SenhaContext NAO e alterada - apenas a senha muda de local. A carga continua existindo com todos os dados (fornecedor, NF, volumes, senhaId).
+
+O problema real: quando a carga volta do patio para uma doca (handleConfirmRetomar), a doca recebe apenas `senhaId` mas NAO recebe `cargaId`. Isso faz com que a doca apareca "ocupada" mas sem dados de fornecedor/NF/volumes.
 
 ### Correcao
 
 **Arquivo: src/pages/Docas.tsx**
 
-Substituir todas as chamadas `setDocas(docas.map(...))` por `setDocas(prev => prev.map(...))`.
+No `handleConfirmRetomar` (linha 290), ao retomar do patio:
+- Buscar a carga vinculada a senha (via cargas.find(c => c.senhaId === retomarSenhaId))
+- Vincular o cargaId na doca junto com o senhaId
 
-Isso garante que o estado mais recente seja sempre usado, evitando o bug de stale closure.
-
----
-
-## 3. CONTROLE DE SENHAS — FILTROS
-
-### Problema
-Nao existe forma de filtrar senhas por status, fornecedor ou local.
-
-### Correcao
-
-**Arquivo: src/pages/ControleSenhas.tsx**
-
-Adicionar 3 selects simples acima da tabela:
-
-| Filtro | Opcoes |
-|--------|--------|
-| Status | Todos / Aguardando Doca / Em Doca / Conferindo / Conferido / Recusado |
-| Fornecedor | Todos / Lista de fornecedores |
-| Local | Todos / Aguardando Doca / Em Doca / Patio |
-
-### Logica
 ```text
-senhasFiltradas = senhasAtivas
-  .filter(s => filtroStatus === 'todos' || s.status === filtroStatus)
-  .filter(s => filtroFornecedor === 'todos' || s.fornecedorId === filtroFornecedor)
-  .filter(s => filtroLocal === 'todos' || s.localAtual === filtroLocal)
+// ANTES (linha 299-305)
+setDocas(prev => prev.map(d => 
+  d.id === doca.id ? { 
+    ...d, 
+    status: 'ocupada',
+    senhaId: retomarSenhaId
+  } : d
+));
+
+// DEPOIS
+const cargaDaSenha = cargas.find(c => c.senhaId === retomarSenhaId);
+setDocas(prev => prev.map(d => 
+  d.id === doca.id ? { 
+    ...d, 
+    status: 'ocupada',
+    senhaId: retomarSenhaId,
+    cargaId: cargaDaSenha?.id
+  } : d
+));
 ```
 
-### Componentes reutilizados
-- `Select` (ja existe em @/components/ui/select)
-
 ---
 
-## 4. DASHBOARD — FILTRO/VISAO DE CROSS
-
-### Problema
-O Dashboard nao exibe informacoes de Cross Docking.
-
-### Correcao
-
-**Arquivo: src/data/mockData.ts**
-
-Adicionar dados de cross ao dashboard:
-- Novos campos em `DashboardPorPeriodo`: `totalCross`, `crossFinalizados`, `crossEmSeparacao`
-- Novo grafico: `statusCrossChart`
-
-**Arquivo: src/types/index.ts**
-
-Adicionar campos opcionais em `DashboardPorPeriodo`:
-- `totalCross?: number`
-- `crossFinalizados?: number`
-- `crossEmSeparacao?: number`
-
-**Arquivo: src/pages/Dashboard.tsx**
-
-Adicionar uma terceira linha de cards com indicadores de Cross:
-- Total Cross
-- Cross Finalizados
-- Cross em Separacao
-
-Adicionar toggle ou secao visual "Conferencia | Cross" para separar as visoes dos graficos.
-
-### Nao criar graficos novos
-Apenas adicionar cards de indicadores e usar o StatusChart existente com dados de cross.
-
----
-
-## 5. DADOS FICTICIOS — RECRIAR TODOS
-
-### Data base do sistema: 2026-02-04
-
-### Problema
-- Agenda usa data `2026-01-24`, dados sao de `2026-02-04`
-- Cross Docking comeca vazio (sem dados iniciais)
-- Solicitacoes tem poucas entradas
-
-### Correcao
-
-**Arquivo: src/data/mockData.ts**
-
-Manter fornecedores e conferentes atuais (ja estao bons).
-
-Recriar cargas com datas variadas para testar filtro da Agenda:
-
-| ID | Data | Fornecedor | Status | Horario | Chegou | SenhaId |
-|----|------|------------|--------|---------|--------|---------|
-| cg_d2 | 2026-02-04 | f1 | aguardando_chegada | 07:30 | true | s1 |
-| cg_d6 | 2026-02-04 | f3 | em_conferencia | 08:00 | true | s2 |
-| cg_ag1 | 2026-02-04 | f5 | aguardando_chegada | 09:00 | true | s3 |
-| cg_patio | 2026-02-04 | f2 | aguardando_chegada | 08:30 | true | s4 |
-| cg1 | 2026-02-04 | f4 | conferido | - | true | - |
-| cg2 | 2026-02-04 | f6 | conferido | - | true | - |
-| cg3 | 2026-02-04 | f8 | no_show | 10:00 | false | - |
-| cg4 | 2026-02-04 | f9 | aguardando_chegada | 14:00 | false | - |
-| cg10 | 2026-02-03 | f1 | conferido | 08:00 | true | - |
-| cg11 | 2026-02-03 | f2 | conferido | 09:00 | true | - |
-| cg12 | 2026-02-03 | f4 | no_show | 11:00 | false | - |
-| cg5 | 2026-02-05 | f3 | aguardando_chegada | 08:00 | false | - |
-| cg6 | 2026-02-05 | f4 | aguardando_chegada | 10:30 | false | - |
-| cg7 | 2026-02-06 | f5 | aguardando_chegada | - | false | - |
-
-**Arquivo: src/contexts/CrossContext.tsx**
-
-Adicionar dados iniciais de cross para que a tela nao fique vazia:
-
-| ID | Fornecedor | NFs | Rua | Volume | Status |
-|----|------------|-----|-----|--------|--------|
-| cross1 | f4 | NF-001 | A-15 | 180 | aguardando_decisao |
-| cross2 | f6 | NF-002 | C-22 | 215 | cross_confirmado |
-| cross3 | f9 | NF-050 | D-10 | 145 | aguardando_separacao |
-| cross4 | f1 | NF-060 | A-08 | 90 | em_separacao |
-
-**Arquivo: src/contexts/SolicitacaoContext.tsx**
-
-Adicionar mais solicitacoes para variedade:
-
-| ID | Fornecedor | Email | Status | Data |
-|----|------------|-------|--------|------|
-| sol1 | f1 | contato@abc.com.br | pendente | 2026-02-03 |
-| sol2 | f3 | agendamento@logexpress.com | pendente | 2026-02-03 |
-| sol3 | f8 | agendamento@megaatacado.com | pendente | 2026-02-04 |
-| sol4 | f5 | operacoes@centralcargas.com | aprovada | 2026-02-01 |
-| sol5 | f2 | logistica@atacadonacional.com | recusada | 2026-02-01 |
-
-**Arquivo: src/contexts/SenhaContext.tsx**
-
-Atualizar `getCargasDisponiveis` para usar `2026-02-04` em vez de `2026-01-24`.
-
-Manter senhas iniciais existentes (s1-s4) mas adicionar mais uma para teste:
-
-| Senha | Fornecedor | Motorista | Status | Local |
-|-------|------------|-----------|--------|-------|
-| s1 | f1 | Carlos Pereira | em_doca | em_doca (Doca 2) |
-| s2 | f3 | Roberto Mendes | conferindo | em_doca (Doca 6) |
-| s3 | f5 | Antonio Lima | aguardando_doca | aguardando_doca |
-| s4 | f2 | Jose Santos | aguardando_doca | em_patio |
-| s5 | f4 | Marcos Ribeiro | conferido | em_doca |
-
----
-
-## 6. RESUMO DOS ARQUIVOS
+## 5. RESUMO DOS ARQUIVOS
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| src/pages/Agenda.tsx | Adicionar filtro de data, corrigir data base |
-| src/pages/Docas.tsx | Corrigir stale closures (docas.map -> prev => prev.map) |
-| src/pages/ControleSenhas.tsx | Adicionar 3 filtros (status, fornecedor, local) |
-| src/pages/Dashboard.tsx | Adicionar secao Cross com cards de indicadores |
-| src/types/index.ts | Adicionar campos de cross no DashboardPorPeriodo |
-| src/data/mockData.ts | Recriar cargas com datas variadas, adicionar dados cross no dashboard |
-| src/contexts/CrossContext.tsx | Adicionar dados iniciais de cross |
-| src/contexts/SolicitacaoContext.tsx | Adicionar mais solicitacoes |
-| src/contexts/SenhaContext.tsx | Corrigir data base, adicionar senha s5 |
+| src/pages/Solicitacoes.tsx | Adicionar alerta informativo com cargas do dia ao aprovar |
+| src/pages/SenhaCaminhoneiro.tsx | Filtrar fornecedores para apenas agendados no dia |
+| src/pages/PainelSenhas.tsx | NOVO - visualizacao publica de senhas |
+| src/App.tsx | Adicionar rota /painel |
+| src/pages/Docas.tsx | Corrigir handleConfirmRetomar para preservar cargaId |
 
 ---
 
-## 7. ORDEM DE IMPLEMENTACAO
+## 6. ORDEM DE IMPLEMENTACAO
 
-1. Corrigir tipos (DashboardPorPeriodo com campos cross)
-2. Atualizar mockData (cargas, dashboard com cross)
-3. Corrigir SenhaContext (data base + senha s5)
-4. Atualizar CrossContext (dados iniciais)
-5. Atualizar SolicitacaoContext (mais dados)
-6. Corrigir Docas.tsx (stale closures)
-7. Adicionar filtro na Agenda.tsx
-8. Adicionar filtros no ControleSenhas.tsx
-9. Adicionar secao Cross no Dashboard.tsx
+1. Corrigir Docas.tsx (preservacao de dados)
+2. Adicionar alerta em Solicitacoes.tsx
+3. Filtrar fornecedores em SenhaCaminhoneiro.tsx
+4. Criar PainelSenhas.tsx
+5. Registrar rota em App.tsx
+
+---
+
+## 7. ITENS NAO ALTERADOS (JA FUNCIONAIS)
+
+- Filtros no Controle de Senhas
+- Cards de Cross no Dashboard
+- Acoes no patio (conferencia, recusa)
+- Botao de transferencia (gerenciar localizacao)
+- Dados ficticios
 
 ---
 
 ## 8. RESTRICOES RESPEITADAS
 
-- Nenhuma tela nova criada
 - Nenhum layout alterado
-- Nenhum banco de dados criado
-- Apenas correcoes de bugs e complementos operacionais
-- Filtros simples sem logica complexa
+- Nenhuma integracao externa (WhatsApp, SMS, email)
+- Apenas 1 arquivo novo (PainelSenhas.tsx) para visualizacao publica
+- Sem banco de dados
+- Sem automacoes externas
 
