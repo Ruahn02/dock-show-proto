@@ -18,6 +18,7 @@ import ControleSenhas from "./pages/ControleSenhas";
 import Fornecedores from "./pages/Fornecedores";
 import Funcionarios from "./pages/Funcionarios";
 import SenhaCaminhoneiro from "./pages/SenhaCaminhoneiro";
+import PainelSenhas from "./pages/PainelSenhas";
 import SolicitacaoEntrega from "./pages/SolicitacaoEntrega";
 import NotFound from "./pages/NotFound";
 
@@ -73,6 +74,7 @@ const App = () => (
                     </ProtectedRoute>
                   } />
                   <Route path="/senha" element={<SenhaCaminhoneiro />} />
+                  <Route path="/painel" element={<PainelSenhas />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>

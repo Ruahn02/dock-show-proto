@@ -36,7 +36,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useSolicitacao } from '@/contexts/SolicitacaoContext';
+import { useSenha } from '@/contexts/SenhaContext';
 import { fornecedores, tipoCaminhaoLabels, statusSolicitacaoLabels } from '@/data/mockData';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Info } from 'lucide-react';
 import { SolicitacaoEntrega, StatusSolicitacao } from '@/types';
 import { toast } from 'sonner';
 import { ClipboardList, CalendarIcon, Check, X } from 'lucide-react';
@@ -52,6 +55,7 @@ const statusStyles: Record<StatusSolicitacao, string> = {
 
 export default function Solicitacoes() {
   const { solicitacoes, aprovarSolicitacao, recusarSolicitacao, getSolicitacoesPendentes } = useSolicitacao();
+  const { cargas } = useSenha();
   const [aprovarModalOpen, setAprovarModalOpen] = useState(false);
   const [recusarDialogOpen, setRecusarDialogOpen] = useState(false);
   const [selectedSolicitacao, setSelectedSolicitacao] = useState<SolicitacaoEntrega | null>(null);
@@ -236,6 +240,21 @@ export default function Solicitacoes() {
                       />
                     </PopoverContent>
                   </Popover>
+
+                  {dataAgendada && (() => {
+                    const dataSelecionada = format(dataAgendada, 'yyyy-MM-dd');
+                    const cargasDoDia = cargas.filter(c => c.data === dataSelecionada);
+                    const totalVolumes = cargasDoDia.reduce((acc, c) => acc + (c.volumePrevisto || 0), 0);
+                    return cargasDoDia.length > 0 ? (
+                      <Alert className="border-blue-200 bg-blue-50">
+                        <Info className="h-4 w-4 text-blue-600" />
+                        <AlertDescription className="text-blue-800 text-sm">
+                          Neste dia já existem <strong>{cargasDoDia.length} carga(s)</strong> agendadas
+                          com total de <strong>{totalVolumes} volumes</strong> previstos.
+                        </AlertDescription>
+                      </Alert>
+                    ) : null;
+                  })()}
                 </div>
 
                 <div className="space-y-2">
