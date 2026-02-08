@@ -40,7 +40,8 @@ import {
 
 export default function ControleSenhas() {
   const { senhas, getSenhasAtivas, vincularSenhaADoca, liberarSenha, moverParaPatio, retomarDoPatio } = useSenha();
-  const [docas] = useState<Doca[]>(docasIniciais);
+  const { docas } = useDocasDB();
+  const { fornecedores } = useFornecedoresDB();
   
   // Modal states
   const [vincularModalOpen, setVincularModalOpen] = useState(false);
