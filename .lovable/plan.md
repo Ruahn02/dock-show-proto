@@ -1,82 +1,141 @@
 
-# Plano - Acesso ao Painel de Senhas (TV)
+# Plano - Login Simples com Codigos Fixos
 
 ## Resumo
 
-Adicionar duas formas de acesso ao Painel de Senhas que ja existe em `/painel`: um botao visivel para o admin na tela de Controle de Senhas e a exibicao do link publico copiavel.
+Substituir o toggle de perfil (Admin/Operacional) no Header por um sistema de login simples com codigos fixos. Criar duas telas de login e ajustar o controle de acesso.
 
 ---
 
-## O QUE JA EXISTE
+## ARQUITETURA ATUAL
 
-- Rota `/painel` registrada em App.tsx (publica, sem login)
-- Componente PainelSenhas.tsx funcionando com tema escuro e leitura apenas
-- QR Code para gerar senha ja presente em ControleSenhas.tsx
-
----
-
-## 1. BOTAO "PAINEL DE SENHAS (TV)" NO HEADER
-
-**Arquivo: src/pages/ControleSenhas.tsx**
-
-Adicionar um botao ao lado do titulo (linha 168-173) que navega para `/painel`:
-
-- Texto: "Painel de Senhas (TV)"
-- Icone: `Monitor` (lucide-react)
-- Acao: abre `/painel` em nova aba (`window.open('/painel', '_blank')`)
-- Posicionamento: ao lado direito do header, usando `justify-between`
+- `ProfileContext` armazena o perfil em estado (`useState`), sem autenticacao
+- O Header tem botoes para trocar perfil livremente
+- `ProtectedRoute` redireciona para `/docas` se nao for admin
+- Rotas publicas: `/senha`, `/painel`, `/solicitacao`
 
 ---
 
-## 2. LINK PUBLICO COPIAVEL
+## 1. ATUALIZAR ProfileContext
 
-**Arquivo: src/pages/ControleSenhas.tsx**
+**Arquivo: src/contexts/ProfileContext.tsx**
 
-Abaixo do QR Code existente (linha 192-194), adicionar:
+Adicionar:
+- Estado `autenticado` (boolean, inicia `false`)
+- Funcao `login(perfil, codigo)` que valida o codigo
+- Funcao `logout()` que limpa o estado
+- Validacao: admin requer codigo `admin123`, operacional requer `ACESSO123`
 
-- Texto pequeno com o link publico do painel: `/painel`
-- Botao de copiar (icone `Copy`) que copia a URL completa para a area de transferencia
-- Toast de confirmacao: "Link copiado!"
+O contexto passa a expor:
+```text
+perfil, isAdmin, autenticado, login, logout
+```
+
+Estado inicial: `autenticado = false`, sem perfil definido.
 
 ---
 
-## 3. ARQUIVOS ALTERADOS
+## 2. CRIAR TELA DE LOGIN ADMIN
+
+**Novo arquivo: src/pages/LoginAdmin.tsx**
+
+- Rota: `/login`
+- Campos: Email, Senha, Codigo de acesso
+- Validacao: codigo deve ser exatamente `admin123`
+- Erro: mensagem "Codigo de acesso invalido"
+- Sucesso: chama `login('administrador')` e redireciona para `/`
+- Email e senha sao apenas visuais (sem validacao real por enquanto)
+
+Design: card centralizado, estilo consistente com o sistema.
+
+---
+
+## 3. CRIAR TELA DE LOGIN OPERACIONAL
+
+**Novo arquivo: src/pages/LoginOperacional.tsx**
+
+- Rota: `/acesso`
+- Campo unico: Codigo de acesso
+- Validacao: codigo deve ser exatamente `ACESSO123`
+- Erro: mensagem "Codigo de acesso invalido"
+- Sucesso: chama `login('operacional')` e redireciona para `/docas`
+
+Design: card centralizado, simples, sem campos de email/senha.
+
+---
+
+## 4. ATUALIZAR ProtectedRoute
+
+**Arquivo: src/components/auth/ProtectedRoute.tsx**
+
+- Se `autenticado === false`: redirecionar para `/login`
+- Se `autenticado === true` e `adminOnly && !isAdmin`: redirecionar para `/docas`
+- Rotas de docas/cross: exigir autenticacao (qualquer perfil)
+
+---
+
+## 5. ATUALIZAR ROTAS (App.tsx)
+
+**Arquivo: src/App.tsx**
+
+Adicionar rotas:
+- `/login` -> LoginAdmin
+- `/acesso` -> LoginOperacional
+
+Rotas publicas (sem autenticacao):
+- `/senha` (caminhoneiro)
+- `/painel` (TV)
+- `/solicitacao` (fornecedor)
+- `/login`
+- `/acesso`
+
+Rotas protegidas (qualquer perfil autenticado):
+- `/docas`
+- `/cross`
+
+Rotas admin only (ja existem com ProtectedRoute):
+- `/`, `/solicitacoes`, `/agendamento`, `/agenda`, `/senhas`, `/fornecedores`, `/funcionarios`
+
+---
+
+## 6. ATUALIZAR HEADER
+
+**Arquivo: src/components/layout/Header.tsx**
+
+- Remover botoes de toggle Admin/Operacional
+- Exibir perfil atual como texto (ex: "Administrador" ou "Operacional")
+- Adicionar botao "Sair" que chama `logout()` e redireciona para `/login`
+
+---
+
+## 7. RESUMO DOS ARQUIVOS
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| src/pages/ControleSenhas.tsx | Botao no header + link copiavel abaixo do QR Code |
-
-Nenhum outro arquivo sera alterado.
-
----
-
-## 4. DETALHES TECNICOS
-
-### Header atualizado
-```text
-[Icone Ticket] Controle de Senhas              [Painel de Senhas (TV)]
-               Acompanhamento de chegadas
-```
-
-### Secao do QR Code atualizada
-```text
-[QR Code - Gerar Senha]
-Escaneie para gerar senha
+| src/contexts/ProfileContext.tsx | Adicionar autenticado, login(), logout() |
+| src/pages/LoginAdmin.tsx | NOVO - tela de login admin |
+| src/pages/LoginOperacional.tsx | NOVO - tela de login operacional |
+| src/components/auth/ProtectedRoute.tsx | Redirecionar para /login se nao autenticado |
+| src/App.tsx | Adicionar rotas /login e /acesso, proteger /docas e /cross |
+| src/components/layout/Header.tsx | Remover toggle, adicionar botao Sair |
 
 ---
 
-[QR Code - Painel TV]  (menor)
-Link publico: /painel  [Copiar]
-```
+## 8. ORDEM DE IMPLEMENTACAO
 
-### Imports adicionados
-- `Monitor`, `Copy` de lucide-react
+1. Atualizar ProfileContext (autenticacao)
+2. Atualizar ProtectedRoute (exigir autenticacao)
+3. Criar LoginAdmin.tsx
+4. Criar LoginOperacional.tsx
+5. Atualizar App.tsx (rotas)
+6. Atualizar Header.tsx (remover toggle, adicionar logout)
 
 ---
 
-## 5. RESTRICOES RESPEITADAS
+## 9. RESTRICOES RESPEITADAS
 
-- Nenhuma tela nova criada
-- Nenhuma logica alterada
-- Nenhum filtro ou acao nova
-- Apenas exposicao de acesso ao que ja existe
+- Codigos fixos hardcoded (admin123 e ACESSO123)
+- Sem banco de dados
+- Sem permissoes granulares
+- Sem mistura de acessos
+- Controle temporario e simples
