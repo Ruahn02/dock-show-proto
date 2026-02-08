@@ -14,7 +14,397 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cargas: {
+        Row: {
+          chegou: boolean | null
+          conferente_id: string | null
+          created_at: string
+          data: string
+          divergencia: string | null
+          doca_id: string | null
+          fornecedor_id: string
+          horario_previsto: string | null
+          id: string
+          nfs: string[]
+          quantidade_veiculos: number | null
+          rua: string | null
+          senha_id: string | null
+          solicitacao_id: string | null
+          status: string
+          tipo_caminhao: string | null
+          volume_conferido: number | null
+          volume_previsto: number
+        }
+        Insert: {
+          chegou?: boolean | null
+          conferente_id?: string | null
+          created_at?: string
+          data: string
+          divergencia?: string | null
+          doca_id?: string | null
+          fornecedor_id: string
+          horario_previsto?: string | null
+          id?: string
+          nfs?: string[]
+          quantidade_veiculos?: number | null
+          rua?: string | null
+          senha_id?: string | null
+          solicitacao_id?: string | null
+          status?: string
+          tipo_caminhao?: string | null
+          volume_conferido?: number | null
+          volume_previsto: number
+        }
+        Update: {
+          chegou?: boolean | null
+          conferente_id?: string | null
+          created_at?: string
+          data?: string
+          divergencia?: string | null
+          doca_id?: string | null
+          fornecedor_id?: string
+          horario_previsto?: string | null
+          id?: string
+          nfs?: string[]
+          quantidade_veiculos?: number | null
+          rua?: string | null
+          senha_id?: string | null
+          solicitacao_id?: string | null
+          status?: string
+          tipo_caminhao?: string | null
+          volume_conferido?: number | null
+          volume_previsto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cargas_conferente_id_fkey"
+            columns: ["conferente_id"]
+            isOneToOne: false
+            referencedRelation: "conferentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargas_doca_id_fkey"
+            columns: ["doca_id"]
+            isOneToOne: false
+            referencedRelation: "docas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargas_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargas_senha_id_fkey"
+            columns: ["senha_id"]
+            isOneToOne: false
+            referencedRelation: "senhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargas_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conferentes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      cross_docking: {
+        Row: {
+          carga_id: string
+          created_at: string
+          data: string
+          fornecedor_id: string
+          id: string
+          nfs: string[]
+          numero_cross: string | null
+          observacao: string | null
+          rua: string
+          separador_id: string | null
+          status: string
+          tem_divergencia: boolean | null
+          volume_recebido: number
+        }
+        Insert: {
+          carga_id: string
+          created_at?: string
+          data: string
+          fornecedor_id: string
+          id?: string
+          nfs?: string[]
+          numero_cross?: string | null
+          observacao?: string | null
+          rua: string
+          separador_id?: string | null
+          status?: string
+          tem_divergencia?: boolean | null
+          volume_recebido: number
+        }
+        Update: {
+          carga_id?: string
+          created_at?: string
+          data?: string
+          fornecedor_id?: string
+          id?: string
+          nfs?: string[]
+          numero_cross?: string | null
+          observacao?: string | null
+          rua?: string
+          separador_id?: string | null
+          status?: string
+          tem_divergencia?: boolean | null
+          volume_recebido?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cross_docking_carga_id_fkey"
+            columns: ["carga_id"]
+            isOneToOne: false
+            referencedRelation: "cargas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cross_docking_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cross_docking_separador_id_fkey"
+            columns: ["separador_id"]
+            isOneToOne: false
+            referencedRelation: "conferentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      docas: {
+        Row: {
+          carga_id: string | null
+          conferente_id: string | null
+          created_at: string
+          id: string
+          numero: number
+          rua: string | null
+          senha_id: string | null
+          status: string
+          volume_conferido: number | null
+        }
+        Insert: {
+          carga_id?: string | null
+          conferente_id?: string | null
+          created_at?: string
+          id?: string
+          numero: number
+          rua?: string | null
+          senha_id?: string | null
+          status?: string
+          volume_conferido?: number | null
+        }
+        Update: {
+          carga_id?: string | null
+          conferente_id?: string | null
+          created_at?: string
+          id?: string
+          numero?: number
+          rua?: string | null
+          senha_id?: string | null
+          status?: string
+          volume_conferido?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "docas_carga_id_fkey"
+            columns: ["carga_id"]
+            isOneToOne: false
+            referencedRelation: "cargas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "docas_conferente_id_fkey"
+            columns: ["conferente_id"]
+            isOneToOne: false
+            referencedRelation: "conferentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "docas_senha_id_fkey"
+            columns: ["senha_id"]
+            isOneToOne: false
+            referencedRelation: "senhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fornecedores: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          email: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      senhas: {
+        Row: {
+          carga_id: string | null
+          created_at: string
+          doca_numero: number | null
+          fornecedor_id: string
+          hora_chegada: string
+          horario_previsto: string | null
+          id: string
+          liberada: boolean
+          local_atual: string
+          nome_motorista: string
+          numero: number
+          rua: string | null
+          status: string
+          tipo_caminhao: string
+        }
+        Insert: {
+          carga_id?: string | null
+          created_at?: string
+          doca_numero?: number | null
+          fornecedor_id: string
+          hora_chegada: string
+          horario_previsto?: string | null
+          id?: string
+          liberada?: boolean
+          local_atual?: string
+          nome_motorista: string
+          numero?: number
+          rua?: string | null
+          status?: string
+          tipo_caminhao: string
+        }
+        Update: {
+          carga_id?: string | null
+          created_at?: string
+          doca_numero?: number | null
+          fornecedor_id?: string
+          hora_chegada?: string
+          horario_previsto?: string | null
+          id?: string
+          liberada?: boolean
+          local_atual?: string
+          nome_motorista?: string
+          numero?: number
+          rua?: string | null
+          status?: string
+          tipo_caminhao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "senhas_carga_id_fkey"
+            columns: ["carga_id"]
+            isOneToOne: false
+            referencedRelation: "cargas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "senhas_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitacoes: {
+        Row: {
+          created_at: string
+          data_agendada: string | null
+          data_solicitacao: string
+          email_contato: string
+          fornecedor_id: string
+          horario_agendado: string | null
+          id: string
+          observacoes: string | null
+          quantidade_veiculos: number
+          status: string
+          tipo_caminhao: string
+          volume_previsto: number
+        }
+        Insert: {
+          created_at?: string
+          data_agendada?: string | null
+          data_solicitacao?: string
+          email_contato: string
+          fornecedor_id: string
+          horario_agendado?: string | null
+          id?: string
+          observacoes?: string | null
+          quantidade_veiculos?: number
+          status?: string
+          tipo_caminhao: string
+          volume_previsto: number
+        }
+        Update: {
+          created_at?: string
+          data_agendada?: string | null
+          data_solicitacao?: string
+          email_contato?: string
+          fornecedor_id?: string
+          horario_agendado?: string | null
+          id?: string
+          observacoes?: string | null
+          quantidade_veiculos?: number
+          status?: string
+          tipo_caminhao?: string
+          volume_previsto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
