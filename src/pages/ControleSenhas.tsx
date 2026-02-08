@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { QRCodeSVG } from 'qrcode.react';
 import { useSenha } from '@/contexts/SenhaContext';
-import { fornecedores, tipoCaminhaoLabels, statusSenhaLabels, localSenhaLabels, docasIniciais } from '@/data/mockData';
+import { tipoCaminhaoLabels, statusSenhaLabels, localSenhaLabels } from '@/data/mockData';
+import { useDocasDB } from '@/hooks/useDocasDB';
+import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { Ticket, Link, MapPin, Unlock, RotateCcw, Monitor, Copy } from 'lucide-react';
-import { Doca, LocalSenha } from '@/types';
+import { LocalSenha } from '@/types';
 import { toast } from 'sonner';
 import {
   Dialog,

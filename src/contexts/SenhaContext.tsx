@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useCallback, ReactNode } from 'react';
 import { Senha, StatusSenha, LocalSenha, Carga, TipoCaminhao } from '@/types';
-import { cargasIniciais, fornecedores } from '@/data/mockData';
+import { useSenhasDB } from '@/hooks/useSenhasDB';
+import { useCargasDB } from '@/hooks/useCargasDB';
 import { format } from 'date-fns';
 
 interface AdicionarCargaData {
@@ -23,192 +24,141 @@ interface GerarSenhaData {
 interface SenhaContextType {
   senhas: Senha[];
   cargas: Carga[];
-  gerarSenha: (data: GerarSenhaData) => Senha;
-  atualizarSenha: (senhaId: string, updates: Partial<Senha>) => void;
+  gerarSenha: (data: GerarSenhaData) => Promise<Senha>;
+  atualizarSenha: (senhaId: string, updates: Partial<Senha>) => Promise<void>;
   getSenhaById: (senhaId: string) => Senha | undefined;
   getSenhaByFornecedor: (fornecedorId: string) => Senha | undefined;
   getSenhasAtivas: () => Senha[];
-  vincularSenhaADoca: (senhaId: string, docaNumero: number) => void;
-  liberarSenha: (senhaId: string) => void;
-  moverParaPatio: (senhaId: string) => void;
-  retomarDoPatio: (senhaId: string, docaNumero: number) => void;
-  atualizarLocalSenha: (senhaId: string, local: LocalSenha) => void;
-  atualizarStatusSenha: (senhaId: string, status: StatusSenha) => void;
+  vincularSenhaADoca: (senhaId: string, docaNumero: number) => Promise<void>;
+  liberarSenha: (senhaId: string) => Promise<void>;
+  moverParaPatio: (senhaId: string) => Promise<void>;
+  retomarDoPatio: (senhaId: string, docaNumero: number) => Promise<void>;
+  atualizarLocalSenha: (senhaId: string, local: LocalSenha) => Promise<void>;
+  atualizarStatusSenha: (senhaId: string, status: StatusSenha) => Promise<void>;
   vincularCargaADoca: (cargaId: string, docaNumero: number) => void;
-  recusarCarga: (cargaId: string) => void;
-  marcarChegada: (cargaId: string, senhaId: string) => void;
-  atualizarCarga: (cargaId: string, updates: Partial<Carga>) => void;
+  recusarCarga: (cargaId: string) => Promise<void>;
+  marcarChegada: (cargaId: string, senhaId: string) => Promise<void>;
+  atualizarCarga: (cargaId: string, updates: Partial<Carga>) => Promise<void>;
   getCargasDisponiveis: () => Carga[];
-  adicionarCarga: (data: AdicionarCargaData) => void;
+  adicionarCarga: (data: AdicionarCargaData) => Promise<void>;
 }
 
 const SenhaContext = createContext<SenhaContextType | undefined>(undefined);
 
-// Senhas iniciais para testes
-const senhasIniciais: Senha[] = [
-  { id: 's1', numero: 1, fornecedorId: 'f1', nomeMotorista: 'Carlos Pereira', tipoCaminhao: 'truck', status: 'em_doca', localAtual: 'em_doca', horaChegada: '07:30', docaNumero: 2, liberada: false },
-  { id: 's2', numero: 2, fornecedorId: 'f3', nomeMotorista: 'Roberto Mendes', tipoCaminhao: 'carreta', status: 'conferindo', localAtual: 'em_doca', horaChegada: '08:15', docaNumero: 6, liberada: false },
-  { id: 's3', numero: 3, fornecedorId: 'f5', nomeMotorista: 'Antonio Lima', tipoCaminhao: 'bi_truck', status: 'aguardando_doca', localAtual: 'aguardando_doca', horaChegada: '09:00', liberada: false },
-  { id: 's4', numero: 4, fornecedorId: 'f2', nomeMotorista: 'José Santos', tipoCaminhao: 'van', status: 'aguardando_doca', localAtual: 'em_patio', horaChegada: '08:45', liberada: false },
-  { id: 's5', numero: 5, fornecedorId: 'f4', nomeMotorista: 'Marcos Ribeiro', tipoCaminhao: 'truck', status: 'conferido', localAtual: 'em_doca', horaChegada: '07:00', docaNumero: 3, liberada: false },
-];
-
-let contadorSenha = 6; // Começa em 6 pois já temos 5 senhas iniciais
-
 export function SenhaProvider({ children }: { children: ReactNode }) {
-  const [senhas, setSenhas] = useState<Senha[]>(senhasIniciais);
-  const [cargas, setCargas] = useState<Carga[]>(cargasIniciais);
+  const { senhas, criarSenha: criarSenhaDB, atualizarSenha: atualizarSenhaDB } = useSenhasDB();
+  const { cargas, criarCarga: criarCargaDB, atualizarCarga: atualizarCargaDB } = useCargasDB();
 
-  // Gerar nova senha - permite múltiplas senhas do mesmo fornecedor
-  const gerarSenha = useCallback((data: GerarSenhaData): Senha => {
-    const novaSenha: Senha = {
-      id: `s${Date.now()}`,
-      numero: contadorSenha++,
+  const gerarSenha = useCallback(async (data: GerarSenhaData): Promise<Senha> => {
+    const nova = await criarSenhaDB({
       fornecedorId: data.fornecedorId,
       nomeMotorista: data.nomeMotorista,
       tipoCaminhao: data.tipoCaminhao,
-      status: 'aguardando_doca',
-      localAtual: 'aguardando_doca',
       horaChegada: format(new Date(), 'HH:mm'),
-      liberada: false,
-    };
+    });
+    return nova;
+  }, [criarSenhaDB]);
 
-    setSenhas(prev => [...prev, novaSenha]);
-    return novaSenha;
-  }, []);
-
-  const atualizarSenha = useCallback((senhaId: string, updates: Partial<Senha>) => {
-    setSenhas(prev => prev.map(s => 
-      s.id === senhaId ? { ...s, ...updates } : s
-    ));
-  }, []);
+  const atualizarSenha = useCallback(async (senhaId: string, updates: Partial<Senha>) => {
+    await atualizarSenhaDB(senhaId, updates);
+  }, [atualizarSenhaDB]);
 
   const getSenhaById = useCallback((senhaId: string) => {
     return senhas.find(s => s.id === senhaId);
   }, [senhas]);
 
   const getSenhaByFornecedor = useCallback((fornecedorId: string) => {
-    return senhas.find(
-      s => s.fornecedorId === fornecedorId && !s.liberada
-    );
+    return senhas.find(s => s.fornecedorId === fornecedorId && !s.liberada);
   }, [senhas]);
 
-  // Retorna senhas que não foram liberadas (para controle admin)
   const getSenhasAtivas = useCallback(() => {
     return senhas.filter(s => !s.liberada);
   }, [senhas]);
 
-  // Vincular senha a uma doca
-  const vincularSenhaADoca = useCallback((senhaId: string, docaNumero: number) => {
-    setSenhas(prev => prev.map(s => 
-      s.id === senhaId 
-        ? { ...s, status: 'em_doca' as StatusSenha, localAtual: 'em_doca' as LocalSenha, docaNumero } 
-        : s
-    ));
-  }, []);
+  const vincularSenhaADoca = useCallback(async (senhaId: string, docaNumero: number) => {
+    await atualizarSenhaDB(senhaId, {
+      status: 'em_doca' as StatusSenha,
+      localAtual: 'em_doca' as LocalSenha,
+      docaNumero,
+    });
+  }, [atualizarSenhaDB]);
 
-  // Liberar senha (ação final do admin)
-  const liberarSenha = useCallback((senhaId: string) => {
-    setSenhas(prev => prev.map(s => 
-      s.id === senhaId ? { ...s, liberada: true } : s
-    ));
-  }, []);
+  const liberarSenha = useCallback(async (senhaId: string) => {
+    await atualizarSenhaDB(senhaId, { liberada: true });
+  }, [atualizarSenhaDB]);
 
-  // Mover senha para pátio (pátio é apenas estado de localização, sem rua)
-  const moverParaPatio = useCallback((senhaId: string) => {
-    setSenhas(prev => prev.map(s => 
-      s.id === senhaId 
-        ? { ...s, localAtual: 'em_patio' as LocalSenha, docaNumero: undefined } 
-        : s
-    ));
-  }, []);
+  const moverParaPatio = useCallback(async (senhaId: string) => {
+    await atualizarSenhaDB(senhaId, {
+      localAtual: 'em_patio' as LocalSenha,
+      docaNumero: undefined,
+    });
+  }, [atualizarSenhaDB]);
 
-  // Retomar do pátio para doca
-  const retomarDoPatio = useCallback((senhaId: string, docaNumero: number) => {
-    setSenhas(prev => prev.map(s => 
-      s.id === senhaId 
-        ? { ...s, localAtual: 'em_doca' as LocalSenha, status: 'em_doca' as StatusSenha, docaNumero, rua: undefined } 
-        : s
-    ));
-  }, []);
+  const retomarDoPatio = useCallback(async (senhaId: string, docaNumero: number) => {
+    await atualizarSenhaDB(senhaId, {
+      localAtual: 'em_doca' as LocalSenha,
+      status: 'em_doca' as StatusSenha,
+      docaNumero,
+      rua: undefined,
+    });
+  }, [atualizarSenhaDB]);
 
-  // Atualizar local da senha
-  const atualizarLocalSenha = useCallback((senhaId: string, local: LocalSenha) => {
-    setSenhas(prev => prev.map(s => 
-      s.id === senhaId ? { ...s, localAtual: local } : s
-    ));
-  }, []);
+  const atualizarLocalSenha = useCallback(async (senhaId: string, local: LocalSenha) => {
+    await atualizarSenhaDB(senhaId, { localAtual: local });
+  }, [atualizarSenhaDB]);
 
-  // Atualizar status da senha
-  const atualizarStatusSenha = useCallback((senhaId: string, status: StatusSenha) => {
-    setSenhas(prev => prev.map(s => 
-      s.id === senhaId ? { ...s, status } : s
-    ));
-  }, []);
+  const atualizarStatusSenha = useCallback(async (senhaId: string, status: StatusSenha) => {
+    await atualizarSenhaDB(senhaId, { status });
+  }, [atualizarSenhaDB]);
 
   const vincularCargaADoca = useCallback((cargaId: string, docaNumero: number) => {
-    // Encontrar a senha relacionada a esta carga
     const carga = cargas.find(c => c.id === cargaId);
     if (carga?.senhaId) {
-      setSenhas(prev => prev.map(s => 
-        s.id === carga.senhaId 
-          ? { ...s, status: 'em_doca' as StatusSenha, localAtual: 'em_doca' as LocalSenha, docaNumero } 
-          : s
-      ));
+      atualizarSenhaDB(carga.senhaId, {
+        status: 'em_doca' as StatusSenha,
+        localAtual: 'em_doca' as LocalSenha,
+        docaNumero,
+      });
     }
-  }, [cargas]);
+  }, [cargas, atualizarSenhaDB]);
 
-  const recusarCarga = useCallback((cargaId: string) => {
-    // Atualizar a carga
-    setCargas(prev => prev.map(c => 
-      c.id === cargaId ? { ...c, status: 'recusado' } : c
-    ));
-
-    // Atualizar a senha se existir
+  const recusarCarga = useCallback(async (cargaId: string) => {
+    await atualizarCargaDB(cargaId, { status: 'recusado' as any });
     const carga = cargas.find(c => c.id === cargaId);
     if (carga?.senhaId) {
-      setSenhas(prev => prev.map(s => 
-        s.id === carga.senhaId ? { ...s, status: 'recusado' as StatusSenha } : s
-      ));
+      await atualizarSenhaDB(carga.senhaId, { status: 'recusado' as StatusSenha });
     }
-  }, [cargas]);
+  }, [cargas, atualizarCargaDB, atualizarSenhaDB]);
 
-  const marcarChegada = useCallback((cargaId: string, senhaId: string) => {
-    setCargas(prev => prev.map(c => 
-      c.id === cargaId ? { ...c, chegou: true, senhaId } : c
-    ));
-  }, []);
+  const marcarChegada = useCallback(async (cargaId: string, senhaId: string) => {
+    await atualizarCargaDB(cargaId, { chegou: true, senhaId });
+  }, [atualizarCargaDB]);
 
-  const atualizarCarga = useCallback((cargaId: string, updates: Partial<Carga>) => {
-    setCargas(prev => prev.map(c => 
-      c.id === cargaId ? { ...c, ...updates } : c
-    ));
-  }, []);
+  const atualizarCargaFn = useCallback(async (cargaId: string, updates: Partial<Carga>) => {
+    await atualizarCargaDB(cargaId, updates);
+  }, [atualizarCargaDB]);
 
   const getCargasDisponiveis = useCallback(() => {
-    const hoje = '2026-02-04';
-    return cargas.filter(c => 
-      c.data === hoje && 
+    const hoje = format(new Date(), 'yyyy-MM-dd');
+    return cargas.filter(c =>
+      c.data === hoje &&
       c.status === 'aguardando_chegada' &&
       c.chegou === true
     );
   }, [cargas]);
 
-  const adicionarCarga = useCallback((data: AdicionarCargaData) => {
-    const novaCarga: Carga = {
-      id: `cg${Date.now()}`,
+  const adicionarCarga = useCallback(async (data: AdicionarCargaData) => {
+    await criarCargaDB({
       data: data.data,
       fornecedorId: data.fornecedorId,
       nfs: data.nfs,
       volumePrevisto: data.volumePrevisto,
-      status: 'aguardando_chegada',
       horarioPrevisto: data.horarioPrevisto,
       tipoCaminhao: data.tipoCaminhao,
       quantidadeVeiculos: data.quantidadeVeiculos,
       solicitacaoId: data.solicitacaoId,
-    };
-    setCargas(prev => [...prev, novaCarga]);
-  }, []);
+    });
+  }, [criarCargaDB]);
 
   return (
     <SenhaContext.Provider value={{
@@ -228,7 +178,7 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
       vincularCargaADoca,
       recusarCarga,
       marcarChegada,
-      atualizarCarga,
+      atualizarCarga: atualizarCargaFn,
       getCargasDisponiveis,
       adicionarCarga,
     }}>

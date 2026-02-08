@@ -5,13 +5,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { fornecedores, tipoCaminhaoLabels } from '@/data/mockData';
+import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
+import { useSolicitacao } from '@/contexts/SolicitacaoContext';
+import { tipoCaminhaoLabels } from '@/data/mockData';
 import { TipoCaminhao } from '@/types';
 import { toast } from 'sonner';
 import { Truck, CheckCircle2 } from 'lucide-react';
@@ -24,12 +22,14 @@ export default function SolicitacaoEntrega() {
   const [emailContato, setEmailContato] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [enviado, setEnviado] = useState(false);
+  const { fornecedores } = useFornecedoresDB();
+  const { criarSolicitacao } = useSolicitacao();
 
   const fornecedoresAtivos = useMemo(() => 
     fornecedores.filter(f => f.ativo), 
-  []);
+  [fornecedores]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!fornecedorId || !tipoCaminhao || !volumePrevisto || !emailContato) {
@@ -37,10 +37,20 @@ export default function SolicitacaoEntrega() {
       return;
     }
 
-    // In a real app, this would call the context
-    // For now, we simulate the submission
-    setEnviado(true);
-    toast.success('Solicitação enviada com sucesso!');
+    try {
+      await criarSolicitacao({
+        fornecedorId,
+        tipoCaminhao: tipoCaminhao as TipoCaminhao,
+        quantidadeVeiculos: parseInt(quantidadeVeiculos) || 1,
+        volumePrevisto: parseInt(volumePrevisto) || 0,
+        emailContato,
+        observacoes: observacoes || undefined,
+      });
+      setEnviado(true);
+      toast.success('Solicitação enviada com sucesso!');
+    } catch {
+      toast.error('Erro ao enviar solicitação');
+    }
   };
 
   const resetForm = () => {
@@ -94,9 +104,7 @@ export default function SolicitacaoEntrega() {
                 </SelectTrigger>
                 <SelectContent>
                   {fornecedoresAtivos.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>
-                      {f.nome}
-                    </SelectItem>
+                    <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -110,9 +118,7 @@ export default function SolicitacaoEntrega() {
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(tipoCaminhaoLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -120,47 +126,22 @@ export default function SolicitacaoEntrega() {
 
             <div className="space-y-2">
               <Label htmlFor="quantidade">Quantidade de Veículos *</Label>
-              <Input
-                id="quantidade"
-                type="number"
-                min="1"
-                value={quantidadeVeiculos}
-                onChange={(e) => setQuantidadeVeiculos(e.target.value)}
-              />
+              <Input id="quantidade" type="number" min="1" value={quantidadeVeiculos} onChange={(e) => setQuantidadeVeiculos(e.target.value)} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="volume">Volume Previsto *</Label>
-              <Input
-                id="volume"
-                type="number"
-                min="1"
-                value={volumePrevisto}
-                onChange={(e) => setVolumePrevisto(e.target.value)}
-                placeholder="Quantidade de volumes"
-              />
+              <Input id="volume" type="number" min="1" value={volumePrevisto} onChange={(e) => setVolumePrevisto(e.target.value)} placeholder="Quantidade de volumes" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">E-mail para Contato *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={emailContato}
-                onChange={(e) => setEmailContato(e.target.value)}
-                placeholder="email@exemplo.com"
-              />
+              <Input id="email" type="email" value={emailContato} onChange={(e) => setEmailContato(e.target.value)} placeholder="email@exemplo.com" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="observacoes">Observações</Label>
-              <Textarea
-                id="observacoes"
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-                placeholder="Informações adicionais sobre a entrega..."
-                rows={3}
-              />
+              <Textarea id="observacoes" value={observacoes} onChange={(e) => setObservacoes(e.target.value)} placeholder="Informações adicionais sobre a entrega..." rows={3} />
             </div>
 
             <Button type="submit" className="w-full">

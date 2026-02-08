@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Perfil } from '@/types';
 
 interface ProfileContextType {
@@ -17,14 +17,31 @@ const CODIGOS: Record<Perfil, string> = {
   operacional: 'ACESSO123',
 };
 
+const STORAGE_KEY = 'dock_show_session';
+
+function getStoredSession(): { perfil: Perfil; autenticado: boolean } | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.autenticado && (parsed.perfil === 'administrador' || parsed.perfil === 'operacional')) {
+        return parsed;
+      }
+    }
+  } catch {}
+  return null;
+}
+
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [perfil, setPerfilState] = useState<Perfil>('administrador');
-  const [autenticado, setAutenticado] = useState(false);
+  const stored = getStoredSession();
+  const [perfil, setPerfilState] = useState<Perfil>(stored?.perfil || 'administrador');
+  const [autenticado, setAutenticado] = useState(stored?.autenticado || false);
 
   const login = (perfilAlvo: Perfil, codigo: string): boolean => {
     if (codigo === CODIGOS[perfilAlvo]) {
       setPerfilState(perfilAlvo);
       setAutenticado(true);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ perfil: perfilAlvo, autenticado: true }));
       return true;
     }
     return false;
@@ -33,6 +50,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setAutenticado(false);
     setPerfilState('administrador');
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const value = {
