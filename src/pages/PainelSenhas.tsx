@@ -1,5 +1,5 @@
 import { useSenha } from '@/contexts/SenhaContext';
-import { fornecedores } from '@/data/mockData';
+import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { Truck } from 'lucide-react';
 
 const statusPainelMap: Record<string, { text: string; bg: string }> = {
@@ -13,6 +13,7 @@ const statusPainelMap: Record<string, { text: string; bg: string }> = {
 
 export default function PainelSenhas() {
   const { getSenhasAtivas } = useSenha();
+  const { fornecedores } = useFornecedoresDB();
   const senhasAtivas = getSenhasAtivas();
 
   const getFornecedorNome = (id: string) =>
@@ -20,7 +21,6 @@ export default function PainelSenhas() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6">
-      {/* Header */}
       <div className="text-center mb-8">
         <div className="flex items-center justify-center gap-3 mb-2">
           <Truck className="h-8 w-8 text-blue-400" />
@@ -35,14 +35,12 @@ export default function PainelSenhas() {
         </div>
       ) : (
         <div className="max-w-5xl mx-auto">
-          {/* Header da tabela */}
           <div className="grid grid-cols-3 gap-4 px-4 py-3 bg-slate-800 rounded-t-lg text-slate-400 text-sm font-semibold uppercase tracking-wider">
             <div>Senha</div>
             <div>Fornecedor</div>
             <div className="text-center">Status</div>
           </div>
 
-          {/* Linhas */}
           {senhasAtivas.map((senha) => {
             const statusInfo = statusPainelMap[senha.status] || { text: senha.status, bg: 'bg-gray-600' };
             const statusText = senha.status === 'em_doca' && senha.docaNumero

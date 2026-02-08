@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
 import { CrossDocking, StatusCross } from '@/types';
+import { useCrossDB } from '@/hooks/useCrossDB';
 
 interface NovoCrossData {
   cargaId: string;
@@ -12,97 +13,66 @@ interface NovoCrossData {
 
 interface CrossContextType {
   crossItems: CrossDocking[];
-  adicionarCross: (data: NovoCrossData) => void;
-  armazenarCarga: (id: string) => void;
-  confirmarCross: (id: string) => void;
-  montarCross: (id: string, numeroCross: string) => void;
-  iniciarSeparacao: (id: string, separadorId: string) => void;
-  finalizarSeparacao: (id: string, temDivergencia: boolean, observacao?: string) => void;
+  adicionarCross: (data: NovoCrossData) => Promise<void>;
+  armazenarCarga: (id: string) => Promise<void>;
+  confirmarCross: (id: string) => Promise<void>;
+  montarCross: (id: string, numeroCross: string) => Promise<void>;
+  iniciarSeparacao: (id: string, separadorId: string) => Promise<void>;
+  finalizarSeparacao: (id: string, temDivergencia: boolean, observacao?: string) => Promise<void>;
   getCrossParaAdmin: () => CrossDocking[];
   getCrossParaOperacional: () => CrossDocking[];
 }
 
 const CrossContext = createContext<CrossContextType | undefined>(undefined);
 
-// Dados iniciais de cross docking
-const crossIniciais: CrossDocking[] = [
-  { id: 'cross1', cargaId: 'cg1', fornecedorId: 'f4', nfs: ['NF-001'], data: '2026-02-04', rua: 'A-15', volumeRecebido: 180, status: 'aguardando_decisao' },
-  { id: 'cross2', cargaId: 'cg2', fornecedorId: 'f6', nfs: ['NF-002'], data: '2026-02-04', rua: 'C-22', volumeRecebido: 215, status: 'cross_confirmado', numeroCross: 'CX-001' },
-  { id: 'cross3', cargaId: 'cg10', fornecedorId: 'f1', nfs: ['NF-070'], data: '2026-02-03', rua: 'D-02', volumeRecebido: 130, status: 'aguardando_separacao', numeroCross: 'CX-002' },
-  { id: 'cross4', cargaId: 'cg11', fornecedorId: 'f2', nfs: ['NF-071'], data: '2026-02-03', rua: 'E-10', volumeRecebido: 185, status: 'em_separacao', numeroCross: 'CX-003', separadorId: 'c6' },
-  { id: 'cross5', cargaId: 'cg12', fornecedorId: 'f4', nfs: ['NF-072'], data: '2026-02-03', rua: 'A-08', volumeRecebido: 90, status: 'finalizado', numeroCross: 'CX-004', separadorId: 'c8', temDivergencia: false },
-];
-
 export function CrossProvider({ children }: { children: ReactNode }) {
-  const [crossItems, setCrossItems] = useState<CrossDocking[]>(crossIniciais);
+  const { crossItems, criarCross, atualizarCross, deletarCross } = useCrossDB();
 
-  const adicionarCross = (data: NovoCrossData) => {
-    const novoCross: CrossDocking = {
-      id: `cross_${Date.now()}`,
-      cargaId: data.cargaId,
-      fornecedorId: data.fornecedorId,
-      nfs: data.nfs,
-      data: data.data,
-      rua: data.rua,
-      volumeRecebido: data.volumeRecebido,
-      status: 'aguardando_decisao'
-    };
-    setCrossItems(prev => [...prev, novoCross]);
+  const adicionarCross = async (data: NovoCrossData) => {
+    await criarCross(data);
   };
 
-  const armazenarCarga = (id: string) => {
-    // Remove da lista - não é cross
-    setCrossItems(prev => prev.filter(item => item.id !== id));
+  const armazenarCarga = async (id: string) => {
+    await deletarCross(id);
   };
 
-  const confirmarCross = (id: string) => {
-    setCrossItems(prev => prev.map(item => 
-      item.id === id ? { ...item, status: 'cross_confirmado' as StatusCross } : item
-    ));
+  const confirmarCross = async (id: string) => {
+    await atualizarCross(id, { status: 'cross_confirmado' as StatusCross });
   };
 
-  const montarCross = (id: string, numeroCross: string) => {
-    setCrossItems(prev => prev.map(item => 
-      item.id === id ? { 
-        ...item, 
-        status: 'aguardando_separacao' as StatusCross,
-        numeroCross 
-      } : item
-    ));
+  const montarCross = async (id: string, numeroCross: string) => {
+    await atualizarCross(id, {
+      status: 'aguardando_separacao' as StatusCross,
+      numeroCross,
+    });
   };
 
-  const iniciarSeparacao = (id: string, separadorId: string) => {
-    setCrossItems(prev => prev.map(item => 
-      item.id === id ? { 
-        ...item, 
-        status: 'em_separacao' as StatusCross,
-        separadorId 
-      } : item
-    ));
+  const iniciarSeparacao = async (id: string, separadorId: string) => {
+    await atualizarCross(id, {
+      status: 'em_separacao' as StatusCross,
+      separadorId,
+    });
   };
 
-  const finalizarSeparacao = (id: string, temDivergencia: boolean, observacao?: string) => {
-    setCrossItems(prev => prev.map(item => 
-      item.id === id ? { 
-        ...item, 
-        status: 'finalizado' as StatusCross,
-        temDivergencia,
-        observacao 
-      } : item
-    ));
+  const finalizarSeparacao = async (id: string, temDivergencia: boolean, observacao?: string) => {
+    await atualizarCross(id, {
+      status: 'finalizado' as StatusCross,
+      temDivergencia,
+      observacao,
+    });
   };
 
   const getCrossParaAdmin = () => {
-    return crossItems.filter(item => 
-      item.status === 'aguardando_decisao' || 
+    return crossItems.filter(item =>
+      item.status === 'aguardando_decisao' ||
       item.status === 'cross_confirmado' ||
       item.status === 'aguardando_separacao'
     );
   };
 
   const getCrossParaOperacional = () => {
-    return crossItems.filter(item => 
-      item.status === 'aguardando_separacao' || 
+    return crossItems.filter(item =>
+      item.status === 'aguardando_separacao' ||
       item.status === 'em_separacao'
     );
   };
