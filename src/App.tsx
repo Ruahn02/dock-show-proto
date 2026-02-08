@@ -20,6 +20,8 @@ import Funcionarios from "./pages/Funcionarios";
 import SenhaCaminhoneiro from "./pages/SenhaCaminhoneiro";
 import PainelSenhas from "./pages/PainelSenhas";
 import SolicitacaoEntrega from "./pages/SolicitacaoEntrega";
+import LoginAdmin from "./pages/LoginAdmin";
+import LoginOperacional from "./pages/LoginOperacional";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,12 +37,19 @@ const App = () => (
               <Sonner />
               <BrowserRouter>
                 <Routes>
+                  {/* Rotas públicas */}
+                  <Route path="/login" element={<LoginAdmin />} />
+                  <Route path="/acesso" element={<LoginOperacional />} />
+                  <Route path="/solicitacao" element={<SolicitacaoEntrega />} />
+                  <Route path="/senha" element={<SenhaCaminhoneiro />} />
+                  <Route path="/painel" element={<PainelSenhas />} />
+
+                  {/* Rotas admin only */}
                   <Route path="/" element={
                     <ProtectedRoute adminOnly>
                       <Dashboard />
                     </ProtectedRoute>
                   } />
-                  <Route path="/solicitacao" element={<SolicitacaoEntrega />} />
                   <Route path="/solicitacoes" element={
                     <ProtectedRoute adminOnly>
                       <Solicitacoes />
@@ -56,8 +65,6 @@ const App = () => (
                       <Agenda />
                     </ProtectedRoute>
                   } />
-                  <Route path="/docas" element={<Docas />} />
-                  <Route path="/cross" element={<CrossDockingPage />} />
                   <Route path="/senhas" element={
                     <ProtectedRoute adminOnly>
                       <ControleSenhas />
@@ -73,8 +80,19 @@ const App = () => (
                       <Funcionarios />
                     </ProtectedRoute>
                   } />
-                  <Route path="/senha" element={<SenhaCaminhoneiro />} />
-                  <Route path="/painel" element={<PainelSenhas />} />
+
+                  {/* Rotas protegidas (qualquer perfil autenticado) */}
+                  <Route path="/docas" element={
+                    <ProtectedRoute>
+                      <Docas />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/cross" element={
+                    <ProtectedRoute>
+                      <CrossDockingPage />
+                    </ProtectedRoute>
+                  } />
+
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
