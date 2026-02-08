@@ -9,7 +9,8 @@ import {
   Building2, 
   Users,
   Ticket,
-  ArrowRightLeft
+  ArrowRightLeft,
+  QrCode
 } from 'lucide-react';
 
 const menuItems = [
@@ -22,6 +23,7 @@ const menuItems = [
   { to: '/senhas', label: 'Controle de Senhas', icon: Ticket, adminOnly: true },
   { to: '/fornecedores', label: 'Fornecedores', icon: Building2, adminOnly: true },
   { to: '/funcionarios', label: 'Funcionários', icon: Users, adminOnly: true },
+  { to: '/acessos', label: 'Acessos do Sistema', icon: QrCode, adminOnly: true },
 ];
 
 export function Sidebar() {
