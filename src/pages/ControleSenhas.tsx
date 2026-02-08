@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { QRCodeSVG } from 'qrcode.react';
 import { useSenha } from '@/contexts/SenhaContext';
 import { fornecedores, tipoCaminhaoLabels, statusSenhaLabels, localSenhaLabels, docasIniciais } from '@/data/mockData';
-import { Ticket, Link, MapPin, Unlock, RotateCcw } from 'lucide-react';
+import { Ticket, Link, MapPin, Unlock, RotateCcw, Monitor, Copy } from 'lucide-react';
 import { Doca, LocalSenha } from '@/types';
 import { toast } from 'sonner';
 import {
@@ -55,6 +55,7 @@ export default function ControleSenhas() {
   const [filtroLocal, setFiltroLocal] = useState<string>('todos');
   
   const senhaUrl = `${window.location.origin}/senha`;
+  const painelUrl = `${window.location.origin}/painel`;
   const senhasAtivas = getSenhasAtivas();
 
   // Aplicar filtros
@@ -165,12 +166,21 @@ export default function ControleSenhas() {
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <Ticket className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold">Controle de Senhas</h1>
-            <p className="text-muted-foreground">Acompanhamento de chegadas</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Ticket className="h-8 w-8 text-primary" />
+            <div>
+              <h1 className="text-3xl font-bold">Controle de Senhas</h1>
+              <p className="text-muted-foreground">Acompanhamento de chegadas</p>
+            </div>
           </div>
+          <Button
+            variant="outline"
+            onClick={() => window.open('/painel', '_blank')}
+          >
+            <Monitor className="h-4 w-4 mr-2" />
+            Painel de Senhas (TV)
+          </Button>
         </div>
 
         {/* Grid: QR Code + Tabela */}
@@ -192,6 +202,31 @@ export default function ControleSenhas() {
               <p className="text-sm text-muted-foreground text-center">
                 Escaneie para gerar senha
               </p>
+
+              <div className="w-full border-t pt-4 mt-2">
+                <p className="text-xs text-muted-foreground text-center mb-3">Painel TV (público)</p>
+                <div className="bg-white p-3 rounded-lg flex justify-center">
+                  <QRCodeSVG 
+                    value={painelUrl}
+                    size={120}
+                    level="H"
+                    includeMargin={true}
+                  />
+                </div>
+                <div className="flex items-center gap-2 mt-3">
+                  <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">/painel</code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(painelUrl);
+                      toast.success('Link copiado!');
+                    }}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
           
