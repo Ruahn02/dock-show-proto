@@ -80,7 +80,8 @@ export default function Docas() {
     vincularSenhaADoca
   } = useSenha();
   const { adicionarCross } = useCross();
-  const [docas, setDocas] = useState<Doca[]>(docasIniciais);
+  const { docas, atualizarDoca, criarDoca: criarDocaDB } = useDocasDB();
+  const { fornecedores } = useFornecedoresDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [associarModalOpen, setAssociarModalOpen] = useState(false);
   const [selectedDoca, setSelectedDoca] = useState<Doca | null>(null);
@@ -103,7 +104,7 @@ export default function Docas() {
   const [selectedDocaNumero, setSelectedDocaNumero] = useState<string>('');
 
   const getCarga = (cargaId?: string) => cargas.find(c => c.id === cargaId);
-  const getFornecedor = (fornecedorId?: string) => fornecedores.find(f => f.id === fornecedorId);
+  const getFornecedor = (fornecedorId?: string) => fornecedores?.find(f => f.id === fornecedorId);
   
   // Senhas em pátio (para seção inferior)
   const senhasEmPatio = senhas.filter(s => s.localAtual === 'em_patio' && !s.liberada);
@@ -134,9 +135,7 @@ export default function Docas() {
   const handleAssociarCarga = (cargaId: string) => {
     if (!selectedDoca) return;
     
-    setDocas(prev => prev.map(d => 
-      d.id === selectedDoca.id ? { ...d, status: 'ocupada' as StatusDoca, cargaId } : d
-    ));
+    atualizarDoca(selectedDoca.id, { status: 'ocupada', cargaId });
     
     // Atualizar a senha do caminhoneiro para mostrar "DIRIJA-SE À DOCA X"
     vincularCargaADoca(cargaId, selectedDoca.numero);
@@ -145,24 +144,12 @@ export default function Docas() {
   };
 
   const handleUsoConsumo = (doca: Doca) => {
-    setDocas(prev => prev.map(d => 
-      d.id === doca.id ? { ...d, status: 'uso_consumo' as StatusDoca } : d
-    ));
+    atualizarDoca(doca.id, { status: 'uso_consumo' });
     toast.success(`Doca ${doca.numero} marcada como Uso e Consumo`);
   };
 
   const handleLiberar = (doca: Doca) => {
-    setDocas(prev => prev.map(d => 
-      d.id === doca.id ? { 
-        ...d, 
-        status: 'livre' as StatusDoca, 
-        cargaId: undefined, 
-        conferenteId: undefined,
-        volumeConferido: undefined,
-        rua: undefined,
-        senhaId: undefined
-      } : d
-    ));
+    atualizarDoca(doca.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
     toast.success(`Doca ${doca.numero} liberada`);
   };
 
@@ -178,17 +165,7 @@ export default function Docas() {
     recusarCarga(docaToRecusar.cargaId);
     
     // Liberar a doca
-    setDocas(prev => prev.map(d => 
-      d.id === docaToRecusar.id ? { 
-        ...d, 
-        status: 'livre' as StatusDoca, 
-        cargaId: undefined, 
-        conferenteId: undefined,
-        volumeConferido: undefined,
-        rua: undefined,
-        senhaId: undefined
-      } : d
-    ));
+    atualizarDoca(docaToRecusar.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
     
     toast.success(`Carga recusada - Doca ${docaToRecusar.numero} liberada`);
     setConfirmRecusar(false);
@@ -215,17 +192,7 @@ export default function Docas() {
     }
     
     // Liberar a doca
-    setDocas(prev => prev.map(d => 
-      d.id === docaToLiberar.id ? { 
-        ...d, 
-        status: 'livre' as StatusDoca, 
-        cargaId: undefined, 
-        conferenteId: undefined,
-        volumeConferido: undefined,
-        rua: undefined,
-        senhaId: undefined
-      } : d
-    ));
+    atualizarDoca(docaToLiberar.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
     
     toast.success(`Caminhão movido para pátio`);
     setPatioConfirmOpen(false);
@@ -245,31 +212,16 @@ export default function Docas() {
     const carga = getCarga(docaToLiberar.cargaId);
     
     // Liberar doca antiga
-    setDocas(prev => prev.map(d => {
-      if (d.id === docaToLiberar.id) {
-        return { 
-          ...d, 
-          status: 'livre' as StatusDoca, 
-          cargaId: undefined, 
-          conferenteId: undefined,
-          volumeConferido: undefined,
-          rua: undefined,
-          senhaId: undefined
-        };
-      }
-      if (d.id === novaDoca.id) {
-        return { 
-          ...d, 
-          status: docaToLiberar.status,
-          cargaId: docaToLiberar.cargaId,
-          conferenteId: docaToLiberar.conferenteId,
-          volumeConferido: docaToLiberar.volumeConferido,
-          rua: docaToLiberar.rua,
-          senhaId: docaToLiberar.senhaId
-        };
-      }
-      return d;
-    }));
+    atualizarDoca(docaToLiberar.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
+    // Mover dados para nova doca
+    atualizarDoca(novaDoca.id, {
+      status: docaToLiberar.status,
+      cargaId: docaToLiberar.cargaId,
+      conferenteId: docaToLiberar.conferenteId,
+      volumeConferido: docaToLiberar.volumeConferido,
+      rua: docaToLiberar.rua,
+      senhaId: docaToLiberar.senhaId
+    });
     
     // Atualizar senha se existir
     if (patioSenhaId) {
@@ -299,14 +251,11 @@ export default function Docas() {
     
     // Atualizar doca para ocupada, preservando cargaId
     const cargaDaSenha = cargas.find(c => c.senhaId === retomarSenhaId);
-    setDocas(prev => prev.map(d => 
-      d.id === doca.id ? { 
-        ...d, 
-        status: 'ocupada' as StatusDoca,
-        senhaId: retomarSenhaId,
-        cargaId: cargaDaSenha?.id
-      } : d
-    ));
+    atualizarDoca(doca.id, {
+      status: 'ocupada',
+      senhaId: retomarSenhaId,
+      cargaId: cargaDaSenha?.id
+    });
     
     // Retomar senha do pátio
     retomarDoPatio(retomarSenhaId, docaNumero);
@@ -325,14 +274,11 @@ export default function Docas() {
       // COMEÇAR CONFERÊNCIA
       if (!isPatioConferencia) {
         // Doca real - muda status da doca para em_conferencia
-        setDocas(prev => prev.map(d => 
-          d.id === selectedDoca.id ? { 
-            ...d, 
-            status: 'em_conferencia' as StatusDoca,
-            conferenteId: data.conferenteId,
-            rua: data.rua
-          } : d
-        ));
+        atualizarDoca(selectedDoca.id, {
+          status: 'em_conferencia',
+          conferenteId: data.conferenteId,
+          rua: data.rua
+        });
       }
       
       if (selectedDoca.cargaId) {
@@ -362,17 +308,7 @@ export default function Docas() {
       
       if (!isPatioConferencia) {
         // Libera a doca (volta para livre)
-        setDocas(prev => prev.map(d => 
-          d.id === selectedDoca.id ? { 
-            ...d, 
-            status: 'livre' as StatusDoca,
-            cargaId: undefined,
-            conferenteId: undefined,
-            volumeConferido: undefined,
-            rua: undefined,
-            senhaId: undefined
-          } : d
-        ));
+        atualizarDoca(selectedDoca.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
       }
       
       // Atualiza a carga no agendamento com todas as informações finais
@@ -411,14 +347,9 @@ export default function Docas() {
     }
   };
 
-  const handleCriarDoca = () => {
-    const novoNumero = Math.max(...docas.map(d => d.numero)) + 1;
-    const novaDoca: Doca = {
-      id: `d${Date.now()}`,
-      numero: novoNumero,
-      status: 'livre'
-    };
-    setDocas([...docas, novaDoca]);
+  const handleCriarDoca = async () => {
+    const novoNumero = docas.length > 0 ? Math.max(...docas.map(d => d.numero)) + 1 : 1;
+    await criarDocaDB(novoNumero);
     toast.success(`Doca ${novoNumero} criada`);
   };
 
