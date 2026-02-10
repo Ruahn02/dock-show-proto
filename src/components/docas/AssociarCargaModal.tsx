@@ -6,8 +6,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Doca, Carga } from '@/types';
-import { fornecedores, statusCargaLabels } from '@/data/mockData';
+import { Doca, Carga, Fornecedor } from '@/types';
+import { statusCargaLabels } from '@/data/mockData';
 import { Package } from 'lucide-react';
 
 interface AssociarCargaModalProps {
@@ -15,6 +15,7 @@ interface AssociarCargaModalProps {
   onClose: () => void;
   doca: Doca | null;
   cargas: Carga[];
+  fornecedores: Fornecedor[];
   onConfirm: (cargaId: string) => void;
 }
 
@@ -23,7 +24,7 @@ const statusStyles: Record<string, string> = {
   em_conferencia: 'bg-yellow-100 text-yellow-800 border-yellow-300',
 };
 
-export function AssociarCargaModal({ open, onClose, doca, cargas, onConfirm }: AssociarCargaModalProps) {
+export function AssociarCargaModal({ open, onClose, doca, cargas, fornecedores, onConfirm }: AssociarCargaModalProps) {
   const getFornecedorNome = (id: string) => fornecedores.find(f => f.id === id)?.nome || 'N/A';
 
   const handleSelect = (cargaId: string) => {

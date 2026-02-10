@@ -25,8 +25,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { fornecedores } from '@/data/mockData';
-import { Carga } from '@/types';
+import { Carga, Fornecedor } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -36,9 +35,10 @@ interface AgendamentoModalProps {
   carga?: Carga | null;
   onSave: (data: Partial<Carga>) => void;
   selectedDate?: Date;
+  fornecedores: Fornecedor[];
 }
 
-export function AgendamentoModal({ open, onClose, carga, onSave, selectedDate }: AgendamentoModalProps) {
+export function AgendamentoModal({ open, onClose, carga, onSave, selectedDate, fornecedores }: AgendamentoModalProps) {
   const [data, setData] = useState<Date | undefined>(selectedDate || new Date());
   const [fornecedorId, setFornecedorId] = useState(carga?.fornecedorId || '');
   const [nfs, setNfs] = useState(carga?.nfs.join(', ') || '');
