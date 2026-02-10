@@ -40,7 +40,7 @@ import {
 
 export default function ControleSenhas() {
   const { senhas, getSenhasAtivas, vincularSenhaADoca, liberarSenha, moverParaPatio, retomarDoPatio } = useSenha();
-  const { docas } = useDocasDB();
+  const { docas, atualizarDoca } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
   
   // Modal states
@@ -113,11 +113,18 @@ export default function ControleSenhas() {
     setVincularModalOpen(true);
   };
 
-  const handleConfirmVincular = () => {
+  const handleConfirmVincular = async () => {
     if (!selectedSenhaId || !selectedDoca) return;
     
     const docaNumero = parseInt(selectedDoca);
     vincularSenhaADoca(selectedSenhaId, docaNumero);
+    
+    // Atualizar doca para ocupada
+    const doca = docas.find(d => d.numero === docaNumero);
+    if (doca) {
+      await atualizarDoca(doca.id, { status: 'ocupada', senhaId: selectedSenhaId });
+    }
+    
     toast.success(`Senha vinculada à Doca ${docaNumero}`);
     setVincularModalOpen(false);
   };
@@ -127,8 +134,14 @@ export default function ControleSenhas() {
     setPatioConfirmOpen(true);
   };
 
-  const handleConfirmPatio = () => {
+  const handleConfirmPatio = async () => {
     if (!selectedSenhaId) return;
+    
+    // Localizar doca com esta senha e liberá-la
+    const doca = docas.find(d => d.senhaId === selectedSenhaId);
+    if (doca) {
+      await atualizarDoca(doca.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
+    }
     
     moverParaPatio(selectedSenhaId);
     toast.success(`Caminhão movido para o pátio`);
@@ -141,10 +154,17 @@ export default function ControleSenhas() {
     setRetomarModalOpen(true);
   };
 
-  const handleConfirmRetomar = () => {
+  const handleConfirmRetomar = async () => {
     if (!selectedSenhaId || !selectedDoca) return;
     
     const docaNumero = parseInt(selectedDoca);
+    
+    // Atualizar doca para ocupada
+    const doca = docas.find(d => d.numero === docaNumero);
+    if (doca) {
+      await atualizarDoca(doca.id, { status: 'ocupada', senhaId: selectedSenhaId });
+    }
+    
     retomarDoPatio(selectedSenhaId, docaNumero);
     toast.success(`Caminhão retomado para Doca ${docaNumero}`);
     setRetomarModalOpen(false);
@@ -155,8 +175,17 @@ export default function ControleSenhas() {
     setLiberarConfirmOpen(true);
   };
 
-  const handleConfirmLiberar = () => {
+  const handleConfirmLiberar = async () => {
     if (!selectedSenhaId) return;
+    
+    // Se a senha tinha doca vinculada, liberar a doca
+    const senha = senhas.find(s => s.id === selectedSenhaId);
+    if (senha?.docaNumero) {
+      const doca = docas.find(d => d.numero === senha.docaNumero);
+      if (doca) {
+        await atualizarDoca(doca.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
+      }
+    }
     
     liberarSenha(selectedSenhaId);
     toast.success('Senha liberada - Caminhão pode sair');

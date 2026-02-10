@@ -271,7 +271,10 @@ export default function Docas() {
     const isPatioConferencia = selectedDoca.id.startsWith('patio_');
 
     if (modalMode === 'entrar') {
-      // COMEÇAR CONFERÊNCIA
+      // COMEÇAR CONFERÊNCIA - bloquear se não há senha vinculada
+      const cargaCheck = getCarga(selectedDoca.cargaId);
+      if (!isPatioConferencia && !selectedDoca.senhaId && !cargaCheck?.senhaId) return;
+      
       if (!isPatioConferencia) {
         // Doca real - muda status da doca para em_conferencia
         atualizarDoca(selectedDoca.id, {
@@ -681,6 +684,7 @@ export default function Docas() {
           onClose={() => setAssociarModalOpen(false)}
           doca={selectedDoca}
           cargas={cargasDisponiveis}
+          fornecedores={fornecedores}
           onConfirm={handleAssociarCarga}
         />
 
