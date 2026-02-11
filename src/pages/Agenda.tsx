@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 
 const statusStyles: Record<StatusCarga, string> = {
   aguardando_chegada: 'bg-blue-100 text-blue-800 border-blue-300',
+  aguardando_conferencia: 'bg-cyan-100 text-cyan-800 border-cyan-300',
   em_conferencia: 'bg-yellow-100 text-yellow-800 border-yellow-300',
   conferido: 'bg-green-100 text-green-800 border-green-300',
   no_show: 'bg-gray-100 text-gray-800 border-gray-300',
@@ -75,7 +76,7 @@ export default function Agenda() {
     setCargaToUpdate(null);
   };
 
-  const canChangeStatus = (carga: Carga) => carga.status === 'aguardando_chegada' || carga.status === 'em_conferencia';
+  const canChangeStatus = (carga: Carga) => carga.status === 'aguardando_chegada' || carga.status === 'aguardando_conferencia' || carga.status === 'em_conferencia';
 
   return (
     <Layout>
