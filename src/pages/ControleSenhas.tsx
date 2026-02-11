@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function ControleSenhas() {
-  const { senhas, getSenhasAtivas, vincularSenhaADoca, liberarSenha, moverParaPatio, retomarDoPatio } = useSenha();
+  const { senhas, cargas, getSenhasAtivas, vincularSenhaADoca, liberarSenha, moverParaPatio, retomarDoPatio, atualizarCarga } = useSenha();
   const { docas, atualizarDoca } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
   
@@ -117,12 +117,24 @@ export default function ControleSenhas() {
     if (!selectedSenhaId || !selectedDoca) return;
     
     const docaNumero = parseInt(selectedDoca);
-    vincularSenhaADoca(selectedSenhaId, docaNumero);
+    await vincularSenhaADoca(selectedSenhaId, docaNumero);
     
-    // Atualizar doca para ocupada
+    // Localizar carga vinculada a esta senha
+    const cargaVinculada = cargas.find(c => c.senhaId === selectedSenhaId);
+    
+    // Atualizar doca para ocupada com cargaId
     const doca = docas.find(d => d.numero === docaNumero);
     if (doca) {
-      await atualizarDoca(doca.id, { status: 'ocupada', senhaId: selectedSenhaId });
+      await atualizarDoca(doca.id, { 
+        status: 'ocupada', 
+        senhaId: selectedSenhaId,
+        cargaId: cargaVinculada?.id,
+      });
+    }
+    
+    // Atualizar carga para aguardando_conferencia
+    if (cargaVinculada) {
+      await atualizarCarga(cargaVinculada.id, { status: 'aguardando_conferencia' as any });
     }
     
     toast.success(`Senha vinculada à Doca ${docaNumero}`);
@@ -159,13 +171,25 @@ export default function ControleSenhas() {
     
     const docaNumero = parseInt(selectedDoca);
     
-    // Atualizar doca para ocupada
+    // Localizar carga vinculada a esta senha
+    const cargaVinculada = cargas.find(c => c.senhaId === selectedSenhaId);
+    
+    // Atualizar doca para ocupada com cargaId
     const doca = docas.find(d => d.numero === docaNumero);
     if (doca) {
-      await atualizarDoca(doca.id, { status: 'ocupada', senhaId: selectedSenhaId });
+      await atualizarDoca(doca.id, { 
+        status: 'ocupada', 
+        senhaId: selectedSenhaId,
+        cargaId: cargaVinculada?.id,
+      });
     }
     
-    retomarDoPatio(selectedSenhaId, docaNumero);
+    // Atualizar carga para aguardando_conferencia
+    if (cargaVinculada) {
+      await atualizarCarga(cargaVinculada.id, { status: 'aguardando_conferencia' as any });
+    }
+    
+    await retomarDoPatio(selectedSenhaId, docaNumero);
     toast.success(`Caminhão retomado para Doca ${docaNumero}`);
     setRetomarModalOpen(false);
   };

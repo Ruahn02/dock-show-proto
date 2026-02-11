@@ -23,7 +23,7 @@ export default function SenhaCaminhoneiro() {
   const [nomeMotorista, setNomeMotorista] = useState<string>('');
   const [tipoCaminhao, setTipoCaminhao] = useState<TipoCaminhao | ''>('');
   const [senhaGerada, setSenhaGerada] = useState<Senha | null>(null);
-  const { gerarSenha, getSenhaById, senhas, cargas } = useSenha();
+  const { gerarSenha, getSenhaById, senhas, cargas, marcarChegada } = useSenha();
   const { fornecedores } = useFornecedoresDB();
 
   // Atualizar senha quando houver mudanças no contexto
@@ -61,6 +61,16 @@ export default function SenhaCaminhoneiro() {
         nomeMotorista: nomeMotorista.trim(),
         tipoCaminhao: tipoCaminhao as TipoCaminhao
       });
+      
+      // Marcar chegada na primeira carga disponível do fornecedor
+      const dataHj = format(new Date(), 'yyyy-MM-dd');
+      const cargaDisponivel = cargas.find(
+        c => c.fornecedorId === fornecedorId && c.data === dataHj && c.status === 'aguardando_chegada' && !c.chegou
+      );
+      if (cargaDisponivel) {
+        await marcarChegada(cargaDisponivel.id, senha.id);
+      }
+      
       setSenhaGerada(senha);
       toast.success('Senha gerada com sucesso!');
     } catch {
