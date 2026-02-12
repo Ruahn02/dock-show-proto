@@ -14,7 +14,7 @@ interface DocaModalProps {
   open: boolean;
   onClose: () => void;
   doca: Doca | null;
-  onConfirm: (data: FinalizacaoData) => void;
+  onConfirm: (data: FinalizacaoData) => void | Promise<void>;
   mode: 'entrar' | 'finalizar';
 }
 
@@ -37,11 +37,11 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode }: DocaModalPro
     if (open) { resetForm(); }
   }, [open]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (mode === 'entrar') {
-      onConfirm({ status: 'em_conferencia', conferenteId, rua: rua || undefined });
+      await onConfirm({ status: 'em_conferencia', conferenteId, rua: rua || undefined });
     } else {
-      onConfirm({ status: 'conferido', volume: volume ? parseInt(volume) : undefined, divergencia: divergencia || undefined });
+      await onConfirm({ status: 'conferido', volume: volume ? parseInt(volume) : undefined, divergencia: divergencia || undefined });
     }
     resetForm();
     onClose();

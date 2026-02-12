@@ -82,7 +82,7 @@ export default function Docas() {
   } = useSenha();
   const { atualizarFluxo } = useFluxoOperacional();
   const { adicionarCross } = useCross();
-  const { docas, atualizarDoca, criarDoca: criarDocaDB } = useDocasDB();
+  const { docas, atualizarDoca, criarDoca: criarDocaDB, refetch: refetchDocas } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [associarModalOpen, setAssociarModalOpen] = useState(false);
@@ -311,6 +311,7 @@ export default function Docas() {
         p_rua: data.rua || null,
       });
       
+      await refetchDocas();
       const localMsg = isPatioConferencia ? 'no Pátio' : `na Doca ${selectedDoca.numero}`;
       toast.success(`Conferência iniciada ${localMsg}`);
     } else {
@@ -341,6 +342,7 @@ export default function Docas() {
         });
       }
       
+      await refetchDocas();
       const localMsg = isPatioConferencia ? 'Pátio' : `Doca ${selectedDoca.numero}`;
       toast.success(`Conferência finalizada - ${localMsg}`);
     }

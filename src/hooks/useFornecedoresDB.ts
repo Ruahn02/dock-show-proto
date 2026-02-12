@@ -28,6 +28,15 @@ export function useFornecedoresDB() {
 
   useEffect(() => {
     fetchFornecedores();
+
+    const channel = supabase
+      .channel('fornecedores-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fornecedores' }, () => {
+        fetchFornecedores();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [fetchFornecedores]);
 
   const criarFornecedor = useCallback(async (dados: Partial<Fornecedor>) => {

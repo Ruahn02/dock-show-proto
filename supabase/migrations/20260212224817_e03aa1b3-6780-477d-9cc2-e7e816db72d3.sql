@@ -1,0 +1,1 @@
+ALTER PUBLICATION supabase_realtime ADD TABLE cargas, senhas, docas, cross_docking, fornecedores, conferentes;
