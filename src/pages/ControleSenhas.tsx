@@ -208,20 +208,9 @@ export default function ControleSenhas() {
   const handleConfirmRecusar = async () => {
     if (!selectedSenhaId) return;
     
-    const senha = senhas.find(s => s.id === selectedSenhaId);
     const cargaVinculada = cargas.find(c => c.senhaId === selectedSenhaId);
     
-    if (cargaVinculada) {
-      await recusarCarga(cargaVinculada.id);
-    }
-    
-    // Liberar doca se vinculada
-    if (senha?.docaNumero) {
-      const doca = docas.find(d => d.numero === senha.docaNumero);
-      if (doca) {
-        await atualizarDoca(doca.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
-      }
-    }
+    await recusarCarga(cargaVinculada?.id || null, selectedSenhaId);
     
     toast.success('Carga recusada');
     setRecusarConfirmOpen(false);

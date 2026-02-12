@@ -2,6 +2,7 @@ import { createContext, useContext, useCallback, ReactNode } from 'react';
 import { Senha, StatusSenha, LocalSenha, Carga, TipoCaminhao } from '@/types';
 import { useSenhasDB } from '@/hooks/useSenhasDB';
 import { useCargasDB } from '@/hooks/useCargasDB';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
 interface AdicionarCargaData {
@@ -36,7 +37,7 @@ interface SenhaContextType {
   atualizarLocalSenha: (senhaId: string, local: LocalSenha) => Promise<void>;
   atualizarStatusSenha: (senhaId: string, status: StatusSenha) => Promise<void>;
   vincularCargaADoca: (cargaId: string, docaNumero: number) => void;
-  recusarCarga: (cargaId: string) => Promise<void>;
+  recusarCarga: (cargaId: string | null, senhaId?: string) => Promise<void>;
   marcarChegada: (cargaId: string, senhaId: string) => Promise<void>;
   atualizarCarga: (cargaId: string, updates: Partial<Carga>) => Promise<void>;
   getCargasDisponiveis: () => Carga[];
@@ -124,17 +125,53 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
     atualizarCargaDB(cargaId, { status: 'aguardando_conferencia' });
   }, [cargas, atualizarSenhaDB, atualizarCargaDB]);
 
-  const recusarCarga = useCallback(async (cargaId: string) => {
-    await atualizarCargaDB(cargaId, { status: 'recusado' as any });
-    const carga = cargas.find(c => c.id === cargaId);
-    if (carga?.senhaId) {
-      await atualizarSenhaDB(carga.senhaId, { 
-        status: 'recusado' as StatusSenha,
-        localAtual: 'aguardando_doca' as LocalSenha,
-        docaNumero: undefined,
-      });
+  const recusarCarga = useCallback(async (cargaId: string | null, senhaId?: string) => {
+    let resolvedSenhaId = senhaId;
+
+    // 1. Atualizar carga para recusado e buscar senhaId fresco do banco
+    if (cargaId) {
+      const { data: cargaData } = await supabase
+        .from('cargas')
+        .update({ status: 'recusado' })
+        .eq('id', cargaId)
+        .select('senha_id')
+        .single();
+      if (cargaData?.senha_id && !resolvedSenhaId) {
+        resolvedSenhaId = cargaData.senha_id;
+      }
     }
-  }, [cargas, atualizarCargaDB, atualizarSenhaDB]);
+
+    // 2. Atualizar senha para recusado
+    if (resolvedSenhaId) {
+      await supabase
+        .from('senhas')
+        .update({ 
+          status: 'recusado', 
+          local_atual: 'aguardando_doca', 
+          doca_numero: null 
+        })
+        .eq('id', resolvedSenhaId);
+    }
+
+    // 3. Limpar doca(s) associadas
+    const orConditions: string[] = [];
+    if (resolvedSenhaId) orConditions.push(`senha_id.eq.${resolvedSenhaId}`);
+    if (cargaId) orConditions.push(`carga_id.eq.${cargaId}`);
+
+    if (orConditions.length > 0) {
+      await supabase
+        .from('docas')
+        .update({ 
+          status: 'livre', 
+          carga_id: null, 
+          senha_id: null, 
+          conferente_id: null, 
+          volume_conferido: null, 
+          rua: null 
+        })
+        .or(orConditions.join(','));
+    }
+  }, []);
 
   const marcarChegada = useCallback(async (cargaId: string, senhaId: string) => {
     await atualizarCargaDB(cargaId, { chegou: true, senhaId });
