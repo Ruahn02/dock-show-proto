@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useCallback, ReactNode } from 'react';
 import { Senha, StatusSenha, LocalSenha, Carga, TipoCaminhao } from '@/types';
 import { useSenhasDB } from '@/hooks/useSenhasDB';
 import { useCargasDB } from '@/hooks/useCargasDB';
