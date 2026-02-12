@@ -1,96 +1,80 @@
 
-# Correcao Critica do Fluxo de Recusa
 
-## Bugs Encontrados
+# Estabilizacao do Sistema - Status Unificado e Recusa Consistente
 
-### Bug 1: `handleRecusarCarga` em Docas.tsx (linha 192)
-`recusarCarga()` e chamado **sem `await`**. A limpeza da doca executa em paralelo com a atualizacao de carga/senha, causando race condition e estado inconsistente.
+## Problemas Identificados
 
-### Bug 2: Recusa pela Agenda (linhas 71-77) NAO limpa a doca
-Quando o usuario recusa pela tela Agenda, `recusarCarga()` atualiza carga e senha, mas **nenhum codigo limpa a doca**. A doca permanece `ocupada` com `carga_id` e `senha_id` preenchidos. Resultado: doca travada com botoes de conferencia visiveis.
+### 1. Status duplicado "conferindo" vs "em_conferencia"
+- `cargas.status` usa `em_conferencia`
+- `senhas.status` usa `conferindo` (diferente!)
+- Isso causa confusao visual e quebra filtros entre telas
+- Locais afetados: Docas.tsx (linhas 320, 324, 594, 601, 609, 632), ControleSenhas.tsx (linha 81, 323), PainelSenhas.tsx (linha 9), SenhaCaminhoneiro.tsx (linha 99), mockData.ts (linha 182), types/index.ts
 
-### Bug 3: ControleSenhas recusa sem carga (linhas 208-228)
-Se a senha nao tem carga vinculada (senha orfa), `cargaVinculada` e null e `recusarCarga` nunca e chamado. A **senha nunca muda para `recusado`** — fica presa no estado anterior.
+### 2. Recusa pela tela Docas nao passa senhaId
+- `handleRecusarCarga` em Docas.tsx so passa `cargaId` -- se a carga no banco nao tiver `senha_id` preenchido (senha orfa vinculada direto a doca), a senha nao sera atualizada
 
-### Bug 4: `recusarCarga` no SenhaContext usa closure stale
-A funcao usa `cargas.find()` da closure. Se o array `cargas` foi atualizado por Realtime entre o clique e a execucao, o `senhaId` pode nao ser encontrado.
+### 3. Recusa pela tela Docas para docas virtuais (patio)
+- Quando recusa do patio, `docaToRecusar` tem id `patio_xxx` que nao existe no banco, entao a query de limpeza de doca nao encontra nada
+
+### 4. Doca mostrando dados do fornecedor depende de `getCarga()`
+- Se a doca tem `senhaId` mas nao tem `cargaId`, o fornecedor mostra "-". Precisa fallback para buscar fornecedor via senha
+
+### 5. Recusa via Agenda nao passa senhaId
+- Linha 73: `recusarCarga(cargaToUpdate.id)` -- funciona parcialmente pois busca `senha_id` da carga no banco, mas se a carga nao tiver senha vinculada, a doca fica presa
 
 ---
 
 ## Correcoes
 
-### Correcao 1: `recusarCarga` deve limpar a doca diretamente no banco
+### Arquivo 1: `src/types/index.ts`
+- Remover `'conferindo'` do tipo `StatusSenha`
+- Adicionar `'em_conferencia'` no lugar
+- Resultado: `StatusSenha` fica alinhado com `StatusCarga`
 
-**Arquivo:** `src/contexts/SenhaContext.tsx`
+### Arquivo 2: `src/data/mockData.ts`
+- Trocar label de `conferindo: 'Conferindo'` para `em_conferencia: 'Em Conferencia'` em `statusSenhaLabels`
+- Trocar `conferindo` para `em_conferencia` em `statusPainelMap` equivalente
 
-O SenhaContext nao tem acesso a `useDocasDB`, e passar callbacks entre hooks cria acoplamento fragil. A solucao mais robusta: fazer `recusarCarga` limpar a doca diretamente via Supabase, sem depender do hook.
+### Arquivo 3: `src/pages/Docas.tsx`
+- Linha 320/324: trocar `'conferindo'` por `'em_conferencia'` ao iniciar conferencia
+- Linha 191: passar `docaToRecusar.senhaId` como segundo parametro de `recusarCarga`
+- Linha 416-417: adicionar fallback -- se nao tem `cargaId` mas tem `senhaId`, buscar fornecedor via senha
+- Linhas 594, 601, 609, 632: trocar todas as referencias a `'conferindo'` por `'em_conferencia'`
 
-Alterar `recusarCarga` para:
-1. Buscar a carga do banco (nao da closure) para garantir dados frescos
-2. Atualizar `carga.status = 'recusado'`
-3. Se houver `senhaId` na carga, atualizar `senha.status = 'recusado'`, `senha.local_atual = 'aguardando_doca'`, `senha.doca_numero = null`
-4. Buscar a doca com `senha_id` ou `carga_id` correspondente e limpar: `status = 'livre'`, `carga_id = null`, `senha_id = null`, `conferente_id = null`, `volume_conferido = null`, `rua = null`
+### Arquivo 4: `src/pages/ControleSenhas.tsx`
+- Linha 81: trocar `case 'conferindo'` por `case 'em_conferencia'`
+- Linha 323: trocar filtro `conferindo` por `em_conferencia`
 
-Todas as operacoes feitas via `supabase.from()` direto, nao via hooks. O Realtime propagara as mudancas para todas as telas automaticamente.
+### Arquivo 5: `src/pages/PainelSenhas.tsx`
+- Linha 9: trocar chave `conferindo` por `em_conferencia` no mapa de status
 
-A assinatura muda para aceitar opcionalmente um `senhaId` para cobrir o caso de senhas orfas:
-```
-recusarCarga: (cargaId: string | null, senhaId?: string) => Promise<void>
-```
+### Arquivo 6: `src/pages/SenhaCaminhoneiro.tsx`
+- Linha 99: trocar `case 'conferindo'` por `case 'em_conferencia'`
 
-### Correcao 2: Simplificar chamadas nas telas
+### Arquivo 7: `src/contexts/SenhaContext.tsx`
+- Nenhuma alteracao necessaria -- `recusarCarga` ja usa chamadas diretas ao Supabase
 
-**Arquivo:** `src/pages/Docas.tsx`
-
-`handleRecusarCarga` (linha 188-200):
-- Remover a limpeza manual da doca (ja feita dentro de `recusarCarga`)
-- Adicionar `await` na chamada
-- Resultado: apenas `await recusarCarga(docaToRecusar.cargaId)`
-
-**Arquivo:** `src/pages/Agenda.tsx`
-
-`handleRecusado` (linha 71-77):
-- Nenhuma alteracao necessaria — `recusarCarga` agora limpa a doca internamente
-
-**Arquivo:** `src/pages/ControleSenhas.tsx`
-
-`handleConfirmRecusar` (linha 208-228):
-- Remover limpeza manual da doca
-- Chamar `recusarCarga(cargaId, senhaId)` passando ambos os IDs
-- Se nao tem carga, passar `null` como cargaId e o `senhaId` da senha selecionada
-- Resultado: cobre senhas orfas
-
-### Correcao 3: Importar supabase no SenhaContext
-
-**Arquivo:** `src/contexts/SenhaContext.tsx`
-
-Adicionar `import { supabase } from '@/integrations/supabase/client'` para fazer queries diretas na tabela `docas` dentro de `recusarCarga`.
-
-### Correcao 4: Atualizar interface do contexto
-
-**Arquivo:** `src/contexts/SenhaContext.tsx`
-
-Alterar a interface `SenhaContextType`:
-```
-recusarCarga: (cargaId: string | null, senhaId?: string) => Promise<void>
-```
+### Arquivo 8: `src/pages/Agenda.tsx`
+- Linha 73: passar `cargaToUpdate.senhaId` como segundo parametro de `recusarCarga` para garantir que a senha e atualizada mesmo se o banco estiver dessincronizado
 
 ---
 
-## Resumo de arquivos
+## Resumo visual das mudancas
 
-| Arquivo | Alteracao |
+| Arquivo | O que muda |
 |---------|-----------|
-| `src/contexts/SenhaContext.tsx` | `recusarCarga` faz limpeza completa (carga + senha + doca) via Supabase direto; nova assinatura aceita senhaId |
-| `src/pages/Docas.tsx` | `handleRecusarCarga` simplificado: apenas `await recusarCarga()`, sem limpeza manual |
-| `src/pages/Agenda.tsx` | Nenhuma alteracao necessaria (ja chama `recusarCarga` corretamente) |
-| `src/pages/ControleSenhas.tsx` | `handleConfirmRecusar` simplificado: passa senhaId, sem limpeza manual |
+| types/index.ts | `conferindo` vira `em_conferencia` no StatusSenha |
+| mockData.ts | Labels atualizados para `em_conferencia` |
+| Docas.tsx | Status unificado + recusa passa senhaId + fallback fornecedor via senha |
+| ControleSenhas.tsx | Filtro e badge trocam `conferindo` por `em_conferencia` |
+| PainelSenhas.tsx | Mapa de status atualizado |
+| SenhaCaminhoneiro.tsx | Switch case atualizado |
+| Agenda.tsx | recusarCarga passa senhaId |
 
 ## O que NAO sera alterado
-
+- Estrutura de tabelas no Supabase
 - Layout visual
-- Estrutura de tabelas
-- RLS, Realtime
+- RLS policies
 - Dashboard
-- Tela SenhaCaminhoneiro
-- Nenhuma funcionalidade nova
+- Fluxo de Cross Docking
+
