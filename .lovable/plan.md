@@ -1,73 +1,87 @@
 
+# Ajustes Operacionais e Interface
 
-# Estabilizacao Completa -- Ajustes Frontend Restantes
+## 1. Remover campo "Observacoes" na Solicitacao de Entrega
 
-## Contexto
+**Arquivo:** `src/pages/SolicitacaoEntrega.tsx`
 
-A camada central de controle ja esta implementada:
-- View `vw_carga_operacional` -- operacional no banco
-- RPC `rpc_atualizar_fluxo_carga` -- operacional no banco
-- Hook `useFluxoOperacional` -- operacional no frontend
-- Limpeza de dados -- ja executada
-- Dashboard -- ja zerado
+- Remover o state `observacoes` e `setObservacoes`
+- Remover o campo `<Textarea>` de observacoes do formulario (linhas 142-145)
+- Remover `observacoes` do `resetForm`
+- Remover `observacoes` do `handleSubmit` (na chamada `criarSolicitacao`)
 
-O que resta sao **ajustes de interface** para exibir informacoes completas e corrigir inconsistencias visuais.
+## 2. Coluna "Rua" na tabela principal de Docas
+
+**Arquivo:** `src/pages/Docas.tsx`
+
+A tabela principal de docas (linhas 376-532) ja tem NF(s) e Vol. Previsto mas nao exibe a Rua do conferente.
+
+- Adicionar `<TableHead>Rua</TableHead>` no header da tabela de docas
+- Adicionar celula com `{carga?.rua || (senha ? senha.rua : undefined) || '-'}` usando dados ja disponiveis (carga e senha ja sao buscados no mesmo `.map`)
+
+## 3. Dashboard em tempo real
+
+**Arquivo:** `src/pages/Dashboard.tsx`
+
+Substituir o consumo de dados mock por dados reais da view `vw_carga_operacional` e da tabela `docas`.
+
+- Importar `useFluxoOperacional` e `useDocasDB` e `useCrossDB`
+- Calcular indicadores dinamicamente via `useMemo`:
+  - `totalVolumes` = soma de `volume_conferido` das cargas conferidas (filtradas por periodo)
+  - `cargasConferidas` = contagem de cargas com status `conferido`
+  - `cargasNoShow` = contagem com status `no_show`
+  - `cargasRecusadas` = contagem com status `recusado`
+  - `docasLivres/Ocupadas/EmConferencia` = contagem direta da tabela `docas` por status (sem filtro de data, pois reflete estado atual)
+  - `totalCross/crossFinalizados/crossEmSeparacao` = contagem da tabela `cross_docking` filtrada por data
+- Para produtividade: agrupar cargas conferidas por `conferente_id`, buscar nome do conferente, somar volumes
+- Para status chart: contar cargas por status e montar array `StatusCargaChart`
+- Filtro por data:
+  - "Hoje"/"Outro dia": filtra `data_agendada === dataSelecionada`
+  - "Semana": filtra por semana da data selecionada (usando `startOfWeek`/`endOfWeek` do date-fns)
+  - "Mes": filtra por mes/ano
+  - "Intervalo": filtra entre `dataInicio` e `dataFim`
+- Remover imports de `dashboardPorPeriodo`, `produtividadeConferentes`, `statusCargasChart` do mockData
+- Realtime ja vem automaticamente via `useFluxoOperacional` (escuta cargas, senhas, docas)
+
+## 4. Sincronizacao de status: Agenda vs Controle de Senhas
+
+**Problema identificado:** Quando o motorista gera a senha em `SenhaCaminhoneiro.tsx`, a funcao `marcarChegada` (linha 71) apenas faz `chegou: true` e `senhaId`, mas NAO altera o `status` da carga. A carga permanece em `aguardando_chegada` na Agenda, enquanto a senha ja aparece como `aguardando_doca` no Controle de Senhas.
+
+**Solucao:**
+
+**Arquivo:** `src/contexts/SenhaContext.tsx` -- funcao `marcarChegada`
+
+Alterar de:
+```typescript
+await atualizarCargaDB(cargaId, { chegou: true, senhaId });
+```
+Para:
+```typescript
+await atualizarCargaDB(cargaId, { 
+  chegou: true, 
+  senhaId, 
+  status: 'aguardando_conferencia' 
+});
+```
+
+Isso garante que ao gerar a senha (chegada do motorista), a carga muda para `aguardando_conferencia` na Agenda, ficando consistente com o status `aguardando_doca` da senha no Controle de Senhas. Ambos indicam que o caminhao chegou e aguarda ser direcionado a uma doca.
+
+Nenhuma alteracao na RPC ou na view e necessaria -- o problema era exclusivamente no frontend.
 
 ---
 
-## Alteracoes Planejadas
-
-### 1. Agenda (`src/pages/Agenda.tsx`)
-
-**Adicionar colunas NF e Divergencia na tabela:**
-- Nova coluna "NF(s)" entre Fornecedor e Vol. Previsto, exibindo `carga.nfs.join(', ')`
-- Nova coluna "Divergencia" apos Rua, exibindo `carga.divergencia || '-'`
-
-**Historico completo:** A tela ja possui seletor de data. Nenhuma alteracao necessaria -- o filtro por `hojeStr` ja funciona para qualquer data selecionada.
-
-### 2. Patio em Docas (`src/pages/Docas.tsx`, linhas 535-676)
-
-**Adicionar colunas informativas na tabela de Patio:**
-- Coluna "NF(s)" -- buscando da carga vinculada (`cargaDaSenha?.nfs.join(', ')`)
-- Coluna "Vol. Previsto" -- `cargaDaSenha?.volumePrevisto`
-- Coluna "Rua" -- `cargaDaSenha?.rua || senha.rua`
-
-Essas informacoes ja estao disponiveis nos dados, apenas nao sao exibidas.
-
-### 3. Controle de Senhas (`src/pages/ControleSenhas.tsx`)
-
-**Excluir senhas recusadas da lista ativa:**
-- Alterar `getSenhasAtivas()` no `SenhaContext.tsx` para filtrar tambem `s.status !== 'recusado'`
-- Isso garante que senhas recusadas nao aparecem como "aguardando doca"
-
-### 4. Cross Docking (`src/pages/CrossDocking.tsx`)
-
-**Adicionar filtro por data:**
-- Adicionar seletor de data (Popover + Calendar) no header
-- Filtrar `crossItems` pela data selecionada (padrao: hoje)
-- Opcao "Todos" para ver historico completo
-
-**Adicionar colunas de Conferente e Divergencia:**
-- Na visao Admin: coluna "Conferente" (buscar nome pelo conferente_id da carga vinculada)
-- Na visao Admin: coluna "Divergencia" (da carga vinculada)
-- Na visao Operacional: coluna "Divergencia" e "Observacao" ja existem no fluxo de finalizacao
-
----
-
-## Arquivos Modificados
+## Resumo dos arquivos modificados
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/Agenda.tsx` | +2 colunas (NF, Divergencia) |
-| `src/pages/Docas.tsx` | +3 colunas no Patio (NF, Vol. Previsto, Rua) |
-| `src/contexts/SenhaContext.tsx` | Filtrar recusados em `getSenhasAtivas` |
-| `src/pages/CrossDocking.tsx` | Filtro por data + colunas Conferente/Divergencia |
+| `src/pages/SolicitacaoEntrega.tsx` | Remover campo Observacoes |
+| `src/pages/Docas.tsx` | Adicionar coluna Rua na tabela de docas |
+| `src/pages/Dashboard.tsx` | Consumir dados reais via hooks (tempo real) |
+| `src/contexts/SenhaContext.tsx` | Alterar `marcarChegada` para sincronizar status |
 
 ## O que NAO muda
 
-- Nenhuma tabela ou coluna no banco
-- View e RPC permanecem intactas
-- Layout geral e estilos visuais mantidos
-- Hook `useFluxoOperacional` sem alteracoes
-- Dashboard permanece com dados mock zerados
-
+- Nenhuma tabela ou coluna no banco de dados
+- View `vw_carga_operacional` e RPC `rpc_atualizar_fluxo_carga` permanecem intactas
+- Layout visual geral mantido
+- Fluxos de vinculacao, patio, cross docking inalterados
