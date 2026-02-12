@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { ProductivityChart } from '@/components/dashboard/ProductivityChart';
@@ -8,20 +8,36 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { dashboardPorPeriodo, produtividadeConferentes, statusCargasChart } from '@/data/mockData';
+import { statusCargaLabels } from '@/data/mockData';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useFluxoOperacional } from '@/hooks/useFluxoOperacional';
+import { useDocasDB } from '@/hooks/useDocasDB';
+import { useCrossDB } from '@/hooks/useCrossDB';
+import { useConferentesDB } from '@/hooks/useConferentesDB';
 import { Package, CheckCircle, AlertCircle, XCircle, Container, FileSpreadsheet, FileText, CalendarIcon, CalendarRange, ArrowRightLeft } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, isSameDay, isWithinInterval, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { DashboardPorPeriodo, ProdutividadeConferente, StatusCargaChart } from '@/types';
 
-type Periodo = 'dia' | 'semana' | 'mes';
 type FiltroPeriodo = 'hoje' | 'outro' | 'semana' | 'mes' | 'intervalo';
+
+const statusColors: Record<string, string> = {
+  aguardando_chegada: '#94a3b8',
+  aguardando_conferencia: '#3b82f6',
+  em_conferencia: '#eab308',
+  conferido: '#22c55e',
+  no_show: '#6b7280',
+  recusado: '#ef4444',
+};
 
 export default function Dashboard() {
   const { isAdmin } = useProfile();
-  const [periodo, setPeriodo] = useState<Periodo>('dia');
+  const { dados } = useFluxoOperacional();
+  const { docas } = useDocasDB();
+  const { crossItems } = useCrossDB();
+  const { conferentes } = useConferentesDB();
+
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>('hoje');
   const [dataSelecionada, setDataSelecionada] = useState<Date>(new Date());
   const [dataInicio, setDataInicio] = useState<Date>(new Date());
@@ -29,66 +45,135 @@ export default function Dashboard() {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [intervaloPopoverOpen, setIntervaloPopoverOpen] = useState(false);
 
-  const indicadores = dashboardPorPeriodo[periodo];
-  const produtividade = produtividadeConferentes[periodo];
-  const statusCargas = statusCargasChart[periodo];
+  // Filter cargas by date period
+  const cargasFiltradas = useMemo(() => {
+    return dados.filter(d => {
+      if (!d.carga_id || !d.data_agendada) return false;
+      const dataStr = d.data_agendada;
+      let dataDate: Date;
+      try { dataDate = parseISO(dataStr); } catch { return false; }
+
+      switch (filtroPeriodo) {
+        case 'hoje':
+          return isSameDay(dataDate, new Date());
+        case 'outro':
+          return isSameDay(dataDate, dataSelecionada);
+        case 'semana': {
+          const start = startOfWeek(dataSelecionada, { locale: ptBR });
+          const end = endOfWeek(dataSelecionada, { locale: ptBR });
+          return isWithinInterval(dataDate, { start, end });
+        }
+        case 'mes':
+          return dataDate.getMonth() === dataSelecionada.getMonth() && dataDate.getFullYear() === dataSelecionada.getFullYear();
+        case 'intervalo':
+          return isWithinInterval(dataDate, { start: dataInicio, end: dataFim });
+        default:
+          return true;
+      }
+    });
+  }, [dados, filtroPeriodo, dataSelecionada, dataInicio, dataFim]);
+
+  // Cross filtered by date
+  const crossFiltrados = useMemo(() => {
+    return crossItems.filter(c => {
+      let dataDate: Date;
+      try { dataDate = parseISO(c.data); } catch { return false; }
+      switch (filtroPeriodo) {
+        case 'hoje': return isSameDay(dataDate, new Date());
+        case 'outro': return isSameDay(dataDate, dataSelecionada);
+        case 'semana': {
+          const start = startOfWeek(dataSelecionada, { locale: ptBR });
+          const end = endOfWeek(dataSelecionada, { locale: ptBR });
+          return isWithinInterval(dataDate, { start, end });
+        }
+        case 'mes': return dataDate.getMonth() === dataSelecionada.getMonth() && dataDate.getFullYear() === dataSelecionada.getFullYear();
+        case 'intervalo': return isWithinInterval(dataDate, { start: dataInicio, end: dataFim });
+        default: return true;
+      }
+    });
+  }, [crossItems, filtroPeriodo, dataSelecionada, dataInicio, dataFim]);
+
+  // Indicadores
+  const indicadores = useMemo<DashboardPorPeriodo>(() => {
+    const conferidas = cargasFiltradas.filter(c => c.status_carga === 'conferido');
+    return {
+      totalVolumes: conferidas.reduce((sum, c) => sum + (c.volume_conferido || 0), 0),
+      cargasConferidas: conferidas.length,
+      cargasNoShow: cargasFiltradas.filter(c => c.status_carga === 'no_show').length,
+      cargasRecusadas: cargasFiltradas.filter(c => c.status_carga === 'recusado').length,
+      docasLivres: docas.filter(d => d.status === 'livre').length,
+      docasOcupadas: docas.filter(d => d.status === 'ocupada').length,
+      docasEmConferencia: docas.filter(d => d.status === 'em_conferencia').length,
+      totalCross: crossFiltrados.length,
+      crossFinalizados: crossFiltrados.filter(c => c.status === 'finalizado').length,
+      crossEmSeparacao: crossFiltrados.filter(c => c.status === 'em_separacao').length,
+    };
+  }, [cargasFiltradas, docas, crossFiltrados]);
+
+  // Produtividade por conferente
+  const produtividade = useMemo<ProdutividadeConferente[]>(() => {
+    const conferidas = cargasFiltradas.filter(c => c.status_carga === 'conferido' && c.conferente_id);
+    const grouped: Record<string, number> = {};
+    conferidas.forEach(c => {
+      if (c.conferente_id) {
+        grouped[c.conferente_id] = (grouped[c.conferente_id] || 0) + (c.volume_conferido || 0);
+      }
+    });
+    return Object.entries(grouped).map(([id, volumes]) => {
+      const conf = conferentes.find(c => c.id === id);
+      return { id, nome: conf?.nome || 'Desconhecido', volumes };
+    }).sort((a, b) => b.volumes - a.volumes);
+  }, [cargasFiltradas, conferentes]);
+
+  // Status chart
+  const statusCargas = useMemo<StatusCargaChart[]>(() => {
+    const counts: Record<string, number> = {};
+    cargasFiltradas.forEach(c => {
+      if (c.status_carga) {
+        counts[c.status_carga] = (counts[c.status_carga] || 0) + 1;
+      }
+    });
+    return Object.entries(counts).map(([status, value]) => ({
+      name: statusCargaLabels[status] || status,
+      value,
+      color: statusColors[status] || '#94a3b8',
+    }));
+  }, [cargasFiltradas]);
 
   const handleFiltroPeriodo = (filtro: FiltroPeriodo) => {
     setFiltroPeriodo(filtro);
-    switch (filtro) {
-      case 'hoje':
-        setPeriodo('dia');
-        setDataSelecionada(new Date());
-        break;
-      case 'semana':
-        setPeriodo('semana');
-        break;
-      case 'mes':
-        setPeriodo('mes');
-        break;
-    }
+    if (filtro === 'hoje') setDataSelecionada(new Date());
   };
 
   const handleSelectOutroDia = (date: Date | undefined) => {
     if (date) {
       setDataSelecionada(date);
       setFiltroPeriodo('outro');
-      setPeriodo('dia');
       setPopoverOpen(false);
     }
   };
 
   const handleSelectIntervalo = () => {
     setFiltroPeriodo('intervalo');
-    setPeriodo('mes');
     setIntervaloPopoverOpen(false);
   };
 
   const getPeriodoLabel = () => {
     switch (filtroPeriodo) {
-      case 'hoje':
-        return `Hoje - ${format(new Date(), 'dd/MM/yyyy')}`;
-      case 'outro':
-        return format(dataSelecionada, "dd/MM/yyyy");
-      case 'semana':
-        return `Semana - ${format(new Date(), "'Semana' w 'de' yyyy", { locale: ptBR })}`;
-      case 'mes':
-        return format(new Date(), "MMMM 'de' yyyy", { locale: ptBR });
-      case 'intervalo':
-        return `${format(dataInicio, 'dd/MM')} a ${format(dataFim, 'dd/MM/yyyy')}`;
+      case 'hoje': return `Hoje - ${format(new Date(), 'dd/MM/yyyy')}`;
+      case 'outro': return format(dataSelecionada, "dd/MM/yyyy");
+      case 'semana': return `Semana - ${format(dataSelecionada, "'Semana' w 'de' yyyy", { locale: ptBR })}`;
+      case 'mes': return format(dataSelecionada, "MMMM 'de' yyyy", { locale: ptBR });
+      case 'intervalo': return `${format(dataInicio, 'dd/MM')} a ${format(dataFim, 'dd/MM/yyyy')}`;
     }
   };
 
   const handleExportExcel = () => {
-    toast.success('Exportando para Excel...', {
-      description: 'O arquivo será baixado em instantes.',
-    });
+    toast.success('Exportando para Excel...', { description: 'O arquivo será baixado em instantes.' });
   };
 
   const handleExportPDF = () => {
-    toast.success('Gerando PDF...', {
-      description: 'O relatório será baixado em instantes.',
-    });
+    toast.success('Gerando PDF...', { description: 'O relatório será baixado em instantes.' });
   };
 
   return (
@@ -183,83 +268,32 @@ export default function Dashboard() {
 
         {/* Indicadores - Primeira Linha (4 cards) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total de Volumes"
-            value={indicadores.totalVolumes.toLocaleString()}
-            icon={Package}
-            color="info"
-          />
-          <StatCard
-            title="Cargas Conferidas"
-            value={indicadores.cargasConferidas}
-            icon={CheckCircle}
-            color="success"
-          />
-          <StatCard
-            title="Cargas No Show"
-            value={indicadores.cargasNoShow}
-            icon={AlertCircle}
-            color="warning"
-          />
-          <StatCard
-            title="Cargas Recusadas"
-            value={indicadores.cargasRecusadas}
-            icon={XCircle}
-            color="danger"
-          />
+          <StatCard title="Total de Volumes" value={indicadores.totalVolumes.toLocaleString()} icon={Package} color="info" />
+          <StatCard title="Cargas Conferidas" value={indicadores.cargasConferidas} icon={CheckCircle} color="success" />
+          <StatCard title="Cargas No Show" value={indicadores.cargasNoShow} icon={AlertCircle} color="warning" />
+          <StatCard title="Cargas Recusadas" value={indicadores.cargasRecusadas} icon={XCircle} color="danger" />
         </div>
 
         {/* Indicadores - Segunda Linha (3 cards) */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard
-            title="Docas Livres"
-            value={indicadores.docasLivres}
-            icon={Container}
-            color="success"
-          />
-          <StatCard
-            title="Docas Ocupadas"
-            value={indicadores.docasOcupadas}
-            icon={Container}
-            color="warning"
-          />
-          <StatCard
-            title="Docas em Conferência"
-            value={indicadores.docasEmConferencia}
-            icon={Container}
-            color="info"
-          />
+          <StatCard title="Docas Livres" value={indicadores.docasLivres} icon={Container} color="success" />
+          <StatCard title="Docas Ocupadas" value={indicadores.docasOcupadas} icon={Container} color="warning" />
+          <StatCard title="Docas em Conferência" value={indicadores.docasEmConferencia} icon={Container} color="info" />
         </div>
 
         {/* Indicadores Cross Docking */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard
-            title="Total Cross"
-            value={indicadores.totalCross ?? 0}
-            icon={ArrowRightLeft}
-            color="info"
-          />
-          <StatCard
-            title="Cross Finalizados"
-            value={indicadores.crossFinalizados ?? 0}
-            icon={CheckCircle}
-            color="success"
-          />
-          <StatCard
-            title="Cross em Separação"
-            value={indicadores.crossEmSeparacao ?? 0}
-            icon={ArrowRightLeft}
-            color="warning"
-          />
+          <StatCard title="Total Cross" value={indicadores.totalCross ?? 0} icon={ArrowRightLeft} color="info" />
+          <StatCard title="Cross Finalizados" value={indicadores.crossFinalizados ?? 0} icon={CheckCircle} color="success" />
+          <StatCard title="Cross em Separação" value={indicadores.crossEmSeparacao ?? 0} icon={ArrowRightLeft} color="warning" />
         </div>
 
-        {/* Gráficos - Apenas Admin vê ranking detalhado */}
+        {/* Gráficos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ProductivityChart data={produtividade} />
           {isAdmin && <RankingList data={produtividade} />}
         </div>
 
-        {/* Gráfico de Status */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <StatusChart data={statusCargas} />
           {!isAdmin && (
