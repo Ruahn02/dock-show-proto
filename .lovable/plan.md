@@ -1,62 +1,40 @@
 
-# Limpeza Completa dos Dados do Banco
 
-## Situacao Atual
+# Limpeza dos Dados Mock do Dashboard
 
-| Tabela | Registros |
-|--------|-----------|
-| fornecedores | 10 |
-| conferentes | 8 |
-| solicitacoes | 1 |
-| cargas | 15 |
-| senhas | 8 |
-| docas | 8 |
-| cross_docking | 1 |
+## O que sera feito
 
-## Problema: Foreign Keys Circulares
+O arquivo `src/data/mockData.ts` contem dados simulados que ainda alimentam o Dashboard com numeros fictícios (volumes, cargas conferidas, rankings, graficos). Como o banco foi limpo, esses dados precisam ser zerados tambem.
 
-Existem referencias circulares entre as tabelas:
-- `cargas.senha_id` -> `senhas` e `senhas.carga_id` -> `cargas`
-- `cargas.doca_id` -> `docas` e `docas.carga_id` -> `cargas`
+## Alteracoes
 
-Isso impede um DELETE simples em qualquer ordem. A solucao e quebrar os ciclos primeiro com UPDATE SET NULL, depois deletar na ordem correta.
+### 1. `src/data/mockData.ts`
 
-## Plano de Execucao
+Remover completamente os seguintes arrays/objetos que nao sao mais usados em lugar nenhum:
+- `fornecedores` (array mock -- o sistema usa `useFornecedoresDB`)
+- `conferentes` (array mock -- o sistema usa `useConferentesDB`)
+- `cargasIniciais` (array mock -- o sistema usa hooks de DB)
+- `docasIniciais` (array mock -- o sistema usa hooks de DB)
 
-Sera executado via ferramenta de insercao/atualizacao de dados (nao migration, pois nao altera schema):
+Zerar os dados do dashboard (manter a estrutura para o codigo compilar):
+- `dashboardPorPeriodo` -- todos os valores para 0
+- `produtividadeConferentes` -- arrays vazios
+- `statusCargasChart` -- arrays vazios
 
-**Passo 1 -- Quebrar ciclos (NULL nas FKs circulares)**
-```text
-UPDATE cargas SET senha_id = NULL, doca_id = NULL;
-UPDATE senhas SET carga_id = NULL;
-UPDATE docas SET carga_id = NULL, senha_id = NULL, conferente_id = NULL;
-```
+**Manter intactos** (sao constantes de UI usadas em varias telas):
+- `statusCargaLabels`
+- `statusDocaLabels`
+- `tipoCaminhaoLabels`
+- `statusSolicitacaoLabels`
+- `statusSenhaLabels`
+- `localSenhaLabels`
 
-**Passo 2 -- Deletar tabelas dependentes primeiro**
-```text
-DELETE FROM cross_docking;
-DELETE FROM docas;
-DELETE FROM senhas;
-DELETE FROM cargas;
-DELETE FROM solicitacoes;
-DELETE FROM conferentes;
-DELETE FROM fornecedores;
-```
+### 2. Nenhuma outra alteracao
 
-**Passo 3 -- Verificar que todas as tabelas estao vazias**
+- Dashboard.tsx continua funcionando (importa os mesmos exports, so que agora com valores zerados)
+- Nenhum outro arquivo e afetado pois os arrays removidos nao eram importados em lugar nenhum
 
-Consulta SELECT count para confirmar zero registros em todas.
+## Resultado
 
-## O que NAO sera alterado
+O Dashboard mostrara todos os indicadores em 0, graficos vazios, e ranking vazio -- refletindo corretamente que nao ha dados no sistema.
 
-- Estrutura de tabelas (colunas, tipos, defaults)
-- Foreign keys
-- RLS policies
-- Triggers
-- View `vw_carga_operacional`
-- RPC `rpc_atualizar_fluxo_carga`
-- Sequences (ex: `senhas_numero_seq` continuara de onde parou)
-
-## Resultado esperado
-
-Todas as 7 tabelas com zero registros, schema 100% intacto, pronto para receber dados novos.
