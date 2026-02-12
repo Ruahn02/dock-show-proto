@@ -112,8 +112,15 @@ export default function Docas() {
   // Docas livres (para modal de retomar)
   const docasLivres = docas.filter(d => d.status === 'livre');
 
-  // Cargas disponíveis: do dia atual, com status aguardando_chegada e que chegaram
+  // Cargas disponíveis: com status aguardando_chegada e que chegaram
   const cargasDisponiveis = getCargasDisponiveis();
+
+  // Senhas órfãs: aguardando doca sem carga vinculada
+  const senhasOrfas = senhas.filter(s => 
+    s.localAtual === 'aguardando_doca' && 
+    !s.liberada && 
+    !cargas.some(c => c.senhaId === s.id)
+  );
 
   const handleVincularCarga = (doca: Doca) => {
     setSelectedDoca(doca);
@@ -148,6 +155,19 @@ export default function Docas() {
     vincularCargaADoca(cargaId, selectedDoca.numero);
     
     toast.success(`Carga associada à Doca ${selectedDoca.numero}`);
+  };
+
+  const handleAssociarSenha = (senhaId: string) => {
+    if (!selectedDoca) return;
+    
+    // Vincular apenas a senha à doca (sem carga)
+    atualizarDoca(selectedDoca.id, { 
+      status: 'ocupada', 
+      senhaId,
+    });
+    vincularSenhaADoca(senhaId, selectedDoca.numero);
+    
+    toast.success(`Senha vinculada à Doca ${selectedDoca.numero}`);
   };
 
   const handleUsoConsumo = (doca: Doca) => {
@@ -439,13 +459,15 @@ export default function Docas() {
                         {/* Doca OCUPADA - Todos: Começar Conferência / Admin: Recusar + Pátio */}
                         {doca.status === 'ocupada' && (
                           <>
-                            <Button 
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                              onClick={() => handleComecarConferencia(doca)}
-                            >
-                              COMEÇAR CONFERÊNCIA
-                            </Button>
+                            {doca.senhaId && (
+                              <Button 
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                                onClick={() => handleComecarConferencia(doca)}
+                              >
+                                COMEÇAR CONFERÊNCIA
+                              </Button>
+                            )}
                             {isAdmin && (
                               <>
                                 <Button 
@@ -693,6 +715,8 @@ export default function Docas() {
           cargas={cargasDisponiveis}
           fornecedores={fornecedores}
           onConfirm={handleAssociarCarga}
+          senhasOrfas={senhasOrfas}
+          onConfirmSenha={handleAssociarSenha}
         />
 
         {/* Confirmation Dialog - Recusar Carga */}

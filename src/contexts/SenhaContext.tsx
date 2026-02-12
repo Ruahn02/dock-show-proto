@@ -128,7 +128,11 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
     await atualizarCargaDB(cargaId, { status: 'recusado' as any });
     const carga = cargas.find(c => c.id === cargaId);
     if (carga?.senhaId) {
-      await atualizarSenhaDB(carga.senhaId, { status: 'recusado' as StatusSenha });
+      await atualizarSenhaDB(carga.senhaId, { 
+        status: 'recusado' as StatusSenha,
+        localAtual: 'aguardando_doca' as LocalSenha,
+        docaNumero: undefined,
+      });
     }
   }, [cargas, atualizarCargaDB, atualizarSenhaDB]);
 
