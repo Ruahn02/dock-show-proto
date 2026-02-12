@@ -23,6 +23,15 @@ export function useConferentesDB() {
 
   useEffect(() => {
     fetchConferentes();
+
+    const channel = supabase
+      .channel('conferentes-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conferentes' }, () => {
+        fetchConferentes();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [fetchConferentes]);
 
   const criarConferente = useCallback(async (dados: Partial<Conferente>) => {

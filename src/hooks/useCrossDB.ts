@@ -52,6 +52,15 @@ export function useCrossDB() {
 
   useEffect(() => {
     fetchCross();
+
+    const channel = supabase
+      .channel('cross-docking-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cross_docking' }, () => {
+        fetchCross();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [fetchCross]);
 
   const criarCross = useCallback(async (dados: {
