@@ -545,10 +545,13 @@ export default function Docas() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-20">Senha</TableHead>
+                     <TableHead className="w-20">Senha</TableHead>
                     <TableHead>Fornecedor</TableHead>
+                    <TableHead>NF(s)</TableHead>
+                    <TableHead className="text-right">Vol. Previsto</TableHead>
                     <TableHead>Motorista</TableHead>
                     <TableHead>Veículo</TableHead>
+                    <TableHead>Rua</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -563,8 +566,11 @@ export default function Docas() {
                           {String(senha.numero).padStart(4, '0')}
                         </TableCell>
                         <TableCell>{getFornecedor(senha.fornecedorId)?.nome || '-'}</TableCell>
+                        <TableCell className="text-sm">{cargaDaSenha?.nfs?.join(', ') || '-'}</TableCell>
+                        <TableCell className="text-right">{cargaDaSenha?.volumePrevisto || '-'}</TableCell>
                         <TableCell>{senha.nomeMotorista}</TableCell>
                         <TableCell>{tipoCaminhaoLabels[senha.tipoCaminhao]}</TableCell>
+                        <TableCell>{cargaDaSenha?.rua || senha.rua || '-'}</TableCell>
                         <TableCell>
                           <Badge 
                             variant="outline" 

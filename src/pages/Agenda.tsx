@@ -112,26 +112,30 @@ export default function Agenda() {
               <TableRow>
                 <TableHead>Horário</TableHead>
                 <TableHead>Fornecedor</TableHead>
+                <TableHead>NF(s)</TableHead>
                 <TableHead className="text-right">Vol. Previsto</TableHead>
                 <TableHead className="text-right">Vol. Recebido</TableHead>
                 <TableHead>Conferente</TableHead>
                 <TableHead>Rua</TableHead>
+                <TableHead>Divergência</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {cargasDeHoje.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhuma entrega agendada para hoje</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma entrega agendada para hoje</TableCell></TableRow>
               ) : (
                 cargasDeHoje.map((carga) => (
                   <TableRow key={carga.id}>
                     <TableCell className="whitespace-nowrap">{carga.horarioPrevisto || '-'}</TableCell>
                     <TableCell className={`font-medium ${getFornecedorColor(carga)}`}>{getFornecedorNome(carga.fornecedorId)}</TableCell>
+                    <TableCell className="text-sm">{carga.nfs?.join(', ') || '-'}</TableCell>
                     <TableCell className="text-right">{carga.volumePrevisto}</TableCell>
                     <TableCell className="text-right font-semibold">{carga.volumeConferido ?? '-'}</TableCell>
                     <TableCell>{getConferenteNome(carga.conferenteId)}</TableCell>
                     <TableCell>{carga.rua || '-'}</TableCell>
+                    <TableCell className="text-sm">{carga.divergencia || '-'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={statusStyles[carga.status]}>{statusCargaLabels[carga.status]}</Badge>
                     </TableCell>
