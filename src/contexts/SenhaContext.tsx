@@ -120,7 +120,9 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
         docaNumero,
       });
     }
-  }, [cargas, atualizarSenhaDB]);
+    // Atualizar status da carga para aguardando_conferencia
+    atualizarCargaDB(cargaId, { status: 'aguardando_conferencia' });
+  }, [cargas, atualizarSenhaDB, atualizarCargaDB]);
 
   const recusarCarga = useCallback(async (cargaId: string) => {
     await atualizarCargaDB(cargaId, { status: 'recusado' as any });
@@ -139,9 +141,7 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
   }, [atualizarCargaDB]);
 
   const getCargasDisponiveis = useCallback(() => {
-    const hoje = format(new Date(), 'yyyy-MM-dd');
     return cargas.filter(c =>
-      c.data === hoje &&
       c.status === 'aguardando_chegada' &&
       c.chegou === true
     );

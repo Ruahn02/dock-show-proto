@@ -21,6 +21,7 @@ interface AssociarCargaModalProps {
 
 const statusStyles: Record<string, string> = {
   aguardando_chegada: 'bg-purple-100 text-purple-800 border-purple-300',
+  aguardando_conferencia: 'bg-blue-100 text-blue-800 border-blue-300',
   em_conferencia: 'bg-yellow-100 text-yellow-800 border-yellow-300',
 };
 

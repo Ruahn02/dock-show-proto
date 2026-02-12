@@ -135,9 +135,16 @@ export default function Docas() {
   const handleAssociarCarga = (cargaId: string) => {
     if (!selectedDoca) return;
     
-    atualizarDoca(selectedDoca.id, { status: 'ocupada', cargaId });
+    const carga = getCarga(cargaId);
     
-    // Atualizar a senha do caminhoneiro para mostrar "DIRIJA-SE À DOCA X"
+    // Atualizar doca com cargaId e senhaId
+    atualizarDoca(selectedDoca.id, { 
+      status: 'ocupada', 
+      cargaId, 
+      senhaId: carga?.senhaId 
+    });
+    
+    // Atualizar senha e status da carga via vincularCargaADoca
     vincularCargaADoca(cargaId, selectedDoca.numero);
     
     toast.success(`Carga associada à Doca ${selectedDoca.numero}`);
