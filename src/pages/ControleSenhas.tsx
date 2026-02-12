@@ -78,7 +78,7 @@ export default function ControleSenhas() {
       case 'em_doca':
       case 'aguardando_conferencia':
         return 'bg-yellow-100 text-yellow-800';
-      case 'conferindo':
+      case 'em_conferencia':
         return 'bg-green-100 text-green-800';
       case 'conferido':
         return 'bg-emerald-100 text-emerald-800';
@@ -320,7 +320,7 @@ export default function ControleSenhas() {
                       <SelectItem value="todos">Todos os Status</SelectItem>
                       <SelectItem value="aguardando_doca">Aguardando Doca</SelectItem>
                       <SelectItem value="em_doca">Em Doca</SelectItem>
-                      <SelectItem value="conferindo">Conferindo</SelectItem>
+                      <SelectItem value="em_conferencia">Em Conferência</SelectItem>
                       <SelectItem value="conferido">Conferido</SelectItem>
                       <SelectItem value="recusado">Recusado</SelectItem>
                     </SelectContent>

@@ -9,7 +9,7 @@ export type StatusSenha =
   | 'aguardando_doca'        // Chegou, aguardando doca
   | 'em_doca'                // Vinculado a uma doca
   | 'aguardando_conferencia' // Na doca, aguardando iniciar
-  | 'conferindo'             // Conferência em andamento
+  | 'em_conferencia'         // Conferência em andamento
   | 'conferido'              // Conferência finalizada
   | 'recusado';              // Carga recusada
 

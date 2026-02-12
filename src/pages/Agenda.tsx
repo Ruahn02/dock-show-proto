@@ -70,7 +70,7 @@ export default function Agenda() {
 
   const handleRecusado = async () => {
     if (!cargaToUpdate) return;
-    await recusarCarga(cargaToUpdate.id);
+    await recusarCarga(cargaToUpdate.id, cargaToUpdate.senhaId);
     toast.success(`Carga marcada como Recusado`);
     setConfirmRecusado(false);
     setCargaToUpdate(null);

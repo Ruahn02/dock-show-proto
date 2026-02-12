@@ -6,7 +6,7 @@ const statusPainelMap: Record<string, { text: string; bg: string }> = {
   aguardando_doca: { text: 'AGUARDANDO DOCA', bg: 'bg-blue-600' },
   em_doca: { text: 'DIRIJA-SE À DOCA', bg: 'bg-yellow-500' },
   aguardando_conferencia: { text: 'AGUARDANDO CONFERÊNCIA', bg: 'bg-orange-500' },
-  conferindo: { text: 'CONFERINDO', bg: 'bg-green-500' },
+  em_conferencia: { text: 'EM CONFERÊNCIA', bg: 'bg-green-500' },
   conferido: { text: 'CONFERIDO', bg: 'bg-emerald-600' },
   recusado: { text: 'RECUSADO', bg: 'bg-red-600' },
 };
