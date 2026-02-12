@@ -1,87 +1,68 @@
 
-# Ajustes Operacionais e Interface
+# Ativar Realtime em Todo o Sistema
 
-## 1. Remover campo "Observacoes" na Solicitacao de Entrega
+## Problema Raiz
 
-**Arquivo:** `src/pages/SolicitacaoEntrega.tsx`
+As tabelas do banco de dados **nao estao adicionadas** a publicacao `supabase_realtime`. Isso significa que, apesar de o codigo dos hooks estar correto (escutando `postgres_changes`), o Supabase nunca envia os eventos. O resultado: nada atualiza automaticamente.
 
-- Remover o state `observacoes` e `setObservacoes`
-- Remover o campo `<Textarea>` de observacoes do formulario (linhas 142-145)
-- Remover `observacoes` do `resetForm`
-- Remover `observacoes` do `handleSubmit` (na chamada `criarSolicitacao`)
-
-## 2. Coluna "Rua" na tabela principal de Docas
-
-**Arquivo:** `src/pages/Docas.tsx`
-
-A tabela principal de docas (linhas 376-532) ja tem NF(s) e Vol. Previsto mas nao exibe a Rua do conferente.
-
-- Adicionar `<TableHead>Rua</TableHead>` no header da tabela de docas
-- Adicionar celula com `{carga?.rua || (senha ? senha.rua : undefined) || '-'}` usando dados ja disponiveis (carga e senha ja sao buscados no mesmo `.map`)
-
-## 3. Dashboard em tempo real
-
-**Arquivo:** `src/pages/Dashboard.tsx`
-
-Substituir o consumo de dados mock por dados reais da view `vw_carga_operacional` e da tabela `docas`.
-
-- Importar `useFluxoOperacional` e `useDocasDB` e `useCrossDB`
-- Calcular indicadores dinamicamente via `useMemo`:
-  - `totalVolumes` = soma de `volume_conferido` das cargas conferidas (filtradas por periodo)
-  - `cargasConferidas` = contagem de cargas com status `conferido`
-  - `cargasNoShow` = contagem com status `no_show`
-  - `cargasRecusadas` = contagem com status `recusado`
-  - `docasLivres/Ocupadas/EmConferencia` = contagem direta da tabela `docas` por status (sem filtro de data, pois reflete estado atual)
-  - `totalCross/crossFinalizados/crossEmSeparacao` = contagem da tabela `cross_docking` filtrada por data
-- Para produtividade: agrupar cargas conferidas por `conferente_id`, buscar nome do conferente, somar volumes
-- Para status chart: contar cargas por status e montar array `StatusCargaChart`
-- Filtro por data:
-  - "Hoje"/"Outro dia": filtra `data_agendada === dataSelecionada`
-  - "Semana": filtra por semana da data selecionada (usando `startOfWeek`/`endOfWeek` do date-fns)
-  - "Mes": filtra por mes/ano
-  - "Intervalo": filtra entre `dataInicio` e `dataFim`
-- Remover imports de `dashboardPorPeriodo`, `produtividadeConferentes`, `statusCargasChart` do mockData
-- Realtime ja vem automaticamente via `useFluxoOperacional` (escuta cargas, senhas, docas)
-
-## 4. Sincronizacao de status: Agenda vs Controle de Senhas
-
-**Problema identificado:** Quando o motorista gera a senha em `SenhaCaminhoneiro.tsx`, a funcao `marcarChegada` (linha 71) apenas faz `chegou: true` e `senhaId`, mas NAO altera o `status` da carga. A carga permanece em `aguardando_chegada` na Agenda, enquanto a senha ja aparece como `aguardando_doca` no Controle de Senhas.
-
-**Solucao:**
-
-**Arquivo:** `src/contexts/SenhaContext.tsx` -- funcao `marcarChegada`
-
-Alterar de:
-```typescript
-await atualizarCargaDB(cargaId, { chegou: true, senhaId });
-```
-Para:
-```typescript
-await atualizarCargaDB(cargaId, { 
-  chegou: true, 
-  senhaId, 
-  status: 'aguardando_conferencia' 
-});
-```
-
-Isso garante que ao gerar a senha (chegada do motorista), a carga muda para `aguardando_conferencia` na Agenda, ficando consistente com o status `aguardando_doca` da senha no Controle de Senhas. Ambos indicam que o caminhao chegou e aguarda ser direcionado a uma doca.
-
-Nenhuma alteracao na RPC ou na view e necessaria -- o problema era exclusivamente no frontend.
+Alem disso, 3 hooks nao possuem subscriptions de Realtime no codigo, e o modal de conferencia nao espera a operacao terminar antes de fechar.
 
 ---
 
-## Resumo dos arquivos modificados
+## Alteracoes
+
+### 1. Migracao SQL: Adicionar tabelas a publicacao Realtime
+
+Criar migracao para adicionar todas as tabelas operacionais a publicacao `supabase_realtime`:
+
+- `cargas`
+- `senhas`
+- `docas`
+- `cross_docking`
+- `fornecedores`
+- `conferentes`
+
+Isso e o que faz o Supabase realmente enviar eventos quando os dados mudam.
+
+### 2. Adicionar Realtime nos hooks que faltam
+
+**`src/hooks/useFornecedoresDB.ts`** -- adicionar channel de Realtime no `useEffect`, igual ao padrao dos outros hooks.
+
+**`src/hooks/useCrossDB.ts`** -- adicionar channel de Realtime no `useEffect`.
+
+**`src/hooks/useConferentesDB.ts`** -- adicionar channel de Realtime no `useEffect`.
+
+### 3. Corrigir DocaModal para aguardar operacao
+
+**`src/components/docas/DocaModal.tsx`** -- tornar `handleConfirm` async e aguardar `onConfirm` antes de fechar o modal:
+
+```text
+Antes:  onConfirm(data); resetForm(); onClose();
+Depois: await onConfirm(data); resetForm(); onClose();
+```
+
+Isso garante que a RPC termine antes do modal fechar, e o Realtime (agora ativo) atualize a tela imediatamente.
+
+### 4. Garantir re-fetch apos RPC no Docas
+
+**`src/pages/Docas.tsx`** -- apos chamar `atualizarFluxo` em `handleModalConfirm`, tambem chamar `refetch` do `useDocasDB` como seguranca adicional para atualizar o estado local imediatamente, sem depender apenas do Realtime.
+
+---
+
+## Resumo dos arquivos
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/SolicitacaoEntrega.tsx` | Remover campo Observacoes |
-| `src/pages/Docas.tsx` | Adicionar coluna Rua na tabela de docas |
-| `src/pages/Dashboard.tsx` | Consumir dados reais via hooks (tempo real) |
-| `src/contexts/SenhaContext.tsx` | Alterar `marcarChegada` para sincronizar status |
+| Nova migracao SQL | Adicionar 6 tabelas a `supabase_realtime` |
+| `src/hooks/useFornecedoresDB.ts` | Adicionar subscription Realtime |
+| `src/hooks/useCrossDB.ts` | Adicionar subscription Realtime |
+| `src/hooks/useConferentesDB.ts` | Adicionar subscription Realtime |
+| `src/components/docas/DocaModal.tsx` | Tornar `handleConfirm` async com await |
+| `src/pages/Docas.tsx` | Chamar `refetch` apos `atualizarFluxo` |
 
 ## O que NAO muda
 
-- Nenhuma tabela ou coluna no banco de dados
-- View `vw_carga_operacional` e RPC `rpc_atualizar_fluxo_carga` permanecem intactas
-- Layout visual geral mantido
-- Fluxos de vinculacao, patio, cross docking inalterados
+- Nenhuma tabela ou coluna criada/removida
+- View e RPC permanecem intactas
+- Layout visual mantido
+- Fluxos operacionais inalterados
