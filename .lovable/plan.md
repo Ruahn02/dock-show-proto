@@ -1,63 +1,88 @@
 
-# Correcao Estrutural de Status e Permanencia de Cargas
 
-## Problemas Identificados
+# Correcao de Inconsistencia entre Controle de Senhas e Docas
 
-### 1. `getCargasDisponiveis()` filtra por data atual
-Em `SenhaContext.tsx` linha 142, o filtro exige `c.data === hoje`. Isso causa:
-- Cargas de dias anteriores que chegaram (`chegou=true`) mas nunca foram vinculadas a uma doca desaparecem da lista de cargas disponiveis no dia seguinte
-- O modal "Associar Carga" na tela Docas nao mostra essas cargas
+## Diagnostico Detalhado
 
-### 2. `handleAssociarCarga` em Docas.tsx incompleto
-Quando o usuario vincula uma carga a uma doca pela tela Docas (linha 135-143):
-- NAO define `senhaId` na doca
-- NAO atualiza o status da carga para `aguardando_conferencia`
-- Resultado: doca fica `ocupada` mas carga permanece como `aguardando_chegada`
+### Problema 1: Senha aparece no Controle de Senhas mas nao aparece na tela Docas
 
-### 3. `vincularCargaADoca` no SenhaContext incompleto
-A funcao (linha 114-123) so atualiza a senha. NAO atualiza o status da carga para `aguardando_conferencia`. Isso cria inconsistencia quando a vinculacao e feita pela tela Docas.
+**Causa raiz:** Existem DOIS caminhos paralelos para vincular a doca, e eles operam sobre entidades diferentes:
 
-### 4. `fornecedoresAgendados` em SenhaCaminhoneiro.tsx filtra por data
-Linha 40-42: filtra fornecedores por cargas do dia. Isso e correto para gerar senhas (so fornecedores com entrega agendada para hoje). NAO sera alterado.
+- **Tela Docas** usa `AssociarCargaModal` que lista **cargas** filtradas por `getCargasDisponiveis()` (status=aguardando_chegada + chegou=true)
+- **Tela ControleSenhas** lista **senhas** e permite vincular senha a doca
 
-### 5. AssociarCargaModal falta estilo para `aguardando_conferencia`
-O objeto `statusStyles` (linha 22-25) nao tem entrada para `aguardando_conferencia`.
+Quando o motorista gera senha mas NAO existe carga agendada para aquele fornecedor no dia (ex: data errada, carga ja foi vinculada a outra senha, etc.), `marcarChegada` nao e chamado. Resultado: a senha existe e aparece no ControleSenhas, mas nenhuma carga fica disponivel no modal de Docas.
+
+Alem disso, quando se vincula pela tela ControleSenhas, a funcao `vincularSenhaADoca` atualiza a senha e a carga, mas a doca e atualizada separadamente. Se a carga nao estiver vinculada a senha (cenario sem match), a doca fica com `carga_id=null` e aparece como "ocupada" sem informacao.
+
+### Problema 2: Recusar carga deixa estado inconsistente
+
+**Causa raiz identificada em `recusarCarga()` (SenhaContext linha 127-133):**
+
+```
+recusarCarga:
+  carga.status -> 'recusado'      (OK)
+  senha.status -> 'recusado'      (OK)
+  senha.localAtual -> NAO MUDA    (BUG: continua 'em_doca')
+  senha.docaNumero -> NAO LIMPA   (BUG: continua com numero)
+  doca -> NAO LIMPA               (BUG: continua 'ocupada')
+```
+
+Na tela Docas, `handleRecusarCarga` chama `recusarCarga()` E depois limpa a doca. Isso funciona parcialmente. Mas:
+- A senha continua com `localAtual: 'em_doca'` e `docaNumero` preenchido
+- No ControleSenhas, a senha recusada aparece como "Em Doca" no local, mesmo estando recusada
+- O botao "Mover para Patio" aparece porque `localAtual === 'em_doca'`
+- A doca na tela Docas mostra botoes de conferencia antes de receber o update assincrono
 
 ---
 
-## Correcoes
+## Correcoes Propostas
 
-### Correcao 1: Remover filtro de data em `getCargasDisponiveis()`
+### Correcao 1: `recusarCarga()` deve fazer limpeza completa
 
 **Arquivo:** `src/contexts/SenhaContext.tsx`
 
-Alterar `getCargasDisponiveis()` para nao filtrar por data. O criterio correto e:
-- `status === 'aguardando_chegada'` (ainda nao vinculada a doca)
-- `chegou === true` (motorista ja chegou)
+Alterar `recusarCarga` para:
+- Definir `carga.status = 'recusado'`
+- Definir `senha.status = 'recusado'`
+- Definir `senha.localAtual = 'aguardando_doca'` (volta ao estado neutro)
+- Limpar `senha.docaNumero = undefined`
+- Localizar a doca com `senhaId` correspondente e limpa-la (status='livre', carga_id=null, senha_id=null, conferente_id=null, volume_conferido=null, rua=null)
 
-Isso garante que cargas de qualquer data que chegaram mas nao foram vinculadas continuem disponiveis.
+Para isso, `recusarCarga` precisa receber acesso a `docas` e `atualizarDoca`. Como o SenhaContext nao tem acesso ao hook `useDocasDB`, ha duas opcoes:
 
-### Correcao 2: Completar `handleAssociarCarga` em Docas.tsx
+**Opcao escolhida:** Mover a limpeza da doca para dentro de `recusarCarga` passando uma callback, OU fazer `recusarCarga` aceitar um parametro opcional de `docaId` para limpeza. A abordagem mais simples: fazer o `recusarCarga` retornar o `senhaId` afetado e deixar as telas responsaveis por limpar a doca (como ja fazem), mas corrigir a senha.
+
+Concretamente:
+- `recusarCarga` no SenhaContext atualiza carga + senha (status, localAtual, docaNumero)
+- As telas Docas e ControleSenhas continuam limpando a doca apos chamar `recusarCarga`
+
+### Correcao 2: Adicionar acao de "Recusar" no ControleSenhas
+
+**Arquivo:** `src/pages/ControleSenhas.tsx`
+
+Atualmente a tela ControleSenhas NAO tem botao de recusar. Quando a carga e recusada pela tela Docas, a senha no ControleSenhas nao reflete corretamente porque `localAtual` nao foi atualizado.
+
+Apos a Correcao 1, o status sera sincronizado automaticamente via Realtime. Mas para completude, adicionar um botao de recusar no ControleSenhas para senhas que estejam em doca (`localAtual === 'em_doca'`).
+
+### Correcao 3: Tela Docas deve mostrar cargas disponiveis OU senhas sem carga
+
+**Arquivo:** `src/pages/Docas.tsx` e `src/components/docas/AssociarCargaModal.tsx`
+
+O modal `AssociarCargaModal` atualmente so mostra cargas com `chegou=true`. Quando uma senha existe sem carga vinculada, nada aparece.
+
+Solucao: no modal, alem das cargas disponiveis, listar tambem senhas ativas que estejam em `aguardando_doca` e NAO tenham carga vinculada. Ao selecionar uma senha sem carga, a doca e vinculada apenas a senha (sem cargaId).
+
+Isso resolve o caso em que o motorista chegou, gerou senha, mas nao havia carga agendada no dia.
+
+### Correcao 4: Proteger botoes de conferencia contra estados invalidos
 
 **Arquivo:** `src/pages/Docas.tsx`
 
-Ao associar carga a doca:
-- Localizar a senha vinculada a carga (`carga.senhaId`)
-- Definir `senhaId` na doca junto com `status: 'ocupada'` e `cargaId`
-- Atualizar o status da carga para `aguardando_conferencia`
-- Chamar `vincularCargaADoca` para atualizar a senha
-
-### Correcao 3: Atualizar `vincularCargaADoca` no SenhaContext
-
-**Arquivo:** `src/contexts/SenhaContext.tsx`
-
-Alem de atualizar a senha, tambem atualizar o status da carga para `aguardando_conferencia` usando `atualizarCargaDB`.
-
-### Correcao 4: Adicionar estilo faltante no AssociarCargaModal
-
-**Arquivo:** `src/components/docas/AssociarCargaModal.tsx`
-
-Adicionar `aguardando_conferencia` ao objeto `statusStyles`.
+Adicionar verificacao extra nos botoes de acao:
+- "COMECAR CONFERENCIA" so aparece se `doca.status === 'ocupada'` E `doca.senhaId` existe (confirma presenca do motorista)
+- "TERMINAR CONFERENCIA" so aparece se `doca.status === 'em_conferencia'`
+- Se `carga.status === 'recusado'` e a doca ainda esta ocupada, nao mostrar botoes de conferencia
 
 ---
 
@@ -65,16 +90,17 @@ Adicionar `aguardando_conferencia` ao objeto `statusStyles`.
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/contexts/SenhaContext.tsx` | Remover filtro de data em `getCargasDisponiveis()` + atualizar cargo em `vincularCargaADoca()` |
-| `src/pages/Docas.tsx` | Completar `handleAssociarCarga` com senhaId na doca e status da carga |
-| `src/components/docas/AssociarCargaModal.tsx` | Adicionar estilo para `aguardando_conferencia` |
+| `src/contexts/SenhaContext.tsx` | `recusarCarga` limpa senha.localAtual e senha.docaNumero |
+| `src/pages/Docas.tsx` | Proteger botoes contra estado invalido; verificar senhaId antes de conferencia |
+| `src/pages/ControleSenhas.tsx` | Adicionar botao de Recusar para senhas em doca |
+| `src/components/docas/AssociarCargaModal.tsx` | Mostrar senhas sem carga vinculada como opcao de vinculacao |
 
 ## O que NAO sera alterado
 
-- Telas, layouts, componentes visuais
-- Dashboard (mock)
-- Autenticacao
+- Layout visual
+- Estrutura de tabelas no Supabase
 - RLS, Realtime
-- Estrutura de tabelas
-- Nomes de status
-- Nenhuma funcionalidade nova
+- Dashboard
+- Tela SenhaCaminhoneiro
+- Tela Agenda
+
