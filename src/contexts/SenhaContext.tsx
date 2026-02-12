@@ -73,7 +73,7 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
   }, [senhas]);
 
   const getSenhasAtivas = useCallback(() => {
-    return senhas.filter(s => !s.liberada);
+    return senhas.filter(s => !s.liberada && s.status !== 'recusado');
   }, [senhas]);
 
   const vincularSenhaADoca = useCallback(async (senhaId: string, docaNumero: number) => {
