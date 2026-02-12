@@ -1,80 +1,509 @@
+# # =========================================================
 
+# 1. VIEW CENTRAL: vw_carga_operacional
 
-# Estabilizacao do Sistema - Status Unificado e Recusa Consistente
+# =========================================================
 
-## Problemas Identificados
+&nbsp;
 
-### 1. Status duplicado "conferindo" vs "em_conferencia"
-- `cargas.status` usa `em_conferencia`
-- `senhas.status` usa `conferindo` (diferente!)
-- Isso causa confusao visual e quebra filtros entre telas
-- Locais afetados: Docas.tsx (linhas 320, 324, 594, 601, 609, 632), ControleSenhas.tsx (linha 81, 323), PainelSenhas.tsx (linha 9), SenhaCaminhoneiro.tsx (linha 99), mockData.ts (linha 182), types/index.ts
+CREATE OR REPLACE VIEW public.vw_carga_operacional AS
 
-### 2. Recusa pela tela Docas nao passa senhaId
-- `handleRecusarCarga` em Docas.tsx so passa `cargaId` -- se a carga no banco nao tiver `senha_id` preenchido (senha orfa vinculada direto a doca), a senha nao sera atualizada
+&nbsp;
 
-### 3. Recusa pela tela Docas para docas virtuais (patio)
-- Quando recusa do patio, `docaToRecusar` tem id `patio_xxx` que nao existe no banco, entao a query de limpeza de doca nao encontra nada
+-- Parte 1: Cargas (com ou sem senha/doca)
 
-### 4. Doca mostrando dados do fornecedor depende de `getCarga()`
-- Se a doca tem `senhaId` mas nao tem `cargaId`, o fornecedor mostra "-". Precisa fallback para buscar fornecedor via senha
+SELECT
 
-### 5. Recusa via Agenda nao passa senhaId
-- Linha 73: `recusarCarga(cargaToUpdate.id)` -- funciona parcialmente pois busca `senha_id` da carga no banco, mas se a carga nao tiver senha vinculada, a doca fica presa
+  c.id              AS carga_id,
 
----
+  c.fornecedor_id   AS fornecedor_id,
 
-## Correcoes
+  f.nome            AS fornecedor_nome,
 
-### Arquivo 1: `src/types/index.ts`
-- Remover `'conferindo'` do tipo `StatusSenha`
-- Adicionar `'em_conferencia'` no lugar
-- Resultado: `StatusSenha` fica alinhado com `StatusCarga`
+  f.email           AS fornecedor_email,
 
-### Arquivo 2: `src/data/mockData.ts`
-- Trocar label de `conferindo: 'Conferindo'` para `em_conferencia: 'Em Conferencia'` em `statusSenhaLabels`
-- Trocar `conferindo` para `em_conferencia` em `statusPainelMap` equivalente
+  c.tipo_caminhao   AS tipo_veiculo,
 
-### Arquivo 3: `src/pages/Docas.tsx`
-- Linha 320/324: trocar `'conferindo'` por `'em_conferencia'` ao iniciar conferencia
-- Linha 191: passar `docaToRecusar.senhaId` como segundo parametro de `recusarCarga`
-- Linha 416-417: adicionar fallback -- se nao tem `cargaId` mas tem `senhaId`, buscar fornecedor via senha
-- Linhas 594, 601, 609, 632: trocar todas as referencias a `'conferindo'` por `'em_conferencia'`
+  c.quantidade_veiculos,
 
-### Arquivo 4: `src/pages/ControleSenhas.tsx`
-- Linha 81: trocar `case 'conferindo'` por `case 'em_conferencia'`
-- Linha 323: trocar filtro `conferindo` por `em_conferencia`
+  c.nfs             AS nota_fiscal,
 
-### Arquivo 5: `src/pages/PainelSenhas.tsx`
-- Linha 9: trocar chave `conferindo` por `em_conferencia` no mapa de status
+  c.volume_previsto,
 
-### Arquivo 6: `src/pages/SenhaCaminhoneiro.tsx`
-- Linha 99: trocar `case 'conferindo'` por `case 'em_conferencia'`
+  COALESCE(SUM(d.volume_conferido), 0) AS volume_conferido, -- soma de todas docas
 
-### Arquivo 7: `src/contexts/SenhaContext.tsx`
-- Nenhuma alteracao necessaria -- `recusarCarga` ja usa chamadas diretas ao Supabase
+  c.status          AS status_carga,
 
-### Arquivo 8: `src/pages/Agenda.tsx`
-- Linha 73: passar `cargaToUpdate.senhaId` como segundo parametro de `recusarCarga` para garantir que a senha e atualizada mesmo se o banco estiver dessincronizado
+  c.data            AS data_agendada,
 
----
+  c.horario_previsto,
 
-## Resumo visual das mudancas
+  c.chegou,
 
-| Arquivo | O que muda |
-|---------|-----------|
-| types/index.ts | `conferindo` vira `em_conferencia` no StatusSenha |
-| mockData.ts | Labels atualizados para `em_conferencia` |
-| Docas.tsx | Status unificado + recusa passa senhaId + fallback fornecedor via senha |
-| ControleSenhas.tsx | Filtro e badge trocam `conferindo` por `em_conferencia` |
-| PainelSenhas.tsx | Mapa de status atualizado |
-| SenhaCaminhoneiro.tsx | Switch case atualizado |
-| Agenda.tsx | recusarCarga passa senhaId |
+  c.conferente_id,
 
-## O que NAO sera alterado
-- Estrutura de tabelas no Supabase
-- Layout visual
-- RLS policies
-- Dashboard
-- Fluxo de Cross Docking
+  c.rua             AS rua_carga,
 
+  c.divergencia,
+
+  c.solicitacao_id,
+
+  s.id              AS senha_id,
+
+  s.numero          AS senha_numero,
+
+  s.status          AS status_senha,
+
+  s.local_atual,
+
+  s.doca_numero     AS senha_doca_numero,
+
+  s.nome_motorista,
+
+  s.hora_chegada,
+
+  s.tipo_caminhao   AS senha_tipo_veiculo,
+
+  s.liberada        AS senha_liberada,
+
+  s.rua             AS rua_senha,
+
+  d.id              AS doca_id,
+
+  d.numero          AS doca_numero,
+
+  d.status          AS status_doca,
+
+  d.conferente_id   AS doca_conferente_id,
+
+  d.volume_conferido AS doca_volume_conferido,
+
+  d.rua             AS doca_rua
+
+FROM cargas c
+
+LEFT JOIN fornecedores f ON f.id = c.fornecedor_id
+
+LEFT JOIN senhas s ON s.id = c.senha_id
+
+LEFT JOIN docas d ON d.carga_id = c.id
+
+GROUP BY c.id, f.id, s.id, d.id;
+
+&nbsp;
+
+-- Parte 2: Senhas órfãs (vinculadas a doca mas sem carga)
+
+SELECT
+
+  NULL              AS carga_id,
+
+  s.fornecedor_id,
+
+  f.nome            AS fornecedor_nome,
+
+  f.email           AS fornecedor_email,
+
+  s.tipo_caminhao   AS tipo_veiculo,
+
+  NULL::integer     AS quantidade_veiculos,
+
+  '{}'::text[]      AS nota_fiscal,
+
+  NULL::integer     AS volume_previsto,
+
+  NULL::integer     AS volume_conferido,
+
+  NULL::text        AS status_carga,
+
+  NULL::date        AS data_agendada,
+
+  NULL::text        AS horario_previsto,
+
+  NULL::boolean     AS chegou,
+
+  NULL::uuid        AS conferente_id,
+
+  NULL::text        AS rua_carga,
+
+  NULL::text        AS divergencia,
+
+  NULL::uuid        AS solicitacao_id,
+
+  s.id              AS senha_id,
+
+  s.numero          AS senha_numero,
+
+  s.status          AS status_senha,
+
+  s.local_atual,
+
+  s.doca_numero     AS senha_doca_numero,
+
+  s.nome_motorista,
+
+  s.hora_chegada,
+
+  s.tipo_caminhao   AS senha_tipo_veiculo,
+
+  s.liberada        AS senha_liberada,
+
+  s.rua             AS rua_senha,
+
+  d.id              AS doca_id,
+
+  d.numero          AS doca_numero,
+
+  d.status          AS status_doca,
+
+  d.conferente_id   AS doca_conferente_id,
+
+  d.volume_conferido AS doca_volume_conferido,
+
+  d.rua             AS doca_rua
+
+FROM senhas s
+
+LEFT JOIN fornecedores f ON f.id = s.fornecedor_id
+
+LEFT JOIN docas d ON d.senha_id = s.id
+
+WHERE NOT EXISTS (
+
+  SELECT 1 FROM cargas c WHERE c.senha_id = s.id
+
+);
+
+&nbsp;
+
+# =========================================================
+
+# 2. RPC: rpc_atualizar_fluxo_carga
+
+# =========================================================
+
+&nbsp;
+
+CREATE OR REPLACE FUNCTION public.rpc_atualizar_fluxo_carga(
+
+  p_carga_id UUID DEFAULT NULL,
+
+  p_senha_id UUID DEFAULT NULL,
+
+  p_novo_status TEXT DEFAULT NULL,
+
+  p_conferente_id UUID DEFAULT NULL,
+
+  p_rua TEXT DEFAULT NULL,
+
+  p_volume_conferido INTEGER DEFAULT NULL,
+
+  p_divergencia TEXT DEFAULT NULL
+
+)
+
+RETURNS void
+
+LANGUAGE plpgsql
+
+SECURITY DEFINER
+
+SET search_path = public
+
+AS $$
+
+DECLARE
+
+  v_senha_id UUID;
+
+  v_carga_id UUID;
+
+BEGIN
+
+  -- Resolver IDs cruzados
+
+  v_senha_id := p_senha_id;
+
+  v_carga_id := p_carga_id;
+
+&nbsp;
+
+  IF v_senha_id IS NULL AND v_carga_id IS NOT NULL THEN
+
+    SELECT senha_id INTO v_senha_id FROM cargas WHERE id = v_carga_id;
+
+  END IF;
+
+&nbsp;
+
+  IF v_carga_id IS NULL AND v_senha_id IS NOT NULL THEN
+
+    SELECT id INTO v_carga_id FROM cargas WHERE senha_id = v_senha_id LIMIT 1;
+
+  END IF;
+
+&nbsp;
+
+  -- === RECUSADO ===
+
+  IF p_novo_status = 'recusado' THEN
+
+    IF v_carga_id IS NOT NULL THEN
+
+      UPDATE cargas SET status = 'recusado' WHERE id = v_carga_id;
+
+    END IF;
+
+    IF v_senha_id IS NOT NULL THEN
+
+      UPDATE senhas
+
+        SET status = 'recusado', local_atual = 'aguardando_doca', doca_numero = NULL
+
+        WHERE id = v_senha_id;
+
+    END IF;
+
+    -- Liberar docas
+
+    UPDATE docas
+
+      SET status = 'livre',
+
+          carga_id = NULL, senha_id = NULL,
+
+          conferente_id = NULL, volume_conferido = NULL, rua = NULL
+
+      WHERE (v_senha_id IS NOT NULL AND senha_id = v_senha_id)
+
+         OR (v_carga_id IS NOT NULL AND carga_id = v_carga_id);
+
+    RETURN;
+
+  END IF;
+
+&nbsp;
+
+  -- === NO SHOW ===
+
+  IF p_novo_status = 'no_show' THEN
+
+    IF v_carga_id IS NOT NULL THEN
+
+      UPDATE cargas SET status = 'no_show' WHERE id = v_carga_id;
+
+    END IF;
+
+    RETURN;
+
+  END IF;
+
+&nbsp;
+
+  -- === EM CONFERENCIA ===
+
+  IF p_novo_status = 'em_conferencia' THEN
+
+    IF v_carga_id IS NOT NULL THEN
+
+      UPDATE cargas
+
+        SET status = 'em_conferencia',
+
+            conferente_id = COALESCE(p_conferente_id, conferente_id),
+
+            rua = COALESCE(p_rua, rua)
+
+        WHERE id = v_carga_id;
+
+    END IF;
+
+    IF v_senha_id IS NOT NULL THEN
+
+      UPDATE senhas SET status = 'em_conferencia' WHERE id = v_senha_id;
+
+    END IF;
+
+    UPDATE docas
+
+      SET status = 'em_conferencia',
+
+          conferente_id = COALESCE(p_conferente_id, conferente_id),
+
+          rua = COALESCE(p_rua, rua)
+
+      WHERE (v_senha_id IS NOT NULL AND senha_id = v_senha_id)
+
+         OR (v_carga_id IS NOT NULL AND carga_id = v_carga_id);
+
+    RETURN;
+
+  END IF;
+
+&nbsp;
+
+  -- === CONFERIDO ===
+
+  IF p_novo_status = 'conferido' THEN
+
+    -- Atualizar volume da doca
+
+    IF p_volume_conferido IS NOT NULL AND v_senha_id IS NOT NULL THEN
+
+      UPDATE docas
+
+      SET volume_conferido = p_volume_conferido
+
+      WHERE senha_id = v_senha_id;
+
+    END IF;
+
+&nbsp;
+
+    -- Atualizar carga com soma de todas docas
+
+    IF v_carga_id IS NOT NULL THEN
+
+      UPDATE cargas
+
+      SET status = 'conferido',
+
+          volume_conferido = COALESCE(
+
+            (SELECT SUM(volume_conferido) FROM docas WHERE carga_id = v_carga_id), 0
+
+          ),
+
+          conferente_id = COALESCE(p_conferente_id, conferente_id),
+
+          rua = COALESCE(p_rua, rua),
+
+          divergencia = COALESCE(p_divergencia, divergencia)
+
+      WHERE id = v_carga_id;
+
+    END IF;
+
+&nbsp;
+
+    IF v_senha_id IS NOT NULL THEN
+
+      UPDATE senhas SET status = 'conferido' WHERE id = v_senha_id;
+
+    END IF;
+
+&nbsp;
+
+    -- Liberar doca
+
+    UPDATE docas
+
+      SET status = 'livre',
+
+          carga_id = NULL, senha_id = NULL,
+
+          conferente_id = NULL, volume_conferido = NULL, rua = NULL
+
+      WHERE (v_senha_id IS NOT NULL AND senha_id = v_senha_id)
+
+         OR (v_carga_id IS NOT NULL AND carga_id = v_carga_id);
+
+    RETURN;
+
+  END IF;
+
+&nbsp;
+
+  -- === AGUARDANDO CONFERENCIA ===
+
+  IF p_novo_status = 'aguardando_conferencia' THEN
+
+    IF v_carga_id IS NOT NULL THEN
+
+      UPDATE cargas SET status = 'aguardando_conferencia' WHERE id = v_carga_id;
+
+    END IF;
+
+    RETURN;
+
+  END IF;
+
+&nbsp;
+
+END;
+
+$$;
+
+&nbsp;
+
+# =========================================================
+
+# 3. Frontend / Hooks
+
+# =========================================================
+
+&nbsp;
+
+1. Novo hook: `useFluxoOperacional.ts`
+
+   - Consulta `vw_carga_operacional` via `.select('*')`
+
+   - Escuta Realtime nas tabelas `cargas`, `senhas`, `docas` para re-fetch
+
+   - Expondo `atualizarFluxo(params)` → chama RPC `rpc_atualizar_fluxo_carga`
+
+&nbsp;
+
+2. SenhaContext.tsx
+
+   - Substituir `recusarCarga` e transições de status por chamadas RPC
+
+   - Mantem funções não relacionadas a status inalteradas
+
+&nbsp;
+
+3. Docas.tsx
+
+   - `handleModalConfirm` e `handleRecusarCarga` usam RPC
+
+   - `volume_conferido` agora é inserido por doca, `carga.volume_conferido` soma automaticamente
+
+&nbsp;
+
+4. Agenda.tsx e ControleSenhas.tsx
+
+   - Chamadas de recusa, no-show, conferência → RPC
+
+   - Dados exibidos via view
+
+&nbsp;
+
+5. Telas que não mudam
+
+   - PainelSenhas.tsx, SenhaCaminhoneiro.tsx, Dashboard.tsx, Layout, Sidebar, Header → leitura apenas
+
+&nbsp;
+
+# =========================================================
+
+# 4. Regras e Características
+
+# =========================================================
+
+&nbsp;
+
+- Status unificado: `'em_conferencia'` sempre
+
+- Recusa: limpa carga, senha e doca atomico
+
+- Volume conferido consolidado: soma todas docas vinculadas à carga
+
+- Volume previsto opcional
+
+- Nenhuma tabela ou coluna é criada/alterada
+
+- Layout inalterado
+
+- Dashboard continua mock
+
+- Fluxos de vincular senha/carga a doca continuam iguais
