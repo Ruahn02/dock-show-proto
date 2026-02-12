@@ -407,10 +407,58 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_carga_operacional: {
+        Row: {
+          carga_id: string | null
+          chegou: boolean | null
+          conferente_id: string | null
+          data_agendada: string | null
+          divergencia: string | null
+          doca_conferente_id: string | null
+          doca_id: string | null
+          doca_numero: number | null
+          doca_rua: string | null
+          doca_volume_conferido: number | null
+          fornecedor_email: string | null
+          fornecedor_id: string | null
+          fornecedor_nome: string | null
+          hora_chegada: string | null
+          horario_previsto: string | null
+          local_atual: string | null
+          nome_motorista: string | null
+          nota_fiscal: string[] | null
+          quantidade_veiculos: number | null
+          rua_carga: string | null
+          rua_senha: string | null
+          senha_doca_numero: number | null
+          senha_id: string | null
+          senha_liberada: boolean | null
+          senha_numero: number | null
+          senha_tipo_veiculo: string | null
+          solicitacao_id: string | null
+          status_carga: string | null
+          status_doca: string | null
+          status_senha: string | null
+          tipo_veiculo: string | null
+          volume_conferido: number | null
+          volume_previsto: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      rpc_atualizar_fluxo_carga: {
+        Args: {
+          p_carga_id?: string
+          p_conferente_id?: string
+          p_divergencia?: string
+          p_novo_status?: string
+          p_rua?: string
+          p_senha_id?: string
+          p_volume_conferido?: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

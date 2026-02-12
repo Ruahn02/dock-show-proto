@@ -126,51 +126,11 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
   }, [cargas, atualizarSenhaDB, atualizarCargaDB]);
 
   const recusarCarga = useCallback(async (cargaId: string | null, senhaId?: string) => {
-    let resolvedSenhaId = senhaId;
-
-    // 1. Atualizar carga para recusado e buscar senhaId fresco do banco
-    if (cargaId) {
-      const { data: cargaData } = await supabase
-        .from('cargas')
-        .update({ status: 'recusado' })
-        .eq('id', cargaId)
-        .select('senha_id')
-        .single();
-      if (cargaData?.senha_id && !resolvedSenhaId) {
-        resolvedSenhaId = cargaData.senha_id;
-      }
-    }
-
-    // 2. Atualizar senha para recusado
-    if (resolvedSenhaId) {
-      await supabase
-        .from('senhas')
-        .update({ 
-          status: 'recusado', 
-          local_atual: 'aguardando_doca', 
-          doca_numero: null 
-        })
-        .eq('id', resolvedSenhaId);
-    }
-
-    // 3. Limpar doca(s) associadas
-    const orConditions: string[] = [];
-    if (resolvedSenhaId) orConditions.push(`senha_id.eq.${resolvedSenhaId}`);
-    if (cargaId) orConditions.push(`carga_id.eq.${cargaId}`);
-
-    if (orConditions.length > 0) {
-      await supabase
-        .from('docas')
-        .update({ 
-          status: 'livre', 
-          carga_id: null, 
-          senha_id: null, 
-          conferente_id: null, 
-          volume_conferido: null, 
-          rua: null 
-        })
-        .or(orConditions.join(','));
-    }
+    await supabase.rpc('rpc_atualizar_fluxo_carga', {
+      p_carga_id: cargaId || null,
+      p_senha_id: senhaId || null,
+      p_novo_status: 'recusado',
+    });
   }, []);
 
   const marcarChegada = useCallback(async (cargaId: string, senhaId: string) => {

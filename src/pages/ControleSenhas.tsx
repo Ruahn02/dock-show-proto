@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { QRCodeSVG } from 'qrcode.react';
 import { useSenha } from '@/contexts/SenhaContext';
+import { useFluxoOperacional } from '@/hooks/useFluxoOperacional';
 import { tipoCaminhaoLabels, statusSenhaLabels, localSenhaLabels } from '@/data/mockData';
 import { useDocasDB } from '@/hooks/useDocasDB';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
@@ -40,6 +41,7 @@ import {
 
 export default function ControleSenhas() {
   const { senhas, cargas, getSenhasAtivas, vincularSenhaADoca, liberarSenha, moverParaPatio, retomarDoPatio, atualizarCarga, recusarCarga } = useSenha();
+  const { atualizarFluxo } = useFluxoOperacional();
   const { docas, atualizarDoca } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
   
@@ -210,7 +212,11 @@ export default function ControleSenhas() {
     
     const cargaVinculada = cargas.find(c => c.senhaId === selectedSenhaId);
     
-    await recusarCarga(cargaVinculada?.id || null, selectedSenhaId);
+    await atualizarFluxo({
+      p_carga_id: cargaVinculada?.id || null,
+      p_senha_id: selectedSenhaId,
+      p_novo_status: 'recusado',
+    });
     
     toast.success('Carga recusada');
     setRecusarConfirmOpen(false);
