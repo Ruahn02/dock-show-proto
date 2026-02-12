@@ -179,7 +179,7 @@ export const statusSenhaLabels: Record<string, string> = {
   aguardando_doca: 'Aguardando Doca',
   em_doca: 'Em Doca',
   aguardando_conferencia: 'Aguardando Conferência',
-  conferindo: 'Conferindo',
+  em_conferencia: 'Em Conferência',
   conferido: 'Conferido',
   recusado: 'Recusado',
 };

@@ -95,8 +95,8 @@ export default function SenhaCaminhoneiro() {
         return { text: 'EM DOCA', bgColor: 'bg-yellow-500', textColor: 'text-white' };
       case 'aguardando_conferencia':
         return { text: 'AGUARDANDO CONFERÊNCIA', bgColor: 'bg-yellow-500', textColor: 'text-white' };
-      case 'conferindo':
-        return { text: 'CONFERINDO', bgColor: 'bg-green-500', textColor: 'text-white' };
+      case 'em_conferencia':
+        return { text: 'EM CONFERÊNCIA', bgColor: 'bg-green-500', textColor: 'text-white' };
       case 'conferido':
         return { text: 'CONFERIDO', bgColor: 'bg-green-600', textColor: 'text-white' };
       case 'recusado':

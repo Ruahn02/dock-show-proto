@@ -186,11 +186,11 @@ export default function Docas() {
   };
 
   const handleRecusarCarga = async () => {
-    if (!docaToRecusar || !docaToRecusar.cargaId) return;
+    if (!docaToRecusar) return;
     
-    await recusarCarga(docaToRecusar.cargaId);
+    await recusarCarga(docaToRecusar.cargaId || null, docaToRecusar.senhaId);
     
-    toast.success(`Carga recusada - Doca ${docaToRecusar.numero} liberada`);
+    toast.success(`Carga recusada${docaToRecusar.numero ? ` - Doca ${docaToRecusar.numero} liberada` : ''}`);
     setConfirmRecusar(false);
     setDocaToRecusar(null);
   };
@@ -317,11 +317,11 @@ export default function Docas() {
         // Atualizar status da senha
         const carga = getCarga(selectedDoca.cargaId);
         if (carga?.senhaId) {
-          atualizarStatusSenha(carga.senhaId, 'conferindo');
+          atualizarStatusSenha(carga.senhaId, 'em_conferencia');
         }
       } else if (selectedDoca.senhaId) {
         // Se não tem cargaId mas tem senhaId (conferência no pátio sem carga vinculada)
-        atualizarStatusSenha(selectedDoca.senhaId, 'conferindo');
+        atualizarStatusSenha(selectedDoca.senhaId, 'em_conferencia');
       }
       
       const localMsg = isPatioConferencia ? 'no Pátio' : `na Doca ${selectedDoca.numero}`;
@@ -414,7 +414,12 @@ export default function Docas() {
             <TableBody>
               {docas.map((doca) => {
                 const carga = getCarga(doca.cargaId);
-                const fornecedor = carga ? getFornecedor(carga.fornecedorId) : undefined;
+                const senha = doca.senhaId ? senhas.find(s => s.id === doca.senhaId) : undefined;
+                const fornecedor = carga 
+                  ? getFornecedor(carga.fornecedorId) 
+                  : senha 
+                    ? getFornecedor(senha.fornecedorId) 
+                    : undefined;
 
                 return (
                   <TableRow key={doca.id}>
@@ -591,14 +596,14 @@ export default function Docas() {
                           <Badge 
                             variant="outline" 
                             className={
-                              senha.status === 'conferindo' 
+                              senha.status === 'em_conferencia' 
                                 ? 'bg-blue-100 text-blue-800 border-blue-300'
                                 : senha.status === 'conferido'
                                   ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                                   : 'bg-orange-50 text-orange-700 border-orange-200'
                             }
                           >
-                            {senha.status === 'conferindo' ? 'Conferindo' 
+                            {senha.status === 'em_conferencia' ? 'Em Conferência' 
                               : senha.status === 'conferido' ? 'Conferido' 
                               : 'Aguardando'}
                           </Badge>
@@ -606,7 +611,7 @@ export default function Docas() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             {/* Começar Conferência - se não está conferindo nem conferido */}
-                            {senha.status !== 'conferindo' && senha.status !== 'conferido' && (
+                            {senha.status !== 'em_conferencia' && senha.status !== 'conferido' && (
                               <Button 
                                 size="sm"
                                 className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -629,7 +634,7 @@ export default function Docas() {
                             )}
                             
                             {/* Terminar Conferência - se está conferindo */}
-                            {senha.status === 'conferindo' && (
+                            {senha.status === 'em_conferencia' && (
                               <Button 
                                 size="sm"
                                 className="bg-green-600 hover:bg-green-700 text-white"
@@ -662,7 +667,8 @@ export default function Docas() {
                                     id: `patio_${senha.id}`,
                                     numero: 0,
                                     status: 'ocupada',
-                                    cargaId: cargaDaSenha.id
+                                    cargaId: cargaDaSenha?.id,
+                                    senhaId: senha.id
                                   };
                                   setDocaToRecusar(docaVirtual);
                                   setConfirmRecusar(true);
