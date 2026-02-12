@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabasePagination';
 import { Senha, StatusSenha, LocalSenha, TipoCaminhao } from '@/types';
 
 export function mapSenhaFromDB(row: any): Senha {
@@ -41,10 +42,7 @@ export function useSenhasDB() {
   const [loading, setLoading] = useState(true);
 
   const fetchSenhas = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('senhas')
-      .select('*')
-      .order('numero');
+    const { data, error } = await fetchAllRows('senhas', '*', [{ column: 'numero' }]);
     if (!error && data) {
       setSenhas(data.map(mapSenhaFromDB));
     }

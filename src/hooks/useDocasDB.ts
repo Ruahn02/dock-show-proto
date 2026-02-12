@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabasePagination';
 import { Doca, StatusDoca } from '@/types';
 
 function mapFromDB(row: any): Doca {
@@ -32,10 +33,7 @@ export function useDocasDB() {
   const [loading, setLoading] = useState(true);
 
   const fetchDocas = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('docas')
-      .select('*')
-      .order('numero');
+    const { data, error } = await fetchAllRows('docas', '*', [{ column: 'numero' }]);
     if (!error && data) {
       setDocas(data.map(mapFromDB));
     }

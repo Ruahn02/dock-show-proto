@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabasePagination';
 import { CrossDocking, StatusCross } from '@/types';
 
 function mapFromDB(row: any): CrossDocking {
@@ -40,10 +41,7 @@ export function useCrossDB() {
   const [loading, setLoading] = useState(true);
 
   const fetchCross = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('cross_docking')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data, error } = await fetchAllRows('cross_docking', '*', [{ column: 'created_at', ascending: false }]);
     if (!error && data) {
       setCrossItems(data.map(mapFromDB));
     }

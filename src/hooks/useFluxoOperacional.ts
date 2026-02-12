@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabasePagination';
 
 export interface FluxoOperacional {
   carga_id: string | null;
@@ -52,10 +53,7 @@ export function useFluxoOperacional() {
   const [loading, setLoading] = useState(true);
 
   const fetchDados = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('vw_carga_operacional')
-      .select('*');
-
+    const { data, error } = await fetchAllRows('vw_carga_operacional', '*');
     if (!error && data) {
       setDados(data as unknown as FluxoOperacional[]);
     }

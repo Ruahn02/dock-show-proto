@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabasePagination';
 import { Conferente } from '@/types';
 
 function mapFromDB(row: any): Conferente {
@@ -11,10 +12,7 @@ export function useConferentesDB() {
   const [loading, setLoading] = useState(true);
 
   const fetchConferentes = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('conferentes')
-      .select('*')
-      .order('nome');
+    const { data, error } = await fetchAllRows('conferentes', '*', [{ column: 'nome' }]);
     if (!error && data) {
       setConferentes(data.map(mapFromDB));
     }
