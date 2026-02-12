@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useFluxoOperacional } from '@/hooks/useFluxoOperacional';
 import { Layout } from '@/components/layout/Layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ const statusStyles: Record<StatusCarga, string> = {
 
 export default function Agenda() {
   const { cargas, atualizarCarga, recusarCarga } = useSenha();
+  const { atualizarFluxo } = useFluxoOperacional();
   const { fornecedores } = useFornecedoresDB();
   const { conferentes } = useConferentesDB();
   
@@ -62,7 +64,7 @@ export default function Agenda() {
 
   const handleNoShow = async () => {
     if (!cargaToUpdate) return;
-    await atualizarCarga(cargaToUpdate.id, { status: 'no_show' as StatusCarga });
+    await atualizarFluxo({ p_carga_id: cargaToUpdate.id, p_novo_status: 'no_show' });
     toast.success(`Carga marcada como No-show`);
     setConfirmNoShow(false);
     setCargaToUpdate(null);
@@ -70,7 +72,7 @@ export default function Agenda() {
 
   const handleRecusado = async () => {
     if (!cargaToUpdate) return;
-    await recusarCarga(cargaToUpdate.id, cargaToUpdate.senhaId);
+    await atualizarFluxo({ p_carga_id: cargaToUpdate.id, p_senha_id: cargaToUpdate.senhaId || null, p_novo_status: 'recusado' });
     toast.success(`Carga marcada como Recusado`);
     setConfirmRecusado(false);
     setCargaToUpdate(null);

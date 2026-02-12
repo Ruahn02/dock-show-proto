@@ -48,6 +48,7 @@ import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { Doca, StatusDoca, StatusCarga, Senha } from '@/types';
 import { toast } from 'sonner';
 import { Container, Plus, Coffee, Unlock, XCircle, MapPin, RotateCcw } from 'lucide-react';
+import { useFluxoOperacional } from '@/hooks/useFluxoOperacional';
 
 const statusStyles: Record<StatusDoca, string> = {
   livre: 'bg-green-100 text-green-800 border-green-300',
@@ -79,6 +80,7 @@ export default function Docas() {
     atualizarStatusSenha,
     vincularSenhaADoca
   } = useSenha();
+  const { atualizarFluxo } = useFluxoOperacional();
   const { adicionarCross } = useCross();
   const { docas, atualizarDoca, criarDoca: criarDocaDB } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
@@ -188,7 +190,11 @@ export default function Docas() {
   const handleRecusarCarga = async () => {
     if (!docaToRecusar) return;
     
-    await recusarCarga(docaToRecusar.cargaId || null, docaToRecusar.senhaId);
+    await atualizarFluxo({
+      p_carga_id: docaToRecusar.cargaId || null,
+      p_senha_id: docaToRecusar.senhaId || null,
+      p_novo_status: 'recusado',
+    });
     
     toast.success(`Carga recusada${docaToRecusar.numero ? ` - Doca ${docaToRecusar.numero} liberada` : ''}`);
     setConfirmRecusar(false);
@@ -287,85 +293,52 @@ export default function Docas() {
     setRetomarModalOpen(false);
   };
 
-  const handleModalConfirm = (data: FinalizacaoData) => {
+  const handleModalConfirm = async (data: FinalizacaoData) => {
     if (!selectedDoca) return;
 
-    // Verificar se é uma doca real ou uma conferência no pátio
     const isPatioConferencia = selectedDoca.id.startsWith('patio_');
 
     if (modalMode === 'entrar') {
-      // COMEÇAR CONFERÊNCIA - bloquear se não há senha vinculada
+      // COMEÇAR CONFERÊNCIA via RPC
       const cargaCheck = getCarga(selectedDoca.cargaId);
       if (!isPatioConferencia && !selectedDoca.senhaId && !cargaCheck?.senhaId) return;
       
-      if (!isPatioConferencia) {
-        // Doca real - muda status da doca para em_conferencia
-        atualizarDoca(selectedDoca.id, {
-          status: 'em_conferencia',
-          conferenteId: data.conferenteId,
-          rua: data.rua
-        });
-      }
-      
-      if (selectedDoca.cargaId) {
-        atualizarCarga(selectedDoca.cargaId, {
-          status: 'em_conferencia' as StatusCarga,
-          conferenteId: data.conferenteId,
-          rua: data.rua
-        });
-        
-        // Atualizar status da senha
-        const carga = getCarga(selectedDoca.cargaId);
-        if (carga?.senhaId) {
-          atualizarStatusSenha(carga.senhaId, 'em_conferencia');
-        }
-      } else if (selectedDoca.senhaId) {
-        // Se não tem cargaId mas tem senhaId (conferência no pátio sem carga vinculada)
-        atualizarStatusSenha(selectedDoca.senhaId, 'em_conferencia');
-      }
+      await atualizarFluxo({
+        p_carga_id: selectedDoca.cargaId || null,
+        p_senha_id: selectedDoca.senhaId || cargaCheck?.senhaId || null,
+        p_novo_status: 'em_conferencia',
+        p_conferente_id: data.conferenteId || null,
+        p_rua: data.rua || null,
+      });
       
       const localMsg = isPatioConferencia ? 'no Pátio' : `na Doca ${selectedDoca.numero}`;
       toast.success(`Conferência iniciada ${localMsg}`);
     } else {
-      // TERMINAR CONFERÊNCIA
+      // TERMINAR CONFERÊNCIA via RPC
+      const carga = getCarga(selectedDoca.cargaId);
       const conferenteAtual = selectedDoca.conferenteId || data.conferenteId;
       const ruaAtual = selectedDoca.rua || data.rua;
-      const carga = getCarga(selectedDoca.cargaId);
       
-      if (!isPatioConferencia) {
-        // Libera a doca (volta para livre)
-        atualizarDoca(selectedDoca.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
-      }
+      await atualizarFluxo({
+        p_carga_id: selectedDoca.cargaId || null,
+        p_senha_id: selectedDoca.senhaId || carga?.senhaId || null,
+        p_novo_status: 'conferido',
+        p_volume_conferido: data.volume ?? null,
+        p_conferente_id: conferenteAtual || null,
+        p_rua: ruaAtual || null,
+        p_divergencia: data.divergencia || null,
+      });
       
-      // Atualiza a carga no agendamento com todas as informações finais
-      if (selectedDoca.cargaId) {
-        atualizarCarga(selectedDoca.cargaId, {
-          status: 'conferido' as StatusCarga,
-          volumeConferido: data.volume,
-          conferenteId: conferenteAtual,
-          rua: ruaAtual,
-          divergencia: data.divergencia
+      // Adicionar carga automaticamente à tela de Cross Docking
+      if (carga) {
+        adicionarCross({
+          cargaId: selectedDoca.cargaId!,
+          fornecedorId: carga.fornecedorId,
+          nfs: carga.nfs,
+          data: carga.data,
+          rua: ruaAtual || data.rua || '',
+          volumeRecebido: data.volume || 0
         });
-        
-        // Atualizar status da senha para conferido (MAS NÃO LIBERA)
-        if (carga?.senhaId) {
-          atualizarStatusSenha(carga.senhaId, 'conferido');
-        }
-        
-        // Adicionar carga automaticamente à tela de Cross Docking
-        if (carga) {
-          adicionarCross({
-            cargaId: selectedDoca.cargaId,
-            fornecedorId: carga.fornecedorId,
-            nfs: carga.nfs,
-            data: carga.data,
-            rua: ruaAtual || data.rua || '',
-            volumeRecebido: data.volume || 0
-          });
-        }
-      } else if (selectedDoca.senhaId) {
-        // Se não tem cargaId mas tem senhaId
-        atualizarStatusSenha(selectedDoca.senhaId, 'conferido');
       }
       
       const localMsg = isPatioConferencia ? 'Pátio' : `Doca ${selectedDoca.numero}`;
