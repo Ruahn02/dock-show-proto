@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabasePagination';
 import { SolicitacaoEntrega, StatusSolicitacao, TipoCaminhao } from '@/types';
 
 function mapFromDB(row: any): SolicitacaoEntrega {
@@ -37,10 +38,7 @@ export function useSolicitacoesDB() {
   const [loading, setLoading] = useState(true);
 
   const fetchSolicitacoes = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('solicitacoes')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data, error } = await fetchAllRows('solicitacoes', '*', [{ column: 'created_at', ascending: false }]);
     if (!error && data) {
       setSolicitacoes(data.map(mapFromDB));
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabasePagination';
 import { Fornecedor } from '@/types';
 
 function mapFromDB(row: any): Fornecedor {
@@ -16,10 +17,7 @@ export function useFornecedoresDB() {
   const [loading, setLoading] = useState(true);
 
   const fetchFornecedores = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('fornecedores')
-      .select('*')
-      .order('nome');
+    const { data, error } = await fetchAllRows('fornecedores', '*', [{ column: 'nome' }]);
     if (!error && data) {
       setFornecedores(data.map(mapFromDB));
     }
