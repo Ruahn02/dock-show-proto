@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -20,7 +19,6 @@ export default function SolicitacaoEntrega() {
   const [quantidadeVeiculos, setQuantidadeVeiculos] = useState('1');
   const [volumePrevisto, setVolumePrevisto] = useState('');
   const [emailContato, setEmailContato] = useState('');
-  const [observacoes, setObservacoes] = useState('');
   const [enviado, setEnviado] = useState(false);
   const { fornecedores } = useFornecedoresDB();
   const { criarSolicitacao } = useSolicitacao();
@@ -44,7 +42,6 @@ export default function SolicitacaoEntrega() {
         quantidadeVeiculos: parseInt(quantidadeVeiculos) || 1,
         volumePrevisto: parseInt(volumePrevisto) || 0,
         emailContato,
-        observacoes: observacoes || undefined,
       });
       setEnviado(true);
       toast.success('Solicitação enviada com sucesso!');
@@ -59,7 +56,6 @@ export default function SolicitacaoEntrega() {
     setQuantidadeVeiculos('1');
     setVolumePrevisto('');
     setEmailContato('');
-    setObservacoes('');
     setEnviado(false);
   };
 
@@ -137,11 +133,6 @@ export default function SolicitacaoEntrega() {
             <div className="space-y-2">
               <Label htmlFor="email">E-mail para Contato *</Label>
               <Input id="email" type="email" value={emailContato} onChange={(e) => setEmailContato(e.target.value)} placeholder="email@exemplo.com" />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="observacoes">Observações</Label>
-              <Textarea id="observacoes" value={observacoes} onChange={(e) => setObservacoes(e.target.value)} placeholder="Informações adicionais sobre a entrega..." rows={3} />
             </div>
 
             <Button type="submit" className="w-full">

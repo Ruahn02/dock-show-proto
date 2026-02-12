@@ -380,6 +380,7 @@ export default function Docas() {
                 <TableHead>Fornecedor</TableHead>
                 <TableHead>NF(s)</TableHead>
                 <TableHead className="text-right w-28">Vol. Previsto</TableHead>
+                <TableHead>Rua</TableHead>
                 <TableHead className="w-36">Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -401,6 +402,9 @@ export default function Docas() {
                     <TableCell>{carga?.nfs.join(', ') || '-'}</TableCell>
                     <TableCell className="text-right">
                       {carga?.volumePrevisto || '-'}
+                    </TableCell>
+                    <TableCell>
+                      {doca.rua || carga?.rua || senha?.rua || '-'}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={statusStyles[doca.status]}>
