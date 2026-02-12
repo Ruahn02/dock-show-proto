@@ -185,14 +185,10 @@ export default function Docas() {
     setConfirmRecusar(true);
   };
 
-  const handleRecusarCarga = () => {
+  const handleRecusarCarga = async () => {
     if (!docaToRecusar || !docaToRecusar.cargaId) return;
     
-    // Recusar a carga (atualiza carga e senha)
-    recusarCarga(docaToRecusar.cargaId);
-    
-    // Liberar a doca
-    atualizarDoca(docaToRecusar.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
+    await recusarCarga(docaToRecusar.cargaId);
     
     toast.success(`Carga recusada - Doca ${docaToRecusar.numero} liberada`);
     setConfirmRecusar(false);
