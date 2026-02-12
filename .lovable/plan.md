@@ -1,88 +1,79 @@
 
+# Correcao Critica do Fluxo de Recusa
 
-# Correcao de Inconsistencia entre Controle de Senhas e Docas
+## Bugs Encontrados
 
-## Diagnostico Detalhado
+### Bug 1: `handleRecusarCarga` em Docas.tsx (linha 192)
+`recusarCarga()` e chamado **sem `await`**. A limpeza da doca executa em paralelo com a atualizacao de carga/senha, causando race condition e estado inconsistente.
 
-### Problema 1: Senha aparece no Controle de Senhas mas nao aparece na tela Docas
+### Bug 2: Recusa pela Agenda (linhas 71-77) NAO limpa a doca
+Quando o usuario recusa pela tela Agenda, `recusarCarga()` atualiza carga e senha, mas **nenhum codigo limpa a doca**. A doca permanece `ocupada` com `carga_id` e `senha_id` preenchidos. Resultado: doca travada com botoes de conferencia visiveis.
 
-**Causa raiz:** Existem DOIS caminhos paralelos para vincular a doca, e eles operam sobre entidades diferentes:
+### Bug 3: ControleSenhas recusa sem carga (linhas 208-228)
+Se a senha nao tem carga vinculada (senha orfa), `cargaVinculada` e null e `recusarCarga` nunca e chamado. A **senha nunca muda para `recusado`** — fica presa no estado anterior.
 
-- **Tela Docas** usa `AssociarCargaModal` que lista **cargas** filtradas por `getCargasDisponiveis()` (status=aguardando_chegada + chegou=true)
-- **Tela ControleSenhas** lista **senhas** e permite vincular senha a doca
-
-Quando o motorista gera senha mas NAO existe carga agendada para aquele fornecedor no dia (ex: data errada, carga ja foi vinculada a outra senha, etc.), `marcarChegada` nao e chamado. Resultado: a senha existe e aparece no ControleSenhas, mas nenhuma carga fica disponivel no modal de Docas.
-
-Alem disso, quando se vincula pela tela ControleSenhas, a funcao `vincularSenhaADoca` atualiza a senha e a carga, mas a doca e atualizada separadamente. Se a carga nao estiver vinculada a senha (cenario sem match), a doca fica com `carga_id=null` e aparece como "ocupada" sem informacao.
-
-### Problema 2: Recusar carga deixa estado inconsistente
-
-**Causa raiz identificada em `recusarCarga()` (SenhaContext linha 127-133):**
-
-```
-recusarCarga:
-  carga.status -> 'recusado'      (OK)
-  senha.status -> 'recusado'      (OK)
-  senha.localAtual -> NAO MUDA    (BUG: continua 'em_doca')
-  senha.docaNumero -> NAO LIMPA   (BUG: continua com numero)
-  doca -> NAO LIMPA               (BUG: continua 'ocupada')
-```
-
-Na tela Docas, `handleRecusarCarga` chama `recusarCarga()` E depois limpa a doca. Isso funciona parcialmente. Mas:
-- A senha continua com `localAtual: 'em_doca'` e `docaNumero` preenchido
-- No ControleSenhas, a senha recusada aparece como "Em Doca" no local, mesmo estando recusada
-- O botao "Mover para Patio" aparece porque `localAtual === 'em_doca'`
-- A doca na tela Docas mostra botoes de conferencia antes de receber o update assincrono
+### Bug 4: `recusarCarga` no SenhaContext usa closure stale
+A funcao usa `cargas.find()` da closure. Se o array `cargas` foi atualizado por Realtime entre o clique e a execucao, o `senhaId` pode nao ser encontrado.
 
 ---
 
-## Correcoes Propostas
+## Correcoes
 
-### Correcao 1: `recusarCarga()` deve fazer limpeza completa
+### Correcao 1: `recusarCarga` deve limpar a doca diretamente no banco
 
 **Arquivo:** `src/contexts/SenhaContext.tsx`
 
+O SenhaContext nao tem acesso a `useDocasDB`, e passar callbacks entre hooks cria acoplamento fragil. A solucao mais robusta: fazer `recusarCarga` limpar a doca diretamente via Supabase, sem depender do hook.
+
 Alterar `recusarCarga` para:
-- Definir `carga.status = 'recusado'`
-- Definir `senha.status = 'recusado'`
-- Definir `senha.localAtual = 'aguardando_doca'` (volta ao estado neutro)
-- Limpar `senha.docaNumero = undefined`
-- Localizar a doca com `senhaId` correspondente e limpa-la (status='livre', carga_id=null, senha_id=null, conferente_id=null, volume_conferido=null, rua=null)
+1. Buscar a carga do banco (nao da closure) para garantir dados frescos
+2. Atualizar `carga.status = 'recusado'`
+3. Se houver `senhaId` na carga, atualizar `senha.status = 'recusado'`, `senha.local_atual = 'aguardando_doca'`, `senha.doca_numero = null`
+4. Buscar a doca com `senha_id` ou `carga_id` correspondente e limpar: `status = 'livre'`, `carga_id = null`, `senha_id = null`, `conferente_id = null`, `volume_conferido = null`, `rua = null`
 
-Para isso, `recusarCarga` precisa receber acesso a `docas` e `atualizarDoca`. Como o SenhaContext nao tem acesso ao hook `useDocasDB`, ha duas opcoes:
+Todas as operacoes feitas via `supabase.from()` direto, nao via hooks. O Realtime propagara as mudancas para todas as telas automaticamente.
 
-**Opcao escolhida:** Mover a limpeza da doca para dentro de `recusarCarga` passando uma callback, OU fazer `recusarCarga` aceitar um parametro opcional de `docaId` para limpeza. A abordagem mais simples: fazer o `recusarCarga` retornar o `senhaId` afetado e deixar as telas responsaveis por limpar a doca (como ja fazem), mas corrigir a senha.
+A assinatura muda para aceitar opcionalmente um `senhaId` para cobrir o caso de senhas orfas:
+```
+recusarCarga: (cargaId: string | null, senhaId?: string) => Promise<void>
+```
 
-Concretamente:
-- `recusarCarga` no SenhaContext atualiza carga + senha (status, localAtual, docaNumero)
-- As telas Docas e ControleSenhas continuam limpando a doca apos chamar `recusarCarga`
-
-### Correcao 2: Adicionar acao de "Recusar" no ControleSenhas
-
-**Arquivo:** `src/pages/ControleSenhas.tsx`
-
-Atualmente a tela ControleSenhas NAO tem botao de recusar. Quando a carga e recusada pela tela Docas, a senha no ControleSenhas nao reflete corretamente porque `localAtual` nao foi atualizado.
-
-Apos a Correcao 1, o status sera sincronizado automaticamente via Realtime. Mas para completude, adicionar um botao de recusar no ControleSenhas para senhas que estejam em doca (`localAtual === 'em_doca'`).
-
-### Correcao 3: Tela Docas deve mostrar cargas disponiveis OU senhas sem carga
-
-**Arquivo:** `src/pages/Docas.tsx` e `src/components/docas/AssociarCargaModal.tsx`
-
-O modal `AssociarCargaModal` atualmente so mostra cargas com `chegou=true`. Quando uma senha existe sem carga vinculada, nada aparece.
-
-Solucao: no modal, alem das cargas disponiveis, listar tambem senhas ativas que estejam em `aguardando_doca` e NAO tenham carga vinculada. Ao selecionar uma senha sem carga, a doca e vinculada apenas a senha (sem cargaId).
-
-Isso resolve o caso em que o motorista chegou, gerou senha, mas nao havia carga agendada no dia.
-
-### Correcao 4: Proteger botoes de conferencia contra estados invalidos
+### Correcao 2: Simplificar chamadas nas telas
 
 **Arquivo:** `src/pages/Docas.tsx`
 
-Adicionar verificacao extra nos botoes de acao:
-- "COMECAR CONFERENCIA" so aparece se `doca.status === 'ocupada'` E `doca.senhaId` existe (confirma presenca do motorista)
-- "TERMINAR CONFERENCIA" so aparece se `doca.status === 'em_conferencia'`
-- Se `carga.status === 'recusado'` e a doca ainda esta ocupada, nao mostrar botoes de conferencia
+`handleRecusarCarga` (linha 188-200):
+- Remover a limpeza manual da doca (ja feita dentro de `recusarCarga`)
+- Adicionar `await` na chamada
+- Resultado: apenas `await recusarCarga(docaToRecusar.cargaId)`
+
+**Arquivo:** `src/pages/Agenda.tsx`
+
+`handleRecusado` (linha 71-77):
+- Nenhuma alteracao necessaria — `recusarCarga` agora limpa a doca internamente
+
+**Arquivo:** `src/pages/ControleSenhas.tsx`
+
+`handleConfirmRecusar` (linha 208-228):
+- Remover limpeza manual da doca
+- Chamar `recusarCarga(cargaId, senhaId)` passando ambos os IDs
+- Se nao tem carga, passar `null` como cargaId e o `senhaId` da senha selecionada
+- Resultado: cobre senhas orfas
+
+### Correcao 3: Importar supabase no SenhaContext
+
+**Arquivo:** `src/contexts/SenhaContext.tsx`
+
+Adicionar `import { supabase } from '@/integrations/supabase/client'` para fazer queries diretas na tabela `docas` dentro de `recusarCarga`.
+
+### Correcao 4: Atualizar interface do contexto
+
+**Arquivo:** `src/contexts/SenhaContext.tsx`
+
+Alterar a interface `SenhaContextType`:
+```
+recusarCarga: (cargaId: string | null, senhaId?: string) => Promise<void>
+```
 
 ---
 
@@ -90,17 +81,16 @@ Adicionar verificacao extra nos botoes de acao:
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/contexts/SenhaContext.tsx` | `recusarCarga` limpa senha.localAtual e senha.docaNumero |
-| `src/pages/Docas.tsx` | Proteger botoes contra estado invalido; verificar senhaId antes de conferencia |
-| `src/pages/ControleSenhas.tsx` | Adicionar botao de Recusar para senhas em doca |
-| `src/components/docas/AssociarCargaModal.tsx` | Mostrar senhas sem carga vinculada como opcao de vinculacao |
+| `src/contexts/SenhaContext.tsx` | `recusarCarga` faz limpeza completa (carga + senha + doca) via Supabase direto; nova assinatura aceita senhaId |
+| `src/pages/Docas.tsx` | `handleRecusarCarga` simplificado: apenas `await recusarCarga()`, sem limpeza manual |
+| `src/pages/Agenda.tsx` | Nenhuma alteracao necessaria (ja chama `recusarCarga` corretamente) |
+| `src/pages/ControleSenhas.tsx` | `handleConfirmRecusar` simplificado: passa senhaId, sem limpeza manual |
 
 ## O que NAO sera alterado
 
 - Layout visual
-- Estrutura de tabelas no Supabase
+- Estrutura de tabelas
 - RLS, Realtime
 - Dashboard
 - Tela SenhaCaminhoneiro
-- Tela Agenda
-
+- Nenhuma funcionalidade nova
