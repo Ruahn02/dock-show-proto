@@ -9,7 +9,7 @@ import { useSenha } from '@/contexts/SenhaContext';
 import { tipoCaminhaoLabels, statusSenhaLabels, localSenhaLabels } from '@/data/mockData';
 import { useDocasDB } from '@/hooks/useDocasDB';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
-import { Ticket, Link, MapPin, Unlock, RotateCcw, Monitor, Copy } from 'lucide-react';
+import { Ticket, Link, MapPin, Unlock, RotateCcw, Monitor, Copy, XCircle } from 'lucide-react';
 import { LocalSenha } from '@/types';
 import { toast } from 'sonner';
 import {
@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function ControleSenhas() {
-  const { senhas, cargas, getSenhasAtivas, vincularSenhaADoca, liberarSenha, moverParaPatio, retomarDoPatio, atualizarCarga } = useSenha();
+  const { senhas, cargas, getSenhasAtivas, vincularSenhaADoca, liberarSenha, moverParaPatio, retomarDoPatio, atualizarCarga, recusarCarga } = useSenha();
   const { docas, atualizarDoca } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
   
@@ -48,6 +48,7 @@ export default function ControleSenhas() {
   const [patioConfirmOpen, setPatioConfirmOpen] = useState(false);
   const [retomarModalOpen, setRetomarModalOpen] = useState(false);
   const [liberarConfirmOpen, setLiberarConfirmOpen] = useState(false);
+  const [recusarConfirmOpen, setRecusarConfirmOpen] = useState(false);
   
   const [selectedSenhaId, setSelectedSenhaId] = useState<string | null>(null);
   const [selectedDoca, setSelectedDoca] = useState<string>('');
@@ -197,6 +198,33 @@ export default function ControleSenhas() {
   const handleOpenLiberar = (senhaId: string) => {
     setSelectedSenhaId(senhaId);
     setLiberarConfirmOpen(true);
+  };
+
+  const handleOpenRecusar = (senhaId: string) => {
+    setSelectedSenhaId(senhaId);
+    setRecusarConfirmOpen(true);
+  };
+
+  const handleConfirmRecusar = async () => {
+    if (!selectedSenhaId) return;
+    
+    const senha = senhas.find(s => s.id === selectedSenhaId);
+    const cargaVinculada = cargas.find(c => c.senhaId === selectedSenhaId);
+    
+    if (cargaVinculada) {
+      await recusarCarga(cargaVinculada.id);
+    }
+    
+    // Liberar doca se vinculada
+    if (senha?.docaNumero) {
+      const doca = docas.find(d => d.numero === senha.docaNumero);
+      if (doca) {
+        await atualizarDoca(doca.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
+      }
+    }
+    
+    toast.success('Carga recusada');
+    setRecusarConfirmOpen(false);
   };
 
   const handleConfirmLiberar = async () => {
@@ -404,6 +432,18 @@ export default function ControleSenhas() {
                                 <MapPin className="h-4 w-4" />
                               </Button>
                             )}
+
+                            {/* Recusar Carga - só se em doca */}
+                            {senha.localAtual === 'em_doca' && (
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => handleOpenRecusar(senha.id)}
+                                title="Recusar Carga"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            )}
                             
                             {/* Retomar do Pátio - só se em pátio */}
                             {senha.localAtual === 'em_patio' && (
@@ -568,6 +608,34 @@ export default function ControleSenhas() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmLiberar} className="bg-green-600 hover:bg-green-700">
               Liberar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmação: Recusar Carga */}
+      <AlertDialog open={recusarConfirmOpen} onOpenChange={setRecusarConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Recusar Carga</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedSenha && (
+                <>
+                  Confirma a recusa da carga vinculada à senha <strong>{String(selectedSenha.numero).padStart(4, '0')}</strong>?
+                  <br /><br />
+                  Fornecedor: {getFornecedorNome(selectedSenha.fornecedorId)}
+                  <br />
+                  Motorista: {selectedSenha.nomeMotorista}
+                  <br /><br />
+                  <span className="text-destructive">A doca será liberada e a carga marcada como recusada.</span>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRecusar} className="bg-destructive hover:bg-destructive/90">
+              Recusar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
