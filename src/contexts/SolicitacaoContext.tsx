@@ -1,7 +1,10 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { SolicitacaoEntrega, StatusSolicitacao } from '@/types';
 import { useSolicitacoesDB } from '@/hooks/useSolicitacoesDB';
+import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useSenha } from './SenhaContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface SolicitacaoContextType {
   solicitacoes: SolicitacaoEntrega[];
@@ -13,9 +16,33 @@ interface SolicitacaoContextType {
 
 const SolicitacaoContext = createContext<SolicitacaoContextType | undefined>(undefined);
 
+async function enviarEmail(params: {
+  to: string;
+  type: 'aprovada' | 'recusada';
+  fornecedorNome: string;
+  dataAgendada?: string;
+  horarioAgendado?: string;
+}) {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: params,
+    });
+    if (error) {
+      console.error('Erro ao enviar e-mail:', error);
+      toast.warning('A solicitação foi processada, mas o e-mail de notificação falhou.');
+    }
+  } catch (err) {
+    console.error('Erro ao chamar edge function:', err);
+    toast.warning('A solicitação foi processada, mas o e-mail de notificação falhou.');
+  }
+}
+
 export function SolicitacaoProvider({ children }: { children: ReactNode }) {
   const { solicitacoes, criarSolicitacao: criarDB, atualizarSolicitacao: atualizarDB } = useSolicitacoesDB();
+  const { fornecedores } = useFornecedoresDB();
   const { adicionarCarga } = useSenha();
+
+  const getFornecedorNome = (id: string) => fornecedores.find(f => f.id === id)?.nome || 'Fornecedor';
 
   const criarSolicitacao = async (data: Omit<SolicitacaoEntrega, 'id' | 'status' | 'dataSolicitacao'>) => {
     await criarDB(data);
@@ -41,10 +68,29 @@ export function SolicitacaoProvider({ children }: { children: ReactNode }) {
       quantidadeVeiculos: sol.quantidadeVeiculos,
       solicitacaoId: sol.id,
     });
+
+    // Enviar e-mail em paralelo (não bloqueia)
+    enviarEmail({
+      to: sol.emailContato,
+      type: 'aprovada',
+      fornecedorNome: getFornecedorNome(sol.fornecedorId),
+      dataAgendada,
+      horarioAgendado,
+    });
   };
 
   const recusarSolicitacao = async (id: string) => {
+    const sol = solicitacoes.find(s => s.id === id);
+    if (!sol) return;
+
     await atualizarDB(id, { status: 'recusada' as StatusSolicitacao });
+
+    // Enviar e-mail em paralelo (não bloqueia)
+    enviarEmail({
+      to: sol.emailContato,
+      type: 'recusada',
+      fornecedorNome: getFornecedorNome(sol.fornecedorId),
+    });
   };
 
   const getSolicitacoesPendentes = () => {
