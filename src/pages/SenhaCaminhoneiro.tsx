@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { useSenha } from '@/contexts/SenhaContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { tipoCaminhaoLabels } from '@/data/mockData';
-import { Senha, TipoCaminhao } from '@/types';
+import { TipoCaminhao } from '@/types';
 import { Truck, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -22,19 +22,12 @@ export default function SenhaCaminhoneiro() {
   const [fornecedorId, setFornecedorId] = useState<string>('');
   const [nomeMotorista, setNomeMotorista] = useState<string>('');
   const [tipoCaminhao, setTipoCaminhao] = useState<TipoCaminhao | ''>('');
-  const [senhaGerada, setSenhaGerada] = useState<Senha | null>(null);
-  const { gerarSenha, getSenhaById, senhas, cargas, marcarChegada } = useSenha();
+  const [senhaGeradaId, setSenhaGeradaId] = useState<string | null>(null);
+  const { gerarSenha, getSenhaById, cargas, marcarChegada } = useSenha();
   const { fornecedores } = useFornecedoresDB();
 
-  // Atualizar senha quando houver mudanças no contexto
-  useEffect(() => {
-    if (senhaGerada) {
-      const senhaAtualizada = getSenhaById(senhaGerada.id);
-      if (senhaAtualizada) {
-        setSenhaGerada(senhaAtualizada);
-      }
-    }
-  }, [senhas, senhaGerada, getSenhaById]);
+  // Derivar dados da senha diretamente do contexto (atualiza via Realtime)
+  const senhaGerada = senhaGeradaId ? getSenhaById(senhaGeradaId) : null;
 
   const dataHoje = format(new Date(), 'yyyy-MM-dd');
   const fornecedoresAgendados = fornecedores.filter(f => 
@@ -71,7 +64,7 @@ export default function SenhaCaminhoneiro() {
         await marcarChegada(cargaDisponivel.id, senha.id);
       }
       
-      setSenhaGerada(senha);
+      setSenhaGeradaId(senha.id);
       toast.success('Senha gerada com sucesso!');
     } catch {
       toast.error('Erro ao gerar senha');
@@ -79,7 +72,7 @@ export default function SenhaCaminhoneiro() {
   };
 
   const handleNovaSenha = () => {
-    setSenhaGerada(null);
+    setSenhaGeradaId(null);
     setFornecedorId('');
     setNomeMotorista('');
     setTipoCaminhao('');
