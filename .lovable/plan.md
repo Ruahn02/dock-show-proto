@@ -1,73 +1,77 @@
 
+# Integrar Resend para Envio de E-mails nas Solicitacoes
 
-# Implementar Paginacao Completa em Todos os Hooks
+## Resumo
 
-## Situacao Atual
+Quando o admin aprovar ou recusar uma solicitacao de entrega, o sistema vai enviar automaticamente um e-mail para o endereco informado pelo fornecedor (`emailContato`), notificando sobre a decisao.
 
-Nenhum dos 8 hooks do sistema faz paginacao. Todos usam `.select('*')` que retorna no maximo 1000 registros pelo limite padrao do Supabase. Quando qualquer tabela ultrapassar 1000 registros, os dados excedentes simplesmente nao aparecem nas telas.
+## O que voce precisa fazer
 
-## Solucao
+1. Ter a **API Key do Resend** em maos (voce ja tem)
+2. Quando eu pedir, colar a chave no campo que vai aparecer no chat
+3. Pronto - o resto eu faco
 
-Criar uma funcao utilitaria generica de fetch paginado e aplicar em todos os hooks.
-
-### 1. Criar funcao utilitaria de fetch paginado
-
-**Novo arquivo:** `src/lib/supabasePagination.ts`
-
-Funcao generica `fetchAllRows` que:
-- Faz requisicoes em lotes de 1000 registros usando `.range(from, to)`
-- Continua buscando enquanto o resultado retornar exatamente 1000 registros
-- Combina todos os resultados em um unico array
-- Aceita a query base (tabela, select, order) como parametros
+## Como vai funcionar
 
 ```text
-async function fetchAllRows(table, select, orderConfig):
-  allRows = []
-  from = 0
-  pageSize = 1000
-  loop:
-    data = await supabase.from(table).select(select).order(...).range(from, from + pageSize - 1)
-    allRows.push(...data)
-    if data.length < pageSize: break
-    from += pageSize
-  return allRows
+Fornecedor faz solicitacao
+        |
+Admin aprova ou recusa
+        |
+Sistema chama Edge Function "send-email"
+        |
+Edge Function usa Resend API
+        |
+E-mail enviado para o emailContato da solicitacao
 ```
 
-### 2. Atualizar cada hook para usar fetch paginado
+**E-mail de aprovacao**: Informa que a entrega foi aprovada, com data e horario agendados.
 
-Substituir o `.select('*')` simples pela funcao `fetchAllRows` nos seguintes hooks:
+**E-mail de recusa**: Informa que a solicitacao foi recusada.
 
-| Arquivo | Tabela |
-|---------|--------|
-| `src/hooks/useFluxoOperacional.ts` | `vw_carga_operacional` |
-| `src/hooks/useDocasDB.ts` | `docas` |
-| `src/hooks/useSenhasDB.ts` | `senhas` |
-| `src/hooks/useCargasDB.ts` | `cargas` |
-| `src/hooks/useCrossDB.ts` | `cross_docking` |
-| `src/hooks/useFornecedoresDB.ts` | `fornecedores` |
-| `src/hooks/useConferentesDB.ts` | `conferentes` |
-| `src/hooks/useSolicitacoesDB.ts` | `solicitacoes` |
+## Detalhes tecnicos
 
-Cada hook tera seu `fetchXxx` alterado para chamar `fetchAllRows` com os parametros de ordenacao ja existentes (ex: `order('numero')` para docas, `order('nome')` para fornecedores, etc).
+### 1. Salvar a API Key do Resend como secret
 
-### 3. O que nao muda
+A chave sera armazenada de forma segura nos secrets do Supabase (nunca exposta no codigo frontend).
 
-- Realtime continua funcionando normalmente (ele dispara re-fetch, que agora sera paginado)
-- Nenhuma tabela, coluna, view ou RPC e alterada
-- Nenhum layout ou fluxo visual muda
-- As telas recebem os dados exatamente como antes, so que agora completos
+### 2. Criar Edge Function `send-email`
 
-### Resumo de arquivos
+**Arquivo:** `supabase/functions/send-email/index.ts`
+
+A funcao recebe via POST:
+- `to`: e-mail destinatario
+- `type`: "aprovada" ou "recusada"
+- `fornecedorNome`: nome do fornecedor
+- `dataAgendada`: data agendada (se aprovada)
+- `horarioAgendado`: horario (se aprovada)
+
+Usa a API do Resend (`https://api.resend.com/emails`) para enviar o e-mail com template HTML formatado.
+
+**Remetente**: `onboarding@resend.dev` (dominio padrao gratuito do Resend). Caso voce tenha um dominio proprio verificado no Resend, podemos trocar depois.
+
+**Config:** `supabase/config.toml` sera atualizado com `verify_jwt = false` para a funcao, com validacao no codigo.
+
+### 3. Atualizar o contexto de Solicitacoes
+
+**Arquivo:** `src/contexts/SolicitacaoContext.tsx`
+
+Nas funcoes `aprovarSolicitacao` e `recusarSolicitacao`, apos atualizar o banco, chamar a Edge Function passando os dados do e-mail. O envio do e-mail sera feito em paralelo (nao bloqueia o fluxo - se falhar, mostra um aviso mas a aprovacao/recusa ja foi salva).
+
+### 4. Buscar nome do fornecedor
+
+O contexto ja tem acesso ao `fornecedorId`. Vou adicionar o hook `useFornecedoresDB` no `SolicitacaoContext` para pegar o nome do fornecedor e incluir no e-mail.
+
+## Arquivos que serao criados/modificados
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/lib/supabasePagination.ts` | Novo - funcao utilitaria generica |
-| `src/hooks/useFluxoOperacional.ts` | Usar fetch paginado |
-| `src/hooks/useDocasDB.ts` | Usar fetch paginado |
-| `src/hooks/useSenhasDB.ts` | Usar fetch paginado |
-| `src/hooks/useCargasDB.ts` | Usar fetch paginado |
-| `src/hooks/useCrossDB.ts` | Usar fetch paginado |
-| `src/hooks/useFornecedoresDB.ts` | Usar fetch paginado |
-| `src/hooks/useConferentesDB.ts` | Usar fetch paginado |
-| `src/hooks/useSolicitacoesDB.ts` | Usar fetch paginado |
+| `supabase/functions/send-email/index.ts` | Novo - Edge Function de envio |
+| `supabase/config.toml` | Adicionar config da funcao |
+| `src/contexts/SolicitacaoContext.tsx` | Chamar Edge Function apos aprovar/recusar |
 
+## Observacoes
+
+- O plano gratuito do Resend permite 100 e-mails/dia e 3000/mes
+- O remetente padrao `onboarding@resend.dev` funciona para testes, mas para producao e recomendado verificar um dominio proprio no painel do Resend
+- Se o envio do e-mail falhar, a aprovacao/recusa nao e afetada (o banco ja foi atualizado)
