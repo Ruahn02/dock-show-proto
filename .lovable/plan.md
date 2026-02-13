@@ -1,77 +1,59 @@
 
-# Integrar Resend para Envio de E-mails nas Solicitacoes
+# Corrigir Atualização em Tempo Real na Tela do Caminhoneiro
 
-## Resumo
+## Problema Identificado
 
-Quando o admin aprovar ou recusar uma solicitacao de entrega, o sistema vai enviar automaticamente um e-mail para o endereco informado pelo fornecedor (`emailContato`), notificando sobre a decisao.
+Na pagina `SenhaCaminhoneiro.tsx`, o `useEffect` que monitora mudancas na senha tem `senhaGerada` como dependencia:
 
-## O que voce precisa fazer
-
-1. Ter a **API Key do Resend** em maos (voce ja tem)
-2. Quando eu pedir, colar a chave no campo que vai aparecer no chat
-3. Pronto - o resto eu faco
-
-## Como vai funcionar
-
-```text
-Fornecedor faz solicitacao
-        |
-Admin aprova ou recusa
-        |
-Sistema chama Edge Function "send-email"
-        |
-Edge Function usa Resend API
-        |
-E-mail enviado para o emailContato da solicitacao
+```typescript
+useEffect(() => {
+  if (senhaGerada) {
+    const senhaAtualizada = getSenhaById(senhaGerada.id);
+    if (senhaAtualizada) {
+      setSenhaGerada(senhaAtualizada);
+    }
+  }
+}, [senhas, senhaGerada, getSenhaById]); // <-- BUG AQUI
 ```
 
-**E-mail de aprovacao**: Informa que a entrega foi aprovada, com data e horario agendados.
+O que acontece:
+1. O admin vincula a senha a uma doca no outro dispositivo
+2. O Supabase Realtime detecta a mudanca e atualiza a lista `senhas`
+3. O `useEffect` dispara e chama `setSenhaGerada(senhaAtualizada)`
+4. Mas como `senhaGerada` esta nas dependencias, o efeito dispara DE NOVO
+5. Isso cria um loop infinito de re-renders que trava a atualizacao
 
-**E-mail de recusa**: Informa que a solicitacao foi recusada.
+## Solucao
+
+Trocar a abordagem: em vez de guardar o objeto inteiro `senhaGerada` no estado, guardar apenas o `senhaId` e derivar os dados diretamente da lista `senhas` (que ja atualiza via Realtime).
+
+## Alteracoes
+
+**Arquivo:** `src/pages/SenhaCaminhoneiro.tsx`
+
+- Trocar o estado `senhaGerada` (objeto completo) por `senhaGeradaId` (apenas o ID)
+- Derivar os dados da senha diretamente de `senhas` usando `getSenhaById(senhaGeradaId)`
+- Remover o `useEffect` problematico (nao sera mais necessario)
+- Ajustar o restante do componente para usar a senha derivada
 
 ## Detalhes tecnicos
 
-### 1. Salvar a API Key do Resend como secret
+O fluxo corrigido:
 
-A chave sera armazenada de forma segura nos secrets do Supabase (nunca exposta no codigo frontend).
+```text
+Admin muda status no outro dispositivo
+        |
+Realtime atualiza array "senhas" no useSenhasDB
+        |
+SenhaContext propaga novo array
+        |
+SenhaCaminhoneiro re-renderiza automaticamente
+        |
+getSenhaById(senhaGeradaId) retorna dados atualizados
+        |
+Tela mostra novo status instantaneamente
+```
 
-### 2. Criar Edge Function `send-email`
+Essa abordagem elimina o `useEffect` e deixa o React cuidar da reatividade naturalmente -- quando `senhas` muda, o componente re-renderiza e `getSenhaById` retorna os dados mais recentes.
 
-**Arquivo:** `supabase/functions/send-email/index.ts`
-
-A funcao recebe via POST:
-- `to`: e-mail destinatario
-- `type`: "aprovada" ou "recusada"
-- `fornecedorNome`: nome do fornecedor
-- `dataAgendada`: data agendada (se aprovada)
-- `horarioAgendado`: horario (se aprovada)
-
-Usa a API do Resend (`https://api.resend.com/emails`) para enviar o e-mail com template HTML formatado.
-
-**Remetente**: `onboarding@resend.dev` (dominio padrao gratuito do Resend). Caso voce tenha um dominio proprio verificado no Resend, podemos trocar depois.
-
-**Config:** `supabase/config.toml` sera atualizado com `verify_jwt = false` para a funcao, com validacao no codigo.
-
-### 3. Atualizar o contexto de Solicitacoes
-
-**Arquivo:** `src/contexts/SolicitacaoContext.tsx`
-
-Nas funcoes `aprovarSolicitacao` e `recusarSolicitacao`, apos atualizar o banco, chamar a Edge Function passando os dados do e-mail. O envio do e-mail sera feito em paralelo (nao bloqueia o fluxo - se falhar, mostra um aviso mas a aprovacao/recusa ja foi salva).
-
-### 4. Buscar nome do fornecedor
-
-O contexto ja tem acesso ao `fornecedorId`. Vou adicionar o hook `useFornecedoresDB` no `SolicitacaoContext` para pegar o nome do fornecedor e incluir no e-mail.
-
-## Arquivos que serao criados/modificados
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `supabase/functions/send-email/index.ts` | Novo - Edge Function de envio |
-| `supabase/config.toml` | Adicionar config da funcao |
-| `src/contexts/SolicitacaoContext.tsx` | Chamar Edge Function apos aprovar/recusar |
-
-## Observacoes
-
-- O plano gratuito do Resend permite 100 e-mails/dia e 3000/mes
-- O remetente padrao `onboarding@resend.dev` funciona para testes, mas para producao e recomendado verificar um dominio proprio no painel do Resend
-- Se o envio do e-mail falhar, a aprovacao/recusa nao e afetada (o banco ja foi atualizado)
+Tambem vou verificar e garantir que o `PainelSenhas.tsx` funciona da mesma forma (ele ja usa `getSenhasAtivas()` diretamente, entao ja esta correto).
