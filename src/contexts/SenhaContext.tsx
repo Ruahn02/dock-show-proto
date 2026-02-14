@@ -134,7 +134,7 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const marcarChegada = useCallback(async (cargaId: string, senhaId: string) => {
-    await atualizarCargaDB(cargaId, { chegou: true, senhaId, status: 'aguardando_conferencia' });
+    await atualizarCargaDB(cargaId, { chegou: true, senhaId });
   }, [atualizarCargaDB]);
 
   const atualizarCargaFn = useCallback(async (cargaId: string, updates: Partial<Carga>) => {
