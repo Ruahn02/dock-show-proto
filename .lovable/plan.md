@@ -1,92 +1,61 @@
 
-# Detectar Fornecedor Duplicado e Unificar Cargas na Aprovacao
+# Corrigir Vinculação de Carga pela Tela DOCAS
 
-## Resumo
+## Problema
 
-Quando o admin aprovar uma solicitacao para um fornecedor que ja tem carga agendada no mesmo dia, o sistema vai:
-1. Mostrar um alerta amarelo avisando que ja existe carga daquele fornecedor naquele dia
-2. Dar a opcao de **unificar** (somar volumes e manter uma unica carga) ou **criar separado**
-3. Se unificar: atualiza a carga existente somando os volumes, e marca a solicitacao como aprovada sem criar nova carga
+A tela DOCAS mostra o modal "Vincular Carga" vazio porque:
 
-Nao precisa mexer no banco de dados -- a logica e toda no frontend.
+1. **Dados antigos com status errado**: Antes da correção anterior do `marcarChegada`, cargas eram automaticamente marcadas como `aguardando_conferencia` ao gerar senha. No banco, existe pelo menos 1 carga nessa situação: status `aguardando_conferencia` mas sem doca vinculada e com a senha ainda `aguardando_doca`.
 
-## Alteracoes
+2. **O filtro `getCargasDisponiveis`** busca `status === 'aguardando_chegada' AND chegou === true`. Cargas que ficaram presas com `aguardando_conferencia` nunca aparecem.
 
-### 1. `src/pages/Solicitacoes.tsx` - Alerta de duplicidade + opcao de unificar
+3. **O filtro de senhas órfãs** (`senhasOrfas`) exclui senhas que têm carga vinculada (`cargas.some(c => c.senhaId === s.id)`). Então a senha também não aparece.
 
-Quando o admin selecionar uma data no modal de aprovacao:
-- Verificar se ja existe carga do **mesmo fornecedor** naquela data
-- Se existir, mostrar um alerta amarelo/laranja com os detalhes da carga existente (volume, horario)
-- Adicionar um checkbox "Unificar com a carga existente (somar volumes)"
-- Se marcado, ao confirmar: atualiza a carga existente em vez de criar nova
+Resultado: nem a carga nem a senha aparecem na lista do modal na tela DOCAS. Na tela CONTROLE DE SENHAS funciona porque ela lista TODAS as senhas ativas, independente do status da carga.
 
-### 2. `src/contexts/SolicitacaoContext.tsx` - Nova funcao `aprovarSolicitacaoUnificada`
+## Solução
 
-Criar uma variante da aprovacao que, em vez de chamar `adicionarCarga`, chama `atualizarCarga` na carga existente:
-- Soma `volumePrevisto` da solicitacao ao volume da carga existente
-- Soma `quantidadeVeiculos`
-- Marca a solicitacao como aprovada com a mesma data/horario
-- Envia o e-mail normalmente
+Duas ações:
 
-### 3. Interface do contexto - Expor a nova funcao
+### 1. Corrigir dados existentes no banco (migração SQL)
 
-Adicionar `aprovarSolicitacaoUnificada(id, cargaExistenteId)` na interface `SolicitacaoContextType`.
+Resetar cargas que ficaram presas com status `aguardando_conferencia` sem estarem vinculadas a nenhuma doca:
 
-## Detalhes tecnicos
-
-### Fluxo de deteccao (no modal de aprovacao)
-
-```text
-Admin seleciona data no calendario
-        |
-Filtra cargas: mesmo fornecedorId + mesma data
-        |
-Se encontrar carga existente:
-  -> Mostra alerta laranja: "Fornecedor X ja tem carga neste dia (Volume: Y)"
-  -> Mostra checkbox: "Unificar cargas"
-        |
-Se checkbox marcado:
-  -> Botao muda para "Confirmar e Unificar"
-  -> Ao clicar: chama aprovarSolicitacaoUnificada()
-        |
-Se checkbox NAO marcado:
-  -> Comportamento normal: cria nova carga separada
+```sql
+UPDATE cargas 
+SET status = 'aguardando_chegada' 
+WHERE status = 'aguardando_conferencia' 
+  AND chegou = true 
+  AND id NOT IN (SELECT carga_id FROM docas WHERE carga_id IS NOT NULL);
 ```
 
-### Logica de unificacao (no contexto)
+Isso corrige os dados que foram afetados pelo bug anterior do `marcarChegada`.
+
+### 2. Melhorar o filtro `getCargasDisponiveis` (proteção extra)
+
+Para evitar que isso aconteça novamente, ajustar o filtro em `src/contexts/SenhaContext.tsx` para também incluir cargas que estão com `aguardando_conferencia` mas NÃO estão associadas a nenhuma doca:
 
 ```typescript
-const aprovarSolicitacaoUnificada = async (
-  solicitacaoId: string, 
-  cargaExistenteId: string,
-  dataAgendada: string,
-  horarioAgendado: string
-) => {
-  const sol = solicitacoes.find(s => s.id === solicitacaoId);
-  const cargaExistente = cargas.find(c => c.id === cargaExistenteId);
-  
-  // 1. Marcar solicitacao como aprovada
-  await atualizarDB(solicitacaoId, { status: 'aprovada', dataAgendada, horarioAgendado });
-  
-  // 2. Atualizar carga existente (somar volumes e veiculos)
-  await atualizarCarga(cargaExistenteId, {
-    volumePrevisto: (cargaExistente.volumePrevisto || 0) + (sol.volumePrevisto || 0),
-    quantidadeVeiculos: (cargaExistente.quantidadeVeiculos || 0) + (sol.quantidadeVeiculos || 0),
-  });
-  
-  // 3. Enviar e-mail
-  enviarEmail({ ... });
-};
+const getCargasDisponiveis = useCallback(() => {
+  return cargas.filter(c =>
+    c.chegou === true &&
+    (c.status === 'aguardando_chegada' || 
+     (c.status === 'aguardando_conferencia' && !docas?.some(d => d.cargaId === c.id)))
+  );
+}, [cargas]);
 ```
 
-### UI do alerta no modal
+Porém, como o contexto `SenhaContext` não tem acesso a `docas`, a abordagem mais limpa é manter o filtro simples e garantir que os dados estejam corretos (a migração resolve isso). O código anterior do `marcarChegada` já foi corrigido para não mudar o status prematuramente, então novos dados terão o status correto.
 
-Quando detectar duplicidade, exibir abaixo do calendario:
-- Alerta laranja com icone de atencao
-- Texto: "O fornecedor **[nome]** ja possui **1 carga** agendada neste dia com **X volumes** previstos."
-- Checkbox: "Unificar com a carga existente (os volumes serao somados)"
+**Decisão**: Manter `getCargasDisponiveis` como está (já funciona corretamente para dados novos) e apenas corrigir os dados antigos via migração.
 
 ## Arquivos modificados
 
-- `src/pages/Solicitacoes.tsx` -- alerta de duplicidade + checkbox de unificacao
-- `src/contexts/SolicitacaoContext.tsx` -- nova funcao `aprovarSolicitacaoUnificada`
+- **Migração SQL**: corrigir cargas presas com status errado no banco
+- Nenhuma alteração de código necessária (a correção do `marcarChegada` da mensagem anterior já resolve para dados futuros)
+
+## Resultado esperado
+
+- Cargas com senha gerada e `chegou = true` voltam a ter `status = 'aguardando_chegada'`
+- Aparecem corretamente no modal "Vincular Carga" da tela DOCAS
+- Fluxo futuro funciona sem intervenção manual
