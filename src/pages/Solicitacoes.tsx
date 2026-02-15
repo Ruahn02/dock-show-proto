@@ -11,6 +11,7 @@ import {
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,8 +48,23 @@ export default function Solicitacoes() {
   const [openCalendar, setOpenCalendar] = useState(false);
   const [unificar, setUnificar] = useState(false);
 
+  const [filtroStatus, setFiltroStatus] = useState<string>('todos');
+  const [filtroData, setFiltroData] = useState<Date | undefined>(undefined);
+  const [filtroDataOpen, setFiltroDataOpen] = useState(false);
+
   const pendentes = getSolicitacoesPendentes();
   const getFornecedorNome = (id: string) => fornecedores.find(f => f.id === id)?.nome || 'N/A';
+
+  const solicitacoesFiltradas = useMemo(() => {
+    return solicitacoes.filter(sol => {
+      if (filtroStatus !== 'todos' && sol.status !== filtroStatus) return false;
+      if (filtroData) {
+        const dataStr = format(filtroData, 'yyyy-MM-dd');
+        if (sol.dataSolicitacao !== dataStr) return false;
+      }
+      return true;
+    });
+  }, [solicitacoes, filtroStatus, filtroData]);
 
   // Detect duplicate: same supplier + same date
   const cargaDuplicada = useMemo(() => {
@@ -95,6 +111,36 @@ export default function Solicitacoes() {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-3">
+          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="pendente">Pendente</SelectItem>
+              <SelectItem value="aprovada">Aprovada</SelectItem>
+              <SelectItem value="recusada">Recusada</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Popover open={filtroDataOpen} onOpenChange={setFiltroDataOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-[200px] justify-start text-left font-normal", !filtroData && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {filtroData ? format(filtroData, 'dd/MM/yyyy') : 'Filtrar por data'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={filtroData} onSelect={(date) => { setFiltroData(date); setFiltroDataOpen(false); }} locale={ptBR} className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+
+          {filtroData && (
+            <Button variant="ghost" size="sm" onClick={() => setFiltroData(undefined)}>Limpar data</Button>
+          )}
+        </div>
+
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
@@ -106,10 +152,10 @@ export default function Solicitacoes() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {solicitacoes.length === 0 ? (
+              {solicitacoesFiltradas.length === 0 ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhuma solicitação encontrada</TableCell></TableRow>
               ) : (
-                solicitacoes.map((sol) => (
+                solicitacoesFiltradas.map((sol) => (
                   <TableRow key={sol.id}>
                     <TableCell className="font-medium">{getFornecedorNome(sol.fornecedorId)}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{sol.emailContato}</TableCell>
