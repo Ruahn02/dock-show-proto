@@ -10,6 +10,7 @@ interface SolicitacaoContextType {
   solicitacoes: SolicitacaoEntrega[];
   criarSolicitacao: (data: Omit<SolicitacaoEntrega, 'id' | 'status' | 'dataSolicitacao'>) => Promise<void>;
   aprovarSolicitacao: (id: string, dataAgendada: string, horarioAgendado: string) => Promise<void>;
+  aprovarSolicitacaoUnificada: (solicitacaoId: string, cargaExistenteId: string, dataAgendada: string, horarioAgendado: string) => Promise<void>;
   recusarSolicitacao: (id: string) => Promise<void>;
   getSolicitacoesPendentes: () => SolicitacaoEntrega[];
 }
@@ -40,7 +41,7 @@ async function enviarEmail(params: {
 export function SolicitacaoProvider({ children }: { children: ReactNode }) {
   const { solicitacoes, criarSolicitacao: criarDB, atualizarSolicitacao: atualizarDB } = useSolicitacoesDB();
   const { fornecedores } = useFornecedoresDB();
-  const { adicionarCarga } = useSenha();
+  const { adicionarCarga, atualizarCarga, cargas } = useSenha();
 
   const getFornecedorNome = (id: string) => fornecedores.find(f => f.id === id)?.nome || 'Fornecedor';
 
@@ -97,11 +98,44 @@ export function SolicitacaoProvider({ children }: { children: ReactNode }) {
     return solicitacoes.filter(sol => sol.status === 'pendente');
   };
 
+  const aprovarSolicitacaoUnificada = async (
+    solicitacaoId: string,
+    cargaExistenteId: string,
+    dataAgendada: string,
+    horarioAgendado: string
+  ) => {
+    const sol = solicitacoes.find(s => s.id === solicitacaoId);
+    if (!sol) return;
+
+    const cargaExistente = cargas.find(c => c.id === cargaExistenteId);
+    if (!cargaExistente) return;
+
+    await atualizarDB(solicitacaoId, {
+      status: 'aprovada' as StatusSolicitacao,
+      dataAgendada,
+      horarioAgendado,
+    });
+
+    await atualizarCarga(cargaExistenteId, {
+      volumePrevisto: (cargaExistente.volumePrevisto || 0) + (sol.volumePrevisto || 0),
+      quantidadeVeiculos: (cargaExistente.quantidadeVeiculos || 0) + (sol.quantidadeVeiculos || 0),
+    });
+
+    enviarEmail({
+      to: sol.emailContato,
+      type: 'aprovada',
+      fornecedorNome: getFornecedorNome(sol.fornecedorId),
+      dataAgendada,
+      horarioAgendado,
+    });
+  };
+
   return (
     <SolicitacaoContext.Provider value={{
       solicitacoes,
       criarSolicitacao,
       aprovarSolicitacao,
+      aprovarSolicitacaoUnificada,
       recusarSolicitacao,
       getSolicitacoesPendentes,
     }}>

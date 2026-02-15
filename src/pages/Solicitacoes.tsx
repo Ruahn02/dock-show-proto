@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,13 +14,14 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useSolicitacao } from '@/contexts/SolicitacaoContext';
 import { useSenha } from '@/contexts/SenhaContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { tipoCaminhaoLabels, statusSolicitacaoLabels } from '@/data/mockData';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
+import { Info, AlertTriangle } from 'lucide-react';
 import { SolicitacaoEntrega, StatusSolicitacao } from '@/types';
 import { toast } from 'sonner';
 import { ClipboardList, CalendarIcon, Check, X } from 'lucide-react';
@@ -35,7 +36,7 @@ const statusStyles: Record<StatusSolicitacao, string> = {
 };
 
 export default function Solicitacoes() {
-  const { solicitacoes, aprovarSolicitacao, recusarSolicitacao, getSolicitacoesPendentes } = useSolicitacao();
+  const { solicitacoes, aprovarSolicitacao, aprovarSolicitacaoUnificada, recusarSolicitacao, getSolicitacoesPendentes } = useSolicitacao();
   const { cargas } = useSenha();
   const { fornecedores } = useFornecedoresDB();
   const [aprovarModalOpen, setAprovarModalOpen] = useState(false);
@@ -44,18 +45,32 @@ export default function Solicitacoes() {
   const [dataAgendada, setDataAgendada] = useState<Date | undefined>(undefined);
   const [horarioAgendado, setHorarioAgendado] = useState('08:00');
   const [openCalendar, setOpenCalendar] = useState(false);
+  const [unificar, setUnificar] = useState(false);
 
   const pendentes = getSolicitacoesPendentes();
   const getFornecedorNome = (id: string) => fornecedores.find(f => f.id === id)?.nome || 'N/A';
 
-  const handleOpenAprovar = (sol: SolicitacaoEntrega) => { setSelectedSolicitacao(sol); setDataAgendada(undefined); setHorarioAgendado('08:00'); setAprovarModalOpen(true); };
+  // Detect duplicate: same supplier + same date
+  const cargaDuplicada = useMemo(() => {
+    if (!selectedSolicitacao || !dataAgendada) return null;
+    const dataSel = format(dataAgendada, 'yyyy-MM-dd');
+    return cargas.find(c => c.fornecedorId === selectedSolicitacao.fornecedorId && c.data === dataSel) || null;
+  }, [selectedSolicitacao, dataAgendada, cargas]);
+
+  const handleOpenAprovar = (sol: SolicitacaoEntrega) => { setSelectedSolicitacao(sol); setDataAgendada(undefined); setHorarioAgendado('08:00'); setUnificar(false); setAprovarModalOpen(true); };
   const handleOpenRecusar = (sol: SolicitacaoEntrega) => { setSelectedSolicitacao(sol); setRecusarDialogOpen(true); };
 
   const handleAprovar = async () => {
     if (!selectedSolicitacao || !dataAgendada) { toast.error('Selecione uma data para o agendamento'); return; }
     try {
-      await aprovarSolicitacao(selectedSolicitacao.id, format(dataAgendada, 'yyyy-MM-dd'), horarioAgendado);
-      toast.success('Solicitação aprovada e agendamento criado!');
+      const dataStr = format(dataAgendada, 'yyyy-MM-dd');
+      if (unificar && cargaDuplicada) {
+        await aprovarSolicitacaoUnificada(selectedSolicitacao.id, cargaDuplicada.id, dataStr, horarioAgendado);
+        toast.success('Solicitação aprovada e cargas unificadas!');
+      } else {
+        await aprovarSolicitacao(selectedSolicitacao.id, dataStr, horarioAgendado);
+        toast.success('Solicitação aprovada e agendamento criado!');
+      }
       setAprovarModalOpen(false); setSelectedSolicitacao(null);
     } catch { toast.error('Erro ao aprovar'); }
   };
@@ -159,6 +174,22 @@ export default function Solicitacoes() {
                       </Alert>
                     ) : null;
                   })()}
+                  {cargaDuplicada && (
+                    <>
+                      <Alert className="border-orange-300 bg-orange-50">
+                        <AlertTriangle className="h-4 w-4 text-orange-600" />
+                        <AlertDescription className="text-orange-800 text-sm">
+                          O fornecedor <strong>{getFornecedorNome(selectedSolicitacao!.fornecedorId)}</strong> já possui <strong>1 carga</strong> agendada neste dia com <strong>{cargaDuplicada.volumePrevisto} volumes</strong> previstos.
+                        </AlertDescription>
+                      </Alert>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="unificar" checked={unificar} onCheckedChange={(checked) => setUnificar(checked === true)} />
+                        <Label htmlFor="unificar" className="text-sm font-normal cursor-pointer">
+                          Unificar com a carga existente (os volumes serão somados)
+                        </Label>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="horario">Horário Previsto *</Label>
@@ -168,7 +199,9 @@ export default function Solicitacoes() {
             )}
             <DialogFooter>
               <Button variant="outline" onClick={() => setAprovarModalOpen(false)}>Cancelar</Button>
-              <Button onClick={handleAprovar} disabled={!dataAgendada}>Confirmar</Button>
+              <Button onClick={handleAprovar} disabled={!dataAgendada}>
+                {unificar && cargaDuplicada ? 'Confirmar e Unificar' : 'Confirmar'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
