@@ -1,69 +1,92 @@
 
-# Corrigir Inconsistencia de Status entre Agenda, Controle de Senhas e Docas
+# Detectar Fornecedor Duplicado e Unificar Cargas na Aprovacao
 
-## Causa Raiz
+## Resumo
 
-Dois problemas no codigo atual:
+Quando o admin aprovar uma solicitacao para um fornecedor que ja tem carga agendada no mesmo dia, o sistema vai:
+1. Mostrar um alerta amarelo avisando que ja existe carga daquele fornecedor naquele dia
+2. Dar a opcao de **unificar** (somar volumes e manter uma unica carga) ou **criar separado**
+3. Se unificar: atualiza a carga existente somando os volumes, e marca a solicitacao como aprovada sem criar nova carga
 
-### Problema 1: `marcarChegada` pula um passo no fluxo
-Quando o motorista gera a senha, o codigo chama `marcarChegada` que faz:
-```
-carga.chegou = true
-carga.status = 'aguardando_conferencia'  // ERRADO - deveria continuar 'aguardando_chegada'
-```
-
-O status correto ao gerar senha deveria permanecer como `aguardando_chegada` (apenas marcando `chegou = true`), pois o caminhao ainda nao foi vinculado a nenhuma doca.
-
-### Problema 2: `getCargasDisponiveis` usa filtro que nao encontra nada
-Na tela Docas, o filtro para listar cargas disponiveis e:
-```
-status === 'aguardando_chegada' AND chegou === true
-```
-
-Porem como `marcarChegada` ja muda o status para `aguardando_conferencia`, a carga sai do filtro e nao aparece na lista de vinculacao.
-
-## Fluxo Correto de Status
-
-```text
-Agendamento criado    -> status = 'aguardando_chegada', chegou = false
-Motorista gera senha  -> status = 'aguardando_chegada', chegou = true   (APENAS marca chegada)
-Vincula a doca        -> status = 'aguardando_conferencia'              (agora sim muda status)
-Inicia conferencia    -> status = 'em_conferencia'
-Finaliza              -> status = 'conferido'
-```
+Nao precisa mexer no banco de dados -- a logica e toda no frontend.
 
 ## Alteracoes
 
-### 1. `src/contexts/SenhaContext.tsx` - Corrigir `marcarChegada`
+### 1. `src/pages/Solicitacoes.tsx` - Alerta de duplicidade + opcao de unificar
 
-Mudar para apenas marcar `chegou = true` e vincular `senhaId`, sem alterar o status da carga:
+Quando o admin selecionar uma data no modal de aprovacao:
+- Verificar se ja existe carga do **mesmo fornecedor** naquela data
+- Se existir, mostrar um alerta amarelo/laranja com os detalhes da carga existente (volume, horario)
+- Adicionar um checkbox "Unificar com a carga existente (somar volumes)"
+- Se marcado, ao confirmar: atualiza a carga existente em vez de criar nova
 
-```typescript
-const marcarChegada = useCallback(async (cargaId: string, senhaId: string) => {
-  await atualizarCargaDB(cargaId, { chegou: true, senhaId });
-  // NÃO muda status - continua 'aguardando_chegada'
-}, [atualizarCargaDB]);
+### 2. `src/contexts/SolicitacaoContext.tsx` - Nova funcao `aprovarSolicitacaoUnificada`
+
+Criar uma variante da aprovacao que, em vez de chamar `adicionarCarga`, chama `atualizarCarga` na carga existente:
+- Soma `volumePrevisto` da solicitacao ao volume da carga existente
+- Soma `quantidadeVeiculos`
+- Marca a solicitacao como aprovada com a mesma data/horario
+- Envia o e-mail normalmente
+
+### 3. Interface do contexto - Expor a nova funcao
+
+Adicionar `aprovarSolicitacaoUnificada(id, cargaExistenteId)` na interface `SolicitacaoContextType`.
+
+## Detalhes tecnicos
+
+### Fluxo de deteccao (no modal de aprovacao)
+
+```text
+Admin seleciona data no calendario
+        |
+Filtra cargas: mesmo fornecedorId + mesma data
+        |
+Se encontrar carga existente:
+  -> Mostra alerta laranja: "Fornecedor X ja tem carga neste dia (Volume: Y)"
+  -> Mostra checkbox: "Unificar cargas"
+        |
+Se checkbox marcado:
+  -> Botao muda para "Confirmar e Unificar"
+  -> Ao clicar: chama aprovarSolicitacaoUnificada()
+        |
+Se checkbox NAO marcado:
+  -> Comportamento normal: cria nova carga separada
 ```
 
-### 2. `src/contexts/SenhaContext.tsx` - Ajustar `getCargasDisponiveis`
+### Logica de unificacao (no contexto)
 
-O filtro ja esta correto (`status === 'aguardando_chegada' && chegou === true`), pois com a correcao acima, a carga permanecera com esse status ate ser vinculada a uma doca.
+```typescript
+const aprovarSolicitacaoUnificada = async (
+  solicitacaoId: string, 
+  cargaExistenteId: string,
+  dataAgendada: string,
+  horarioAgendado: string
+) => {
+  const sol = solicitacoes.find(s => s.id === solicitacaoId);
+  const cargaExistente = cargas.find(c => c.id === cargaExistenteId);
+  
+  // 1. Marcar solicitacao como aprovada
+  await atualizarDB(solicitacaoId, { status: 'aprovada', dataAgendada, horarioAgendado });
+  
+  // 2. Atualizar carga existente (somar volumes e veiculos)
+  await atualizarCarga(cargaExistenteId, {
+    volumePrevisto: (cargaExistente.volumePrevisto || 0) + (sol.volumePrevisto || 0),
+    quantidadeVeiculos: (cargaExistente.quantidadeVeiculos || 0) + (sol.quantidadeVeiculos || 0),
+  });
+  
+  // 3. Enviar e-mail
+  enviarEmail({ ... });
+};
+```
 
-### 3. `src/pages/Docas.tsx` - Ajustar filtro de `senhasOrfas`
+### UI do alerta no modal
 
-Atualmente filtra senhas que NAO tem carga vinculada. Porem, senhas com carga agendada tambem precisam aparecer na lista de vinculacao. O filtro de `senhasOrfas` continuara funcionando apenas para senhas sem agendamento previo, e as cargas com `chegou = true` aparecerao na lista principal de `cargasDisponiveis`.
+Quando detectar duplicidade, exibir abaixo do calendario:
+- Alerta laranja com icone de atencao
+- Texto: "O fornecedor **[nome]** ja possui **1 carga** agendada neste dia com **X volumes** previstos."
+- Checkbox: "Unificar com a carga existente (os volumes serao somados)"
 
-### 4. `src/contexts/SenhaContext.tsx` - Ajustar `vincularCargaADoca`
+## Arquivos modificados
 
-Garantir que o status muda para `aguardando_conferencia` SOMENTE quando a carga e vinculada a uma doca (ja esta correto, apenas validar).
-
-## Resultado
-
-- Ao gerar senha: Agenda mostra "Aguardando Chegada" com nome verde (chegou), Controle de Senhas mostra "Aguardando Doca"
-- Tela Docas lista a carga em "Vincular Carga" (pois status = aguardando_chegada E chegou = true)
-- Ao vincular doca: TODAS as telas mudam para "Aguardando Conferencia"
-- Fluxo 100% consistente entre as tres telas
-
-## Arquivos Modificados
-
-- `src/contexts/SenhaContext.tsx` (corrigir `marcarChegada`)
+- `src/pages/Solicitacoes.tsx` -- alerta de duplicidade + checkbox de unificacao
+- `src/contexts/SolicitacaoContext.tsx` -- nova funcao `aprovarSolicitacaoUnificada`
