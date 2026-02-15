@@ -25,13 +25,21 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
-const statusStyles: Record<StatusCarga, string> = {
+const statusStyles: Record<string, string> = {
   aguardando_chegada: 'bg-blue-100 text-blue-800 border-blue-300',
+  aguardando_doca: 'bg-indigo-100 text-indigo-800 border-indigo-300',
   aguardando_conferencia: 'bg-cyan-100 text-cyan-800 border-cyan-300',
   em_conferencia: 'bg-yellow-100 text-yellow-800 border-yellow-300',
   conferido: 'bg-green-100 text-green-800 border-green-300',
   no_show: 'bg-gray-100 text-gray-800 border-gray-300',
   recusado: 'bg-red-100 text-red-800 border-red-300',
+};
+
+const getDisplayStatus = (carga: Carga): { label: string; styleKey: string } => {
+  if (carga.chegou && carga.status === 'aguardando_chegada') {
+    return { label: 'Aguardando Doca', styleKey: 'aguardando_doca' };
+  }
+  return { label: statusCargaLabels[carga.status], styleKey: carga.status };
 };
 
 export default function Agenda() {
@@ -137,7 +145,12 @@ export default function Agenda() {
                     <TableCell>{carga.rua || '-'}</TableCell>
                     <TableCell className="text-sm">{carga.divergencia || '-'}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={statusStyles[carga.status]}>{statusCargaLabels[carga.status]}</Badge>
+                    {(() => {
+                      const display = getDisplayStatus(carga);
+                      return (
+                        <Badge variant="outline" className={statusStyles[display.styleKey]}>{display.label}</Badge>
+                      );
+                    })()}
                     </TableCell>
                     <TableCell className="text-right">
                       {canChangeStatus(carga) && (
