@@ -1,52 +1,45 @@
 
 
-# Mudar tema do app para tons de amarelo/dourado
+# Diferenciar visualmente as telas de Senha e Solicitacao de Entrega
 
-## Referencia
+As duas telas (`/senha` e `/solicitacao`) sao muito parecidas: ambas usam o mesmo icone de caminhao, layout centralizado com card branco, e titulos de tamanho similar. A ideia e dar uma identidade visual distinta a cada uma.
 
-A imagem mostra um esquema de cores com:
-- Header/barra superior: gradiente amarelo-dourado (aproximadamente `hsl(40, 95%, 55%)` a `hsl(35, 90%, 50%)`)
-- Botoes e acentos: amarelo-dourado `hsl(40, 90%, 50%)`
-- Fundo: bege claro `hsl(40, 50%, 96%)`
-- Textos de destaque: laranja-dourado `hsl(30, 90%, 50%)`
+## Mudancas propostas
 
-## Alteracao
+### Tela de Senha do Caminhoneiro (`/senha`)
+- Manter o icone de **Truck** mas com fundo **azul** (em vez de primary/amarelo)
+- Titulo maior e mais destacado: **"SENHA DE ATENDIMENTO"** em tamanho `text-3xl`
+- Subtitulo: "Controle de Docas"
+- Fundo com gradiente **azul** (`from-blue-50 to-slate-100`)
+- Barra colorida azul no topo do card como identificador visual
 
-### `src/index.css`
+### Tela de Solicitacao de Entrega (`/solicitacao`)
+- Trocar icone de **Truck** para **PackageCheck** (caixa com check, representa entrega/mercadoria)
+- Titulo maior: **"SOLICITACAO DE ENTREGA"** em tamanho `text-3xl`
+- Subtitulo: "Agende sua entrega com antecedencia"
+- Fundo com gradiente **amarelo/dourado** (`from-amber-50 to-orange-50`)
+- Barra colorida amarela/dourada no topo do card como identificador visual
 
-Atualizar as variaveis CSS do `:root` (tema claro) para tons de amarelo/dourado:
+## Resumo visual
 
 ```text
---background: 40 50% 97%        (bege claro)
---foreground: 30 20% 10%        (marrom escuro)
---card: 40 40% 99%              (branco levemente amarelado)
---card-foreground: 30 20% 10%
---primary: 40 90% 50%           (amarelo dourado - cor principal)
---primary-foreground: 0 0% 100% (branco)
---secondary: 40 40% 93%         (bege medio)
---secondary-foreground: 30 30% 15%
---accent: 40 50% 92%            (bege acentuado)
---accent-foreground: 30 30% 15%
---muted: 40 30% 94%
---muted-foreground: 30 10% 45%
---destructive: 0 84% 60%       (vermelho - manter)
---border: 40 30% 88%
---input: 40 30% 88%
---ring: 40 90% 50%
---sidebar-background: 40 40% 96%
---sidebar-primary: 40 90% 45%
---sidebar-primary-foreground: 0 0% 100%
---sidebar-accent: 40 40% 92%
---sidebar-accent-foreground: 30 30% 15%
---sidebar-border: 40 25% 88%
---sidebar-ring: 40 90% 50%
+/senha (Caminhoneiro)          /solicitacao (Fornecedor)
++-------------------------+    +-------------------------+
+| ===== BARRA AZUL ====== |    | ==== BARRA DOURADA ==== |
+|                         |    |                         |
+|      [Truck azul]       |    |   [PackageCheck amber]  |
+|  SENHA DE ATENDIMENTO   |    | SOLICITACAO DE ENTREGA  |
+|   Controle de Docas     |    | Agende sua entrega com  |
+|                         |    |     antecedencia        |
+|   [ formulario... ]     |    |   [ formulario... ]     |
++-------------------------+    +-------------------------+
+   fundo azul claro              fundo amber claro
 ```
 
-O tema dark sera ajustado para versoes escuras dos mesmos tons dourados.
+## Arquivos modificados
 
-### Arquivo unico modificado
+- `src/pages/SenhaCaminhoneiro.tsx` - gradiente azul, titulo maior, barra azul no card
+- `src/pages/SolicitacaoEntrega.tsx` - icone diferente, gradiente amber, titulo maior, barra dourada no card
 
-- `src/index.css` (apenas variaveis CSS)
-
-Nenhuma alteracao em componentes ou banco de dados.
+Nenhuma alteracao no banco de dados.
 
