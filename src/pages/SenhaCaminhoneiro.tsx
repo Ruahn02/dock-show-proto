@@ -106,21 +106,22 @@ export default function SenhaCaminhoneiro() {
   const statusDisplay = getStatusDisplay();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-200 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-slate-100 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="bg-primary rounded-full p-4">
-              <Truck className="h-10 w-10 text-primary-foreground" />
+            <div className="bg-blue-600 rounded-full p-4">
+              <Truck className="h-10 w-10 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">CONTROLE DE DOCAS</h1>
-          <p className="text-slate-600">Sistema de Senha</p>
+          <h1 className="text-3xl font-bold text-slate-800">SENHA DE ATENDIMENTO</h1>
+          <p className="text-slate-600">Controle de Docas</p>
         </div>
 
         {!senhaGerada ? (
-          <Card className="shadow-lg">
+          <Card className="shadow-lg overflow-hidden">
+            <div className="h-2 bg-blue-600" />
             <CardHeader>
               <CardTitle className="text-center text-lg">Gerar Senha de Atendimento</CardTitle>
             </CardHeader>
@@ -178,7 +179,8 @@ export default function SenhaCaminhoneiro() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="shadow-lg">
+          <Card className="shadow-lg overflow-hidden">
+            <div className="h-2 bg-blue-600" />
             <CardContent className="pt-6 space-y-6">
               <div className="text-center space-y-1">
                 <p className="text-slate-600 text-sm">Fornecedor</p>
