@@ -18,17 +18,18 @@ import {
 } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useSenha } from '@/contexts/SenhaContext';
+import { useFluxoOperacional, FluxoOperacional } from '@/hooks/useFluxoOperacional';
+import { useCargasDB } from '@/hooks/useCargasDB';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { statusCargaLabels, tipoCaminhaoLabels } from '@/data/mockData';
-import { Carga, StatusCarga } from '@/types';
+import { StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { Plus, CalendarPlus, CalendarIcon, Check, ChevronsUpDown, X, Edit } from 'lucide-react';
+import { Plus, CalendarPlus, CalendarIcon, Check, ChevronsUpDown, X, Edit, Package, Truck, BarChart3, ClipboardCheck } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
-const statusStyles: Record<StatusCarga, string> = {
+const statusStyles: Record<string, string> = {
   aguardando_chegada: 'bg-blue-100 text-blue-800 border-blue-300',
   aguardando_conferencia: 'bg-cyan-100 text-cyan-800 border-cyan-300',
   em_conferencia: 'bg-yellow-100 text-yellow-800 border-yellow-300',
@@ -38,11 +39,12 @@ const statusStyles: Record<StatusCarga, string> = {
 };
 
 export default function AgendamentoPlanejamento() {
-  const { cargas, adicionarCarga, atualizarCarga } = useSenha();
+  const { dados } = useFluxoOperacional();
+  const { criarCarga, atualizarCarga } = useCargasDB();
   const { fornecedores } = useFornecedoresDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  
+
   const [formData, setFormData] = useState<Date | undefined>(undefined);
   const [formFornecedorId, setFormFornecedorId] = useState('');
   const [formNfs, setFormNfs] = useState('');
@@ -50,38 +52,49 @@ export default function AgendamentoPlanejamento() {
   const [formHorario, setFormHorario] = useState('08:00');
   const [openFornecedor, setOpenFornecedor] = useState(false);
   const [openCalendar, setOpenCalendar] = useState(false);
-  const [editingCarga, setEditingCarga] = useState<Carga | null>(null);
+  const [editingCargaId, setEditingCargaId] = useState<string | null>(null);
 
-  const getFornecedorNome = (id: string) => fornecedores.find(f => f.id === id)?.nome || 'N/A';
   const fornecedoresAtivos = useMemo(() => fornecedores.filter(f => f.ativo), [fornecedores]);
   const selectedFornecedor = useMemo(() => fornecedores.find(f => f.id === formFornecedorId), [formFornecedorId, fornecedores]);
 
   const cargasFiltradas = useMemo(() => {
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    return cargas.filter(c => c.data === dateStr && c.status === 'aguardando_chegada');
-  }, [cargas, selectedDate]);
+    return dados.filter(d => d.data_agendada === dateStr);
+  }, [dados, selectedDate]);
 
   const datasComCargas = useMemo(() => {
-    return cargas.filter(c => c.status === 'aguardando_chegada').map(c => parseISO(c.data));
-  }, [cargas]);
+    const unique = new Set(dados.map(d => d.data_agendada).filter(Boolean));
+    return Array.from(unique).map(d => parseISO(d!));
+  }, [dados]);
+
+  // Resumo do dia
+  const resumo = useMemo(() => {
+    const totalCargas = cargasFiltradas.length;
+    const totalCaminhoes = cargasFiltradas.reduce((s, d) => s + (d.quantidade_veiculos || 1), 0);
+    const volumePrevisto = cargasFiltradas.reduce((s, d) => s + (d.volume_previsto || 0), 0);
+    const volumeConferido = cargasFiltradas.reduce((s, d) => s + (d.volume_conferido || 0), 0);
+    return { totalCargas, totalCaminhoes, volumePrevisto, volumeConferido };
+  }, [cargasFiltradas]);
+
+  const { atualizarFluxo } = useFluxoOperacional();
 
   const handleNovo = () => {
-    setEditingCarga(null); setFormData(selectedDate); setFormFornecedorId('');
+    setEditingCargaId(null); setFormData(selectedDate); setFormFornecedorId('');
     setFormNfs(''); setFormVolume(''); setFormHorario('08:00'); setModalOpen(true);
   };
 
-  const handleEdit = (carga: Carga) => {
-    setEditingCarga(carga); setFormData(parseISO(carga.data));
-    setFormFornecedorId(carga.fornecedorId); setFormNfs(carga.nfs.join(', '));
-    setFormVolume(carga.volumePrevisto.toString()); setFormHorario(carga.horarioPrevisto || '08:00');
+  const handleEdit = (d: FluxoOperacional) => {
+    setEditingCargaId(d.carga_id); setFormData(d.data_agendada ? parseISO(d.data_agendada) : new Date());
+    setFormFornecedorId(d.fornecedor_id); setFormNfs(d.nota_fiscal?.join(', ') || '');
+    setFormVolume(String(d.volume_previsto || '')); setFormHorario(d.horario_previsto || '08:00');
     setModalOpen(true);
   };
 
   const handleSave = async () => {
     if (!formData || !formFornecedorId || !formVolume) { toast.error('Preencha todos os campos obrigatórios'); return; }
     try {
-      if (editingCarga) {
-        await atualizarCarga(editingCarga.id, {
+      if (editingCargaId) {
+        await atualizarCarga(editingCargaId, {
           data: format(formData, 'yyyy-MM-dd'),
           nfs: formNfs.split(',').map(nf => nf.trim()).filter(Boolean),
           volumePrevisto: parseInt(formVolume) || 0,
@@ -89,7 +102,7 @@ export default function AgendamentoPlanejamento() {
         });
         toast.success('Agendamento atualizado!');
       } else {
-        await adicionarCarga({
+        await criarCarga({
           data: format(formData, 'yyyy-MM-dd'),
           fornecedorId: formFornecedorId,
           nfs: formNfs.split(',').map(nf => nf.trim()).filter(Boolean),
@@ -102,9 +115,11 @@ export default function AgendamentoPlanejamento() {
     } catch { toast.error('Erro ao salvar'); }
   };
 
-  const handleCancelar = async (carga: Carga) => {
-    await atualizarCarga(carga.id, { status: 'recusado' });
-    toast.success('Agendamento cancelado');
+  const handleCancelar = async (d: FluxoOperacional) => {
+    try {
+      await atualizarFluxo({ p_carga_id: d.carga_id, p_novo_status: 'recusado' });
+      toast.success('Agendamento cancelado');
+    } catch { toast.error('Erro ao cancelar'); }
   };
 
   return (
@@ -121,6 +136,46 @@ export default function AgendamentoPlanejamento() {
           <Button onClick={handleNovo} className="gap-2"><Plus className="h-4 w-4" />Novo Agendamento</Button>
         </div>
 
+        {/* Resumo do dia */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <Package className="h-8 w-8 text-primary shrink-0" />
+              <div>
+                <p className="text-sm text-muted-foreground">Cargas</p>
+                <p className="text-2xl font-bold">{resumo.totalCargas}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <Truck className="h-8 w-8 text-primary shrink-0" />
+              <div>
+                <p className="text-sm text-muted-foreground">Caminhões</p>
+                <p className="text-2xl font-bold">{resumo.totalCaminhoes}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <BarChart3 className="h-8 w-8 text-primary shrink-0" />
+              <div>
+                <p className="text-sm text-muted-foreground">Vol. Previsto</p>
+                <p className="text-2xl font-bold">{resumo.volumePrevisto}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <ClipboardCheck className="h-8 w-8 text-primary shrink-0" />
+              <div>
+                <p className="text-sm text-muted-foreground">Vol. Conferido</p>
+                <p className="text-2xl font-bold">{resumo.volumeConferido}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <Card className="lg:col-span-1">
             <CardContent className="p-3">
@@ -134,28 +189,38 @@ export default function AgendamentoPlanejamento() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead><TableHead>Horário</TableHead><TableHead>Fornecedor</TableHead>
-                  <TableHead>NF(s)</TableHead><TableHead className="text-right">Volume</TableHead>
-                  <TableHead>Tipo</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead>
+                  <TableHead>NF(s)</TableHead><TableHead className="text-right">Vol. Previsto</TableHead>
+                  <TableHead className="text-right">Vol. Conferido</TableHead>
+                  <TableHead>Tipo</TableHead><TableHead>Divergência</TableHead>
+                  <TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {cargasFiltradas.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum agendamento para esta data</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhum agendamento para esta data</TableCell></TableRow>
                 ) : (
-                  cargasFiltradas.map((carga) => (
-                    <TableRow key={carga.id}>
-                      <TableCell className="whitespace-nowrap">{format(parseISO(carga.data), 'dd/MM/yyyy')}</TableCell>
-                      <TableCell>{carga.horarioPrevisto || '-'}</TableCell>
-                      <TableCell className="font-medium">{getFornecedorNome(carga.fornecedorId)}</TableCell>
-                      <TableCell>{carga.nfs.length > 0 ? carga.nfs.join(', ') : '-'}</TableCell>
-                      <TableCell className="text-right">{carga.volumePrevisto}</TableCell>
-                      <TableCell>{carga.tipoCaminhao ? tipoCaminhaoLabels[carga.tipoCaminhao] : '-'}</TableCell>
-                      <TableCell><Badge variant="outline" className={statusStyles[carga.status]}>Ativo</Badge></TableCell>
+                  cargasFiltradas.map((d) => (
+                    <TableRow key={d.carga_id || d.senha_id}>
+                      <TableCell className="whitespace-nowrap">{d.data_agendada ? format(parseISO(d.data_agendada), 'dd/MM/yyyy') : '-'}</TableCell>
+                      <TableCell>{d.horario_previsto || '-'}</TableCell>
+                      <TableCell className="font-medium">{d.fornecedor_nome || '-'}</TableCell>
+                      <TableCell>{d.nota_fiscal && d.nota_fiscal.length > 0 ? d.nota_fiscal.join(', ') : '-'}</TableCell>
+                      <TableCell className="text-right">{d.volume_previsto ?? '-'}</TableCell>
+                      <TableCell className="text-right">{d.volume_conferido ?? '-'}</TableCell>
+                      <TableCell>{d.tipo_veiculo ? (tipoCaminhaoLabels[d.tipo_veiculo] || d.tipo_veiculo) : '-'}</TableCell>
+                      <TableCell>{d.divergencia || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={statusStyles[d.status_carga || ''] || ''}>
+                          {statusCargaLabels[d.status_carga || ''] || d.status_carga || '-'}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(carga)}><Edit className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleCancelar(carga)}><X className="h-4 w-4" /></Button>
-                        </div>
+                        {d.status_carga === 'aguardando_chegada' && (
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => handleEdit(d)}><Edit className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleCancelar(d)}><X className="h-4 w-4" /></Button>
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -167,7 +232,7 @@ export default function AgendamentoPlanejamento() {
 
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
           <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>{editingCarga ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editingCargaId ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle></DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Data *</Label>
@@ -191,7 +256,7 @@ export default function AgendamentoPlanejamento() {
                 <Label>Fornecedor *</Label>
                 <Popover open={openFornecedor} onOpenChange={setOpenFornecedor}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" disabled={!!editingCarga} aria-expanded={openFornecedor} className="w-full justify-between">
+                    <Button variant="outline" role="combobox" disabled={!!editingCargaId} aria-expanded={openFornecedor} className="w-full justify-between">
                       {selectedFornecedor?.nome || "Buscar fornecedor..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
