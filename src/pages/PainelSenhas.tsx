@@ -9,6 +9,7 @@ const statusPainelMap: Record<string, { text: string; bg: string }> = {
   em_conferencia: { text: 'EM CONFERÊNCIA', bg: 'bg-green-500' },
   conferido: { text: 'CONFERIDO', bg: 'bg-emerald-600' },
   recusado: { text: 'RECUSADO', bg: 'bg-red-600' },
+  em_patio: { text: 'NO PÁTIO', bg: 'bg-purple-600' },
 };
 
 export default function PainelSenhas() {
@@ -35,22 +36,29 @@ export default function PainelSenhas() {
         </div>
       ) : (
         <div className="max-w-5xl mx-auto">
-          <div className="grid grid-cols-3 gap-4 px-4 py-3 bg-slate-800 rounded-t-lg text-slate-400 text-sm font-semibold uppercase tracking-wider">
+          <div className="grid grid-cols-4 gap-4 px-4 py-3 bg-slate-800 rounded-t-lg text-slate-400 text-sm font-semibold uppercase tracking-wider">
             <div>Senha</div>
             <div>Fornecedor</div>
+            <div>Motorista</div>
             <div className="text-center">Status</div>
           </div>
 
           {senhasAtivas.map((senha) => {
             const statusInfo = statusPainelMap[senha.status] || { text: senha.status, bg: 'bg-gray-600' };
-            const statusText = senha.status === 'em_doca' && senha.docaNumero
-              ? `DIRIJA-SE À DOCA ${senha.docaNumero}`
-              : statusInfo.text;
+            let statusText = statusInfo.text;
+            let statusBg = statusInfo.bg;
+
+            if (senha.localAtual === 'em_patio') {
+              statusBg = 'bg-purple-600';
+              statusText = senha.rua ? `PÁTIO - RUA ${senha.rua}` : 'NO PÁTIO';
+            } else if (senha.status === 'em_doca' && senha.docaNumero) {
+              statusText = `DIRIJA-SE À DOCA ${senha.docaNumero}`;
+            }
 
             return (
               <div
                 key={senha.id}
-                className="grid grid-cols-3 gap-4 px-4 py-4 border-b border-slate-700 items-center"
+                className="grid grid-cols-4 gap-4 px-4 py-4 border-b border-slate-700 items-center"
               >
                 <div className="text-3xl md:text-4xl font-bold text-blue-300">
                   {String(senha.numero).padStart(4, '0')}
@@ -58,8 +66,11 @@ export default function PainelSenhas() {
                 <div className="text-lg md:text-xl font-medium truncate">
                   {getFornecedorNome(senha.fornecedorId)}
                 </div>
+                <div className="text-lg md:text-xl font-medium truncate">
+                  {senha.nomeMotorista || 'N/A'}
+                </div>
                 <div className="text-center">
-                  <span className={`${statusInfo.bg} text-white px-3 py-2 rounded-lg text-sm md:text-base font-bold inline-block min-w-[180px]`}>
+                  <span className={`${statusBg} text-white px-3 py-2 rounded-lg text-sm md:text-base font-bold inline-block min-w-[180px]`}>
                     {statusText}
                   </span>
                 </div>
