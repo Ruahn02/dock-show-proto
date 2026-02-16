@@ -1,79 +1,42 @@
 
 
-# Ajustes na Tela de Agendamento
+# Ajustes no Controle de Senhas
 
-## Problemas Identificados
+## 1. Aviso ao liberar sem conferencia finalizada
 
-### 1. Cargas sumindo quando motorista pega senha
-A linha de filtro atual e:
-```
-cargas.filter(c => c.data === dateStr && c.status === 'aguardando_chegada')
-```
-Isso descarta qualquer carga cujo status mudou (ex: `aguardando_conferencia`, `em_conferencia`, `conferido`). Ao remover o filtro de status, todas as cargas do dia selecionado serao exibidas independentemente do fluxo.
+Atualmente, o botao "Liberar" simplesmente marca `liberada: true` e libera a doca, sem verificar se a conferencia foi concluida. A mudanca e:
 
-### 2. Nome do fornecedor sumindo em dias anteriores
-A tela usa `useSenha()` que le da tabela `cargas` e depois busca o nome do fornecedor via `useFornecedoresDB()` com um join manual por ID. Se o fornecedor_id nao bater, mostra "N/A". A solucao e usar `useFluxoOperacional()` que le da view `vw_carga_operacional`, onde `fornecedor_nome` ja vem preenchido. Se vier vazio, exibe "-".
-
-### 3. Colunas NF(s) e Divergencia
-NF(s) ja existe. Divergencia sera adicionada como nova coluna.
-
-### 4. Resumo do dia no topo
-Cards com totais filtrados pela data selecionada usando dados da view.
-
-## Alteracoes
-
-### `src/pages/AgendamentoPlanejamento.tsx`
-
-**Fonte de dados**: Trocar de `useSenha()` + `useFornecedoresDB()` para `useFluxoOperacional()`.
-
-**Filtro**: Remover filtro por status. Manter apenas filtro por data:
-```
-dados.filter(d => d.data_agendada === dateStr)
-```
-
-**Calendario**: Marcar todas as datas que tem cargas (sem filtro de status).
-
-**Tabela**: Usar `fornecedor_nome` direto da view. Adicionar coluna Divergencia. Manter colunas: Data, Horario, Fornecedor, NF(s), Volume Previsto, Volume Conferido, Tipo, Divergencia, Status, Acoes.
-
-**Resumo do dia**: 4 cards no topo (entre calendario e tabela):
-- Total de cargas agendadas (contagem de registros do dia)
-- Total de caminhoes (soma de quantidade_veiculos)
-- Volume previsto (soma)
-- Volume conferido (soma)
-
-**Status badge**: Exibir o status real da carga (usando statusCargaLabels) em vez de sempre "Ativo". Manter os estilos de cores por status.
-
-**Acoes**: Permitir editar/cancelar apenas cargas com status `aguardando_chegada`. Para outros status, nao exibir botoes.
+- No `handleOpenLiberar`, verificar o status da senha selecionada
+- Se o status for `conferido`, manter o comportamento atual (liberar normalmente)
+- Se o status NAO for `conferido`, exibir um aviso diferente no AlertDialog:
+  - Titulo: "Liberar sem Conferencia"
+  - Mensagem: "Ao liberar sem finalizar a conferencia, a carga sera marcada como recusada. Deseja continuar?"
+  - Botao vermelho "Liberar e Recusar"
+- Se confirmar nesse caso:
+  1. Chamar `atualizarFluxo` com `p_novo_status: 'recusado'` (que libera a doca e marca carga/senha como recusado via RPC)
+  2. Em seguida, chamar `liberarSenha` para marcar `liberada: true`
 
 ### Detalhes tecnicos
 
+No `handleConfirmLiberar`, adicionar logica condicional:
+
 ```text
-Imports:
-- Adicionar useFluxoOperacional
-- Remover useSenha e useFornecedoresDB
-
-Dados:
-- const { dados } = useFluxoOperacional()
-- cargasFiltradas = dados.filter(d => d.data_agendada === dateStr)
-- datasComCargas = Set de todas datas unicas dos dados
-
-Resumo:
-- totalCargas = cargasFiltradas.length
-- totalCaminhoes = soma de quantidade_veiculos (default 1)
-- volumePrevisto = soma de volume_previsto
-- volumeConferido = soma de volume_conferido
-
-Tabela:
-- fornecedor: d.fornecedor_nome || '-'
-- nfs: d.nota_fiscal?.join(', ') || '-'
-- divergencia: d.divergencia || '-' (nova coluna)
-- volume conferido: d.volume_conferido ?? '-'
-- status: statusCargaLabels[d.status_carga] com badge colorido
-
-Acoes (editar/cancelar):
-- Manter apenas para status === 'aguardando_chegada'
-- Editar usa atualizarCarga do useCargasDB
-- Cancelar usa atualizarFluxo com status 'recusado'
+Se senha.status !== 'conferido':
+  - Buscar carga vinculada
+  - Chamar atualizarFluxo({ p_carga_id, p_senha_id, p_novo_status: 'recusado' })
+  - Chamar liberarSenha(senhaId)
+Se nao:
+  - Manter comportamento atual (liberar doca manualmente + liberarSenha)
 ```
+
+No AlertDialog de liberacao, renderizar mensagem condicional baseada em `selectedSenha?.status !== 'conferido'`.
+
+## 2. Senhas recusadas fora da lista ativa
+
+O filtro `getSenhasAtivas()` no `SenhaContext` ja exclui senhas com `status === 'recusado'`. Porem, para garantir que nao haja brecha, sera adicionado um filtro extra diretamente na pagina `ControleSenhas.tsx` para excluir senhas recusadas da lista filtrada, como camada de seguranca adicional.
+
+## Arquivo alterado
+
+- `src/pages/ControleSenhas.tsx`
 
 Nenhuma alteracao no banco de dados necessaria.
