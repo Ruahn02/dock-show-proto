@@ -186,6 +186,9 @@ export default function CrossDocking() {
                           {isAdmin && cross.status === 'cross_confirmado' && (
                             <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMontarCross(cross)}>Cross Montado</Button>
                           )}
+                          {isAdmin && cross.status === 'aguardando_separacao' && (
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleIniciarSeparacao(cross)}>Começar Separação</Button>
+                          )}
                           {!isAdmin && cross.status === 'aguardando_separacao' && (
                             <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleIniciarSeparacao(cross)}>Começar Separação</Button>
                           )}
