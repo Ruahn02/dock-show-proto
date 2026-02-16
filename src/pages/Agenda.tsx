@@ -14,16 +14,22 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { useSenha } from '@/contexts/SenhaContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
 import { statusCargaLabels } from '@/data/mockData';
 import { Carga, StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { CalendarCheck, CalendarIcon, MoreHorizontal } from 'lucide-react';
+import { CalendarCheck, CalendarIcon, Download, FileSpreadsheet, MoreHorizontal } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const statusStyles: Record<string, string> = {
   aguardando_chegada: 'bg-blue-100 text-blue-800 border-blue-300',
@@ -54,6 +60,7 @@ export default function Agenda() {
 
   const [dataSelecionada, setDataSelecionada] = useState<Date>(new Date());
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [fornecedorFiltro, setFornecedorFiltro] = useState<string>('todos');
   const hojeStr = format(dataSelecionada, 'yyyy-MM-dd');
 
   const getFornecedorNome = (id: string) => fornecedores.find(f => f.id === id)?.nome || 'N/A';
@@ -66,6 +73,16 @@ export default function Agenda() {
   };
 
   const cargasDeHoje = useMemo(() => cargas.filter(c => c.data === hojeStr), [cargas, hojeStr]);
+
+  const fornecedoresDoDia = useMemo(() => {
+    const ids = [...new Set(cargasDeHoje.map(c => c.fornecedorId))];
+    return ids.map(id => ({ id, nome: getFornecedorNome(id) })).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [cargasDeHoje, fornecedores]);
+
+  const cargasFiltradas = useMemo(() => {
+    if (fornecedorFiltro === 'todos') return cargasDeHoje;
+    return cargasDeHoje.filter(c => c.fornecedorId === fornecedorFiltro);
+  }, [cargasDeHoje, fornecedorFiltro]);
 
   const openNoShowConfirm = (carga: Carga) => { setCargaToUpdate(carga); setConfirmNoShow(true); };
   const openRecusadoConfirm = (carga: Carga) => { setCargaToUpdate(carga); setConfirmRecusado(true); };
@@ -87,6 +104,69 @@ export default function Agenda() {
   };
 
   const canChangeStatus = (carga: Carga) => carga.status === 'aguardando_chegada' || carga.status === 'aguardando_conferencia' || carga.status === 'em_conferencia';
+
+  const mapCargaParaLinha = (carga: Carga) => {
+    const display = getDisplayStatus(carga);
+    return {
+      'Horário': carga.horarioPrevisto || '-',
+      'Fornecedor': getFornecedorNome(carga.fornecedorId),
+      'NF(s)': carga.nfs?.join(', ') || '-',
+      'Vol. Previsto': carga.volumePrevisto,
+      'Vol. Recebido': carga.volumeConferido ?? '-',
+      'Conferente': getConferenteNome(carga.conferenteId),
+      'Rua': carga.rua || '-',
+      'Divergência': carga.divergencia || '-',
+      'Status': display.label,
+    };
+  };
+
+  const exportarPDF = () => {
+    const doc = new jsPDF();
+    const dataFormatada = format(dataSelecionada, "dd/MM/yyyy");
+    doc.setFontSize(16);
+    doc.text(`Agenda - ${dataFormatada}`, 14, 15);
+
+    if (fornecedorFiltro !== 'todos') {
+      doc.setFontSize(11);
+      doc.text(`Fornecedor: ${getFornecedorNome(fornecedorFiltro)}`, 14, 23);
+    }
+
+    const headers = ['Horário', 'Fornecedor', 'NF(s)', 'Vol. Prev.', 'Vol. Rec.', 'Conferente', 'Rua', 'Diverg.', 'Status'];
+    const rows = cargasFiltradas.map(c => {
+      const display = getDisplayStatus(c);
+      return [
+        c.horarioPrevisto || '-',
+        getFornecedorNome(c.fornecedorId),
+        c.nfs?.join(', ') || '-',
+        String(c.volumePrevisto),
+        c.volumeConferido != null ? String(c.volumeConferido) : '-',
+        getConferenteNome(c.conferenteId),
+        c.rua || '-',
+        c.divergencia || '-',
+        display.label,
+      ];
+    });
+
+    autoTable(doc, {
+      head: [headers],
+      body: rows,
+      startY: fornecedorFiltro !== 'todos' ? 28 : 22,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+
+    doc.save(`agenda_${format(dataSelecionada, 'yyyy-MM-dd')}.pdf`);
+    toast.success('PDF exportado com sucesso');
+  };
+
+  const exportarExcel = () => {
+    const dados = cargasFiltradas.map(mapCargaParaLinha);
+    const ws = XLSX.utils.json_to_sheet(dados);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Agenda');
+    XLSX.writeFile(wb, `agenda_${format(dataSelecionada, 'yyyy-MM-dd')}.xlsx`);
+    toast.success('Excel exportado com sucesso');
+  };
 
   return (
     <Layout>
@@ -114,6 +194,32 @@ export default function Agenda() {
           </Popover>
         </div>
 
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="w-64">
+            <Select value={fornecedorFiltro} onValueChange={setFornecedorFiltro}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filtrar por fornecedor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os fornecedores</SelectItem>
+                {fornecedoresDoDia.map(f => (
+                  <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={exportarPDF}>
+              <Download className="h-4 w-4" />
+              Exportar PDF
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={exportarExcel}>
+              <FileSpreadsheet className="h-4 w-4" />
+              Exportar Excel
+            </Button>
+          </div>
+        </div>
+
         <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
@@ -131,10 +237,10 @@ export default function Agenda() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cargasDeHoje.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma entrega agendada para hoje</TableCell></TableRow>
+              {cargasFiltradas.length === 0 ? (
+                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma entrega agendada para esta data</TableCell></TableRow>
               ) : (
-                cargasDeHoje.map((carga) => (
+                cargasFiltradas.map((carga) => (
                   <TableRow key={carga.id}>
                     <TableCell className="whitespace-nowrap">{carga.horarioPrevisto || '-'}</TableCell>
                     <TableCell className={`font-medium ${getFornecedorColor(carga)}`}>{getFornecedorNome(carga.fornecedorId)}</TableCell>
