@@ -1,41 +1,64 @@
 
 
-# Ajustes no Painel de Senhas
-
-## Situacao Atual
-
-- O painel exibe 3 colunas: Senha, Fornecedor, Status
-- Nao mostra o nome do motorista
-- Senhas em `aguardando_doca` e no patio ja estao tecnicamente incluidas pelo filtro `getSenhasAtivas()` (que filtra apenas `liberada` e `recusado`), porem o status do patio nao tem representacao visual propria
+# Filtro por Fornecedor e Exportacao PDF/Excel na Agenda
 
 ## Alteracoes
 
-### `src/pages/PainelSenhas.tsx`
+### `src/pages/Agenda.tsx`
 
-**1. Adicionar coluna "Motorista"**
+**1. Filtro por fornecedor**
 
-Alterar o grid de 3 para 4 colunas (`grid-cols-4`). Adicionar coluna "Motorista" entre "Fornecedor" e "Status", exibindo `senha.nomeMotorista`.
+Adicionar um `Select` ao lado do seletor de data, listando todos os fornecedores que aparecem nas cargas do dia (mais opcao "Todos"). O filtro sera aplicado sobre `cargasDeHoje`, gerando `cargasFiltradas` que alimenta tanto a tabela quanto as exportacoes.
 
-**2. Status visual para patio**
-
-Adicionar entrada no `statusPainelMap` e logica condicional para exibir instrucao de patio:
-- Quando `localAtual === 'em_patio'` e `rua` existir: mostrar "PATIO - RUA {rua}" com badge roxo
-- Quando `localAtual === 'em_patio'` sem rua: mostrar "NO PATIO" com badge roxo
-
-A logica de status fica:
 ```text
-1. Se localAtual === 'em_patio' e rua: "PATIO - RUA {rua}"
-2. Se localAtual === 'em_patio' sem rua: "NO PATIO"
-3. Se status === 'em_doca' e docaNumero: "DIRIJA-SE A DOCA {docaNumero}"
-4. Senao: usar statusPainelMap normalmente
+Estado: fornecedorFiltro (string | 'todos')
+Lista de opcoes: fornecedores unicos extraidos de cargasDeHoje
+Filtro: cargasFiltradas = fornecedorFiltro === 'todos' 
+  ? cargasDeHoje 
+  : cargasDeHoje.filter(c => c.fornecedorId === fornecedorFiltro)
 ```
 
-### Layout final da tabela
+**2. Exportar PDF**
 
-| Senha | Fornecedor | Motorista | Status |
-|-------|-----------|-----------|--------|
-| 0001  | Fornec. A | Joao Silva | AGUARDANDO DOCA |
-| 0002  | Fornec. B | Carlos    | DIRIJA-SE A DOCA 3 |
-| 0003  | Fornec. C | Pedro     | PATIO - RUA 5 |
+Usar `jspdf` + `jspdf-autotable` para gerar um PDF com:
+- Titulo: "Agenda - {data formatada}" + filtro aplicado
+- Tabela com as mesmas colunas visiveis: Horario, Fornecedor, NF(s), Vol. Previsto, Vol. Recebido, Conferente, Rua, Divergencia, Status
+- Dados de `cargasFiltradas` (respeitando filtro de data + fornecedor)
 
-Nenhuma alteracao no banco de dados ou contexto necessaria.
+**3. Exportar Excel**
+
+Usar `xlsx` (SheetJS) para gerar um arquivo .xlsx com:
+- Nome da aba: "Agenda"
+- Mesmas colunas e dados filtrados
+- Nome do arquivo: `agenda_{data}.xlsx`
+
+**4. Layout dos botoes**
+
+Adicionar uma barra entre o header e a tabela com:
+- Select de fornecedor (lado esquerdo)
+- Botoes "Exportar PDF" e "Exportar Excel" (lado direito)
+
+### Dependencias novas
+
+- `jspdf` + `jspdf-autotable` - geracao de PDF
+- `xlsx` - geracao de Excel
+
+### Detalhes tecnicos
+
+```text
+Funcao exportarPDF(cargasFiltradas, dataSelecionada, fornecedorNome):
+  1. new jsPDF()
+  2. doc.text("Agenda - {data}")
+  3. Se filtro != 'todos': doc.text("Fornecedor: {nome}")
+  4. autoTable com headers e rows mapeados de cargasFiltradas
+  5. doc.save("agenda_{data}.pdf")
+
+Funcao exportarExcel(cargasFiltradas, dataSelecionada):
+  1. Mapear cargasFiltradas para array de objetos com nomes de coluna em portugues
+  2. XLSX.utils.json_to_sheet(dados)
+  3. XLSX.utils.book_new() + book_append_sheet
+  4. XLSX.writeFile(wb, "agenda_{data}.xlsx")
+```
+
+Nenhuma alteracao no banco de dados necessaria.
+
