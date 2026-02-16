@@ -13,7 +13,7 @@ import { useSolicitacao } from '@/contexts/SolicitacaoContext';
 import { tipoCaminhaoLabels } from '@/data/mockData';
 import { TipoCaminhao } from '@/types';
 import { toast } from 'sonner';
-import { Truck, CheckCircle2, Check, ChevronsUpDown } from 'lucide-react';
+import { PackageCheck, CheckCircle2, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function SolicitacaoEntrega() {
@@ -83,15 +83,18 @@ export default function SolicitacaoEntrega() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg">
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-lg shadow-lg overflow-hidden">
+        <div className="h-2 bg-amber-500" />
         <CardHeader className="text-center">
           <div className="mx-auto mb-2">
-            <Truck className="h-12 w-12 text-primary" />
+            <div className="bg-amber-500 rounded-full p-3 inline-flex">
+              <PackageCheck className="h-10 w-10 text-white" />
+            </div>
           </div>
-          <CardTitle className="text-2xl">Solicitação de Entrega</CardTitle>
+          <CardTitle className="text-3xl">SOLICITAÇÃO DE ENTREGA</CardTitle>
           <CardDescription>
-            Preencha os dados abaixo para solicitar uma entrega
+            Agende sua entrega com antecedência
           </CardDescription>
         </CardHeader>
         <CardContent>
