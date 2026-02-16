@@ -201,6 +201,18 @@ export default function SenhaCaminhoneiro() {
                   </p>
                 </div>
               )}
+              {senhaGerada.localAtual === 'em_doca' && senhaGerada.docaNumero && senhaGerada.status !== 'conferido' && senhaGerada.status !== 'recusado' && (
+                <div className="bg-primary text-primary-foreground rounded-xl p-6 text-center border-2 border-primary animate-pulse">
+                  <p className="text-sm font-medium mb-1">DIRIJA-SE PARA A</p>
+                  <p className="text-3xl md:text-4xl font-bold">DOCA {senhaGerada.docaNumero}</p>
+                </div>
+              )}
+              {senhaGerada.localAtual === 'em_patio' && senhaGerada.rua && senhaGerada.status !== 'conferido' && senhaGerada.status !== 'recusado' && (
+                <div className="bg-orange-500 text-white rounded-xl p-6 text-center border-2 border-orange-600 animate-pulse">
+                  <p className="text-sm font-medium mb-1">DIRIJA-SE PARA A</p>
+                  <p className="text-3xl md:text-4xl font-bold">RUA {senhaGerada.rua}</p>
+                </div>
+              )}
               <div className="text-center text-sm text-slate-500">
                 Hora de chegada: {senhaGerada.horaChegada}
               </div>
