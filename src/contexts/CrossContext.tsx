@@ -63,11 +63,7 @@ export function CrossProvider({ children }: { children: ReactNode }) {
   };
 
   const getCrossParaAdmin = () => {
-    return crossItems.filter(item =>
-      item.status === 'aguardando_decisao' ||
-      item.status === 'cross_confirmado' ||
-      item.status === 'aguardando_separacao'
-    );
+    return crossItems;
   };
 
   const getCrossParaOperacional = () => {
