@@ -64,8 +64,9 @@ export default function ControleSenhas() {
   const painelUrl = `${window.location.origin}/painel`;
   const senhasAtivas = getSenhasAtivas();
 
-  // Aplicar filtros
+  // Aplicar filtros (camada extra: excluir recusados)
   const senhasFiltradas = senhasAtivas
+    .filter(s => s.status !== 'recusado')
     .filter(s => filtroStatus === 'todos' || s.status === filtroStatus)
     .filter(s => filtroFornecedor === 'todos' || s.fornecedorId === filtroFornecedor)
     .filter(s => filtroLocal === 'todos' || s.localAtual === filtroLocal);
@@ -225,16 +226,27 @@ export default function ControleSenhas() {
   const handleConfirmLiberar = async () => {
     if (!selectedSenhaId) return;
     
-    // Se a senha tinha doca vinculada, liberar a doca
     const senha = senhas.find(s => s.id === selectedSenhaId);
-    if (senha?.docaNumero) {
-      const doca = docas.find(d => d.numero === senha.docaNumero);
-      if (doca) {
-        await atualizarDoca(doca.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
+    
+    if (senha?.status !== 'conferido') {
+      // Conferência não finalizada: recusar carga via RPC (libera doca automaticamente)
+      const cargaVinculada = cargas.find(c => c.senhaId === selectedSenhaId);
+      await atualizarFluxo({
+        p_carga_id: cargaVinculada?.id || null,
+        p_senha_id: selectedSenhaId,
+        p_novo_status: 'recusado',
+      });
+    } else {
+      // Conferência finalizada: liberar doca manualmente (RPC já liberou na finalização)
+      if (senha?.docaNumero) {
+        const doca = docas.find(d => d.numero === senha.docaNumero);
+        if (doca) {
+          await atualizarDoca(doca.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
+        }
       }
     }
     
-    liberarSenha(selectedSenhaId);
+    await liberarSenha(selectedSenhaId);
     toast.success('Senha liberada - Caminhão pode sair');
     setLiberarConfirmOpen(false);
   };
@@ -584,26 +596,48 @@ export default function ControleSenhas() {
       <AlertDialog open={liberarConfirmOpen} onOpenChange={setLiberarConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Liberar Senha</AlertDialogTitle>
+            <AlertDialogTitle>
+              {selectedSenha?.status !== 'conferido' ? 'Liberar sem Conferência' : 'Liberar Senha'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {selectedSenha && (
                 <>
-                  Confirma a liberação da senha <strong>{String(selectedSenha.numero).padStart(4, '0')}</strong>?
-                  <br /><br />
-                  Fornecedor: {getFornecedorNome(selectedSenha.fornecedorId)}
-                  <br />
-                  Motorista: {selectedSenha.nomeMotorista}
-                  <br /><br />
-                  <span className="text-green-600">O caminhão será liberado para sair.</span>
+                  {selectedSenha.status !== 'conferido' ? (
+                    <>
+                      Ao liberar sem finalizar a conferência, a carga será marcada como <strong>recusada</strong>. Deseja continuar?
+                      <br /><br />
+                      Senha: <strong>{String(selectedSenha.numero).padStart(4, '0')}</strong>
+                      <br />
+                      Fornecedor: {getFornecedorNome(selectedSenha.fornecedorId)}
+                      <br />
+                      Motorista: {selectedSenha.nomeMotorista}
+                    </>
+                  ) : (
+                    <>
+                      Confirma a liberação da senha <strong>{String(selectedSenha.numero).padStart(4, '0')}</strong>?
+                      <br /><br />
+                      Fornecedor: {getFornecedorNome(selectedSenha.fornecedorId)}
+                      <br />
+                      Motorista: {selectedSenha.nomeMotorista}
+                      <br /><br />
+                      <span className="text-green-600">O caminhão será liberado para sair.</span>
+                    </>
+                  )}
                 </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmLiberar} className="bg-green-600 hover:bg-green-700">
-              Liberar
-            </AlertDialogAction>
+            {selectedSenha?.status !== 'conferido' ? (
+              <AlertDialogAction onClick={handleConfirmLiberar} className="bg-destructive hover:bg-destructive/90">
+                Liberar e Recusar
+              </AlertDialogAction>
+            ) : (
+              <AlertDialogAction onClick={handleConfirmLiberar} className="bg-green-600 hover:bg-green-700">
+                Liberar
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
