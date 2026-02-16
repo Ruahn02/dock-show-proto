@@ -1,45 +1,34 @@
 
 
-# Exibir Status "Aguardando Doca" na Agenda
+# Campo de Busca no Select de Fornecedor (Solicitacao de Entrega)
 
 ## Problema
 
-Na tela Agenda, quando o motorista gera a senha (chegou = true), o nome do fornecedor fica verde (correto), mas o badge de status continua mostrando "Aguardando Chegada". Depois, quando vincula a doca, pula direto para "Aguardando Conferencia".
-
-O usuario quer ver um status intermediario "Aguardando Doca" na Agenda, igual ao que aparece no Controle de Senhas, para refletir que o caminhao ja chegou mas ainda nao foi direcionado a uma doca.
+Na tela de Solicitacao de Entrega (`/solicitacao-entrega`), o fornecedor precisa rolar uma lista potencialmente longa para encontrar seu nome no dropdown.
 
 ## Solucao
 
-Ajustar a **exibicao** do status na Agenda (sem mudar dados no banco). Quando a carga tem `chegou = true` e `status = 'aguardando_chegada'`, exibir "Aguardando Doca" em vez de "Aguardando Chegada".
+Substituir o `Select` por um `Popover` + `Command` (combobox com busca), que ja existe no projeto via shadcn. O fornecedor digita parte do nome e a lista filtra automaticamente.
 
 ## Alteracoes
 
-### 1. `src/pages/Agenda.tsx` - Logica de status visual
+### `src/pages/SolicitacaoEntrega.tsx`
 
-Criar uma funcao auxiliar que determina o status exibido com base nos dados da carga:
+- Importar `Popover`, `PopoverTrigger`, `PopoverContent` e `Command`, `CommandInput`, `CommandList`, `CommandEmpty`, `CommandGroup`, `CommandItem`
+- Substituir o bloco do Select de fornecedor por um Combobox com campo de busca
+- Exibir o nome do fornecedor selecionado no botao trigger
+- Ao selecionar, fechar o popover e setar o `fornecedorId`
 
-```text
-Se carga.chegou === true E carga.status === 'aguardando_chegada'
-  -> Exibir "Aguardando Doca" (com cor azul/ciano diferenciada)
-Senao
-  -> Exibir o status normal da carga
-```
-
-Isso mantem o badge de status coerente com o que aparece no Controle de Senhas.
-
-### 2. `src/pages/Agenda.tsx` - Estilo visual
-
-Adicionar um estilo para o status "Aguardando Doca" (azul claro, similar ao usado no Controle de Senhas) para diferenciar visualmente de "Aguardando Chegada".
-
-## Resultado esperado
+### Detalhes tecnicos
 
 ```text
-Motorista gera senha    -> Agenda mostra: nome verde + "Aguardando Doca"
-Vincula a doca          -> Agenda mostra: "Aguardando Conferencia"
-Inicia conferencia      -> Agenda mostra: "Em Conferencia"
+Componente: Popover + Command (padrao shadcn combobox)
+- PopoverTrigger: botao com texto do fornecedor selecionado ou placeholder
+- CommandInput: campo de texto para filtrar
+- CommandList > CommandGroup > CommandItem: lista filtrada de fornecedores ativos
+- Ao clicar em um item: seta fornecedorId, fecha popover
+- Icone Check ao lado do item selecionado
 ```
 
-## Arquivos modificados
-
-- `src/pages/Agenda.tsx` (apenas logica de exibicao, sem alterar dados)
+Nenhum arquivo novo, apenas alteracao em `src/pages/SolicitacaoEntrega.tsx`.
 
