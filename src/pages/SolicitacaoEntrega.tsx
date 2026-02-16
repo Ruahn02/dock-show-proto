@@ -6,12 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useSolicitacao } from '@/contexts/SolicitacaoContext';
 import { tipoCaminhaoLabels } from '@/data/mockData';
 import { TipoCaminhao } from '@/types';
 import { toast } from 'sonner';
-import { Truck, CheckCircle2 } from 'lucide-react';
+import { Truck, CheckCircle2, Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function SolicitacaoEntrega() {
   const [fornecedorId, setFornecedorId] = useState('');
@@ -19,6 +22,7 @@ export default function SolicitacaoEntrega() {
   const [quantidadeVeiculos, setQuantidadeVeiculos] = useState('1');
   const [volumePrevisto, setVolumePrevisto] = useState('');
   const [emailContato, setEmailContato] = useState('');
+  const [openFornecedor, setOpenFornecedor] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const { fornecedores } = useFornecedoresDB();
   const { criarSolicitacao } = useSolicitacao();
@@ -94,16 +98,44 @@ export default function SolicitacaoEntrega() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="fornecedor">Fornecedor *</Label>
-              <Select value={fornecedorId} onValueChange={setFornecedorId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o fornecedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fornecedoresAtivos.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={openFornecedor} onOpenChange={setOpenFornecedor}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openFornecedor}
+                    className="w-full justify-between font-normal"
+                  >
+                    {fornecedorId
+                      ? fornecedoresAtivos.find(f => f.id === fornecedorId)?.nome
+                      : "Selecione o fornecedor"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar fornecedor..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum fornecedor encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {fornecedoresAtivos.map((f) => (
+                          <CommandItem
+                            key={f.id}
+                            value={f.nome}
+                            onSelect={() => {
+                              setFornecedorId(f.id);
+                              setOpenFornecedor(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", fornecedorId === f.id ? "opacity-100" : "opacity-0")} />
+                            {f.nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
