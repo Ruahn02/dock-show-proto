@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MontarCrossModal } from '@/components/cross/MontarCrossModal';
 import { IniciarSeparacaoModal, FinalizarSeparacaoModal } from '@/components/cross/SeparacaoModal';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -19,7 +20,7 @@ import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
 import type { CrossDocking as CrossDockingType, StatusCross } from '@/types';
 import { toast } from 'sonner';
-import { ArrowRightLeft, Package, Archive, CalendarIcon } from 'lucide-react';
+import { ArrowRightLeft, Package, Archive, CalendarIcon, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -54,13 +55,20 @@ export default function CrossDocking() {
   const [selectedCross, setSelectedCross] = useState<CrossDockingType | null>(null);
   const [dataSelecionada, setDataSelecionada] = useState<Date | null>(new Date());
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [fornecedorSelecionado, setFornecedorSelecionado] = useState<string>('todos');
 
   const allCrossItems = isAdmin ? getCrossParaAdmin() : getCrossParaOperacional();
   const crossItems = useMemo(() => {
-    if (!dataSelecionada) return allCrossItems;
-    const dateStr = format(dataSelecionada, 'yyyy-MM-dd');
-    return allCrossItems.filter(c => c.data === dateStr);
-  }, [allCrossItems, dataSelecionada]);
+    let items = allCrossItems;
+    if (dataSelecionada) {
+      const dateStr = format(dataSelecionada, 'yyyy-MM-dd');
+      items = items.filter(c => c.data === dateStr);
+    }
+    if (fornecedorSelecionado && fornecedorSelecionado !== 'todos') {
+      items = items.filter(c => c.fornecedorId === fornecedorSelecionado);
+    }
+    return items;
+  }, [allCrossItems, dataSelecionada, fornecedorSelecionado]);
 
   const getFornecedor = (id: string) => fornecedores.find(f => f.id === id);
   const getSeparador = (id?: string) => conferentes.find(c => c.id === id);
@@ -122,6 +130,18 @@ export default function CrossDocking() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Select value={fornecedorSelecionado} onValueChange={setFornecedorSelecionado}>
+              <SelectTrigger className="w-[200px] gap-2">
+                <Filter className="h-4 w-4" />
+                <SelectValue placeholder="Fornecedor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os fornecedores</SelectItem>
+                {fornecedores.map(f => (
+                  <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -156,6 +176,7 @@ export default function CrossDocking() {
                   {isAdmin && <TableHead>Conferente</TableHead>}
                   {isAdmin && <TableHead>Divergência</TableHead>}
                   {!isAdmin && <TableHead>Cross #</TableHead>}
+                  {isAdmin && <TableHead>Separador</TableHead>}
                   <TableHead className="text-right w-28">Volume</TableHead>
                   <TableHead className="w-36">Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -164,6 +185,7 @@ export default function CrossDocking() {
               <TableBody>
                 {crossItems.map((cross) => {
                   const fornecedor = getFornecedor(cross.fornecedorId);
+                  const separador = getSeparador(cross.separadorId);
                   return (
                     <TableRow key={cross.id}>
                       {isAdmin && <TableCell>{formatarData(cross.data)}</TableCell>}
@@ -173,6 +195,7 @@ export default function CrossDocking() {
                       {isAdmin && <TableCell>{getConferenteNome(cross.cargaId)}</TableCell>}
                       {isAdmin && <TableCell>{getDivergencia(cross.cargaId)}</TableCell>}
                       {!isAdmin && <TableCell className="font-bold">{cross.numeroCross || '-'}</TableCell>}
+                      {isAdmin && <TableCell>{separador?.nome || '-'}</TableCell>}
                       <TableCell className="text-right">{cross.volumeRecebido}</TableCell>
                       <TableCell><Badge variant="outline" className={statusStyles[cross.status]}>{statusLabels[cross.status]}</Badge></TableCell>
                       <TableCell className="text-right">
@@ -188,6 +211,12 @@ export default function CrossDocking() {
                           )}
                           {isAdmin && cross.status === 'aguardando_separacao' && (
                             <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleIniciarSeparacao(cross)}>Começar Separação</Button>
+                          )}
+                          {isAdmin && cross.status === 'em_separacao' && (
+                            <span className="text-sm text-muted-foreground italic">Separando: {separador?.nome || '...'}</span>
+                          )}
+                          {isAdmin && cross.status === 'finalizado' && (
+                            <span className="text-sm text-muted-foreground italic">{cross.observacao || 'Concluído'}</span>
                           )}
                           {!isAdmin && cross.status === 'aguardando_separacao' && (
                             <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleIniciarSeparacao(cross)}>Começar Separação</Button>
