@@ -213,7 +213,10 @@ export default function CrossDocking() {
                             <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleIniciarSeparacao(cross)}>Começar Separação</Button>
                           )}
                           {isAdmin && cross.status === 'em_separacao' && (
-                            <span className="text-sm text-muted-foreground italic">Separando: {separador?.nome || '...'}</span>
+                            <>
+                              <span className="text-sm text-muted-foreground italic">{separador?.nome || '...'}</span>
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleFinalizarSeparacao(cross)}>Finalizar Separação</Button>
+                            </>
                           )}
                           {isAdmin && cross.status === 'finalizado' && (
                             <span className="text-sm text-muted-foreground italic">{cross.observacao || 'Concluído'}</span>
