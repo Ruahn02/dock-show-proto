@@ -1,37 +1,52 @@
 
+# Adicionar botao de Modo Claro / Escuro no Header
 
-# Adicionar botão "Finalizar Separação" para o Admin no Cross Docking
+O projeto ja tem `next-themes` instalado e as variaveis CSS do modo escuro (`.dark`) definidas no `index.css`. So falta ativar o provider e adicionar o botao de toggle.
 
-## Problema
+## Alteracoes
 
-Na tela de Cross Docking, quando uma carga está com status `em_separacao`, o admin vê apenas o texto "Separando: [nome]" sem nenhum botão de ação. O botão "Finalizar Separação" só aparece para o perfil operacional. O admin também precisa poder finalizar a separação.
+### 1. `src/App.tsx`
+- Importar `ThemeProvider` de `next-themes`
+- Envolver toda a aplicacao com `<ThemeProvider attribute="class" defaultTheme="light" storageKey="doca-theme">`
+- Isso ativa o suporte a dark mode usando a classe CSS `.dark` no `<html>`
 
-## Alteração
+### 2. `src/components/layout/Header.tsx`
+- Importar `useTheme` de `next-themes` e os icones `Sun` e `Moon` do lucide
+- Adicionar um botao toggle ao lado do botao "Sair"
+- Ao clicar, alterna entre `light` e `dark`
+- Mostra icone de Sol (modo claro ativo) ou Lua (modo escuro ativo)
 
-### `src/pages/CrossDocking.tsx`
+### 3. `tailwind.config.ts`
+- Ja possui `darkMode: ["class"]` configurado - nenhuma alteracao necessaria
 
-Linha 215-217: Substituir o texto estático por texto informativo + botão de finalizar.
+---
 
+## Detalhes tecnicos
+
+**Header.tsx - Botao toggle:**
 ```text
-Antes:
-  {isAdmin && cross.status === 'em_separacao' && (
-    <span className="text-sm text-muted-foreground italic">
-      Separando: {separador?.nome || '...'}
-    </span>
-  )}
+const { theme, setTheme } = useTheme();
 
-Depois:
-  {isAdmin && cross.status === 'em_separacao' && (
-    <>
-      <span className="text-sm text-muted-foreground italic">
-        {separador?.nome || '...'}
-      </span>
-      <Button size="sm" className="bg-green-600 hover:bg-green-700"
-        onClick={() => handleFinalizarSeparacao(cross)}>
-        Finalizar Separação
-      </Button>
-    </>
-  )}
+<Button variant="outline" size="icon"
+  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+  {theme === 'dark' ? <Sun /> : <Moon />}
+</Button>
 ```
 
-Apenas 1 arquivo modificado, nenhuma alteração no banco de dados.
+**App.tsx - Provider:**
+```text
+import { ThemeProvider } from 'next-themes';
+
+<ThemeProvider attribute="class" defaultTheme="light" storageKey="doca-theme">
+  ... resto da app ...
+</ThemeProvider>
+```
+
+## Arquivos modificados
+
+| Arquivo | Alteracao |
+|---|---|
+| `src/App.tsx` | Adiciona ThemeProvider envolvendo a app |
+| `src/components/layout/Header.tsx` | Adiciona botao Sol/Lua para alternar tema |
+
+Nenhuma alteracao no banco de dados. A preferencia do usuario fica salva no localStorage automaticamente pelo next-themes.
