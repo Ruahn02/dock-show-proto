@@ -1,11 +1,13 @@
 import { useProfile } from '@/contexts/ProfileContext';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
-import { Warehouse, LogOut, Shield, User } from 'lucide-react';
+import { Warehouse, LogOut, Shield, User, Sun, Moon } from 'lucide-react';
 
 export function Header() {
   const { perfil, logout } = useProfile();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   const handleLogout = () => {
     logout();
@@ -23,6 +25,9 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        <Button variant="outline" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+          {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </Button>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           {perfil === 'administrador' ? (
             <Shield className="h-4 w-4" />
