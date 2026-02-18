@@ -108,7 +108,8 @@ export type StatusCross =
   | 'cross_confirmado'
   | 'aguardando_separacao'
   | 'em_separacao'
-  | 'finalizado';
+  | 'finalizado'
+  | 'armazenado';
 
 export interface CrossDocking {
   id: string;

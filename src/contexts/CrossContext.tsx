@@ -33,7 +33,7 @@ export function CrossProvider({ children }: { children: ReactNode }) {
   };
 
   const armazenarCarga = async (id: string) => {
-    await deletarCross(id);
+    await atualizarCross(id, { status: 'armazenado' as StatusCross });
   };
 
   const confirmarCross = async (id: string) => {
