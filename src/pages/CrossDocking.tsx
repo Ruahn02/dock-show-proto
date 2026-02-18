@@ -31,6 +31,7 @@ const statusStyles: Record<StatusCross, string> = {
   aguardando_separacao: 'bg-blue-100 text-blue-800 border-blue-300',
   em_separacao: 'bg-green-100 text-green-800 border-green-300',
   finalizado: 'bg-gray-100 text-gray-600 border-gray-300',
+  armazenado: 'bg-orange-100 text-orange-800 border-orange-300',
 };
 
 const statusLabels: Record<StatusCross, string> = {
@@ -39,6 +40,7 @@ const statusLabels: Record<StatusCross, string> = {
   aguardando_separacao: 'Aguard. Separação',
   em_separacao: 'Em Separação',
   finalizado: 'Finalizado',
+  armazenado: 'Armazenado',
 };
 
 export default function CrossDocking() {
@@ -56,6 +58,8 @@ export default function CrossDocking() {
   const [dataSelecionada, setDataSelecionada] = useState<Date | null>(new Date());
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [fornecedorSelecionado, setFornecedorSelecionado] = useState<string>('todos');
+  const [statusSelecionado, setStatusSelecionado] = useState<string>('todos');
+  const [tipoSelecionado, setTipoSelecionado] = useState<string>('todos');
 
   const allCrossItems = isAdmin ? getCrossParaAdmin() : getCrossParaOperacional();
   const crossItems = useMemo(() => {
@@ -67,8 +71,18 @@ export default function CrossDocking() {
     if (fornecedorSelecionado && fornecedorSelecionado !== 'todos') {
       items = items.filter(c => c.fornecedorId === fornecedorSelecionado);
     }
+    if (statusSelecionado && statusSelecionado !== 'todos') {
+      items = items.filter(c => c.status === statusSelecionado);
+    }
+    if (tipoSelecionado && tipoSelecionado !== 'todos') {
+      if (tipoSelecionado === 'armazenar') {
+        items = items.filter(c => c.status === 'armazenado');
+      } else {
+        items = items.filter(c => c.status !== 'armazenado');
+      }
+    }
     return items;
-  }, [allCrossItems, dataSelecionada, fornecedorSelecionado]);
+  }, [allCrossItems, dataSelecionada, fornecedorSelecionado, statusSelecionado, tipoSelecionado]);
 
   const getFornecedor = (id: string) => fornecedores.find(f => f.id === id);
   const getSeparador = (id?: string) => conferentes.find(c => c.id === id);
@@ -77,7 +91,7 @@ export default function CrossDocking() {
     if (!carga?.conferenteId) return '-';
     return conferentes.find(c => c.id === carga.conferenteId)?.nome || '-';
   };
-  const getDivergencia = (cargaId: string) => {
+  const getDivergenciaRecebimento = (cargaId: string) => {
     const carga = cargas.find(c => c.id === cargaId);
     return carga?.divergencia || '-';
   };
@@ -121,7 +135,7 @@ export default function CrossDocking() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <ArrowRightLeft className="h-8 w-8 text-primary" />
             <div>
@@ -129,7 +143,31 @@ export default function CrossDocking() {
               <p className="text-muted-foreground">{isAdmin ? 'Decida o destino das cargas conferidas' : 'Gerencie a separação de cargas cross'}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={tipoSelecionado} onValueChange={setTipoSelecionado}>
+              <SelectTrigger className="w-[140px] gap-2">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos tipos</SelectItem>
+                <SelectItem value="cross">Cross</SelectItem>
+                <SelectItem value="armazenar">Armazenar</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusSelecionado} onValueChange={setStatusSelecionado}>
+              <SelectTrigger className="w-[180px] gap-2">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos status</SelectItem>
+                <SelectItem value="aguardando_decisao">Aguardando Decisão</SelectItem>
+                <SelectItem value="cross_confirmado">Cross Confirmado</SelectItem>
+                <SelectItem value="aguardando_separacao">Aguard. Separação</SelectItem>
+                <SelectItem value="em_separacao">Em Separação</SelectItem>
+                <SelectItem value="finalizado">Finalizado</SelectItem>
+                <SelectItem value="armazenado">Armazenado</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={fornecedorSelecionado} onValueChange={setFornecedorSelecionado}>
               <SelectTrigger className="w-[200px] gap-2">
                 <Filter className="h-4 w-4" />
@@ -174,7 +212,8 @@ export default function CrossDocking() {
                   {isAdmin && <TableHead>NF(s)</TableHead>}
                   <TableHead>Rua</TableHead>
                   {isAdmin && <TableHead>Conferente</TableHead>}
-                  {isAdmin && <TableHead>Divergência</TableHead>}
+                  {isAdmin && <TableHead>Div. Receb.</TableHead>}
+                  {isAdmin && <TableHead>Div. Cross</TableHead>}
                   {!isAdmin && <TableHead>Cross #</TableHead>}
                   {isAdmin && <TableHead>Separador</TableHead>}
                   <TableHead className="text-right w-28">Volume</TableHead>
@@ -193,7 +232,8 @@ export default function CrossDocking() {
                       {isAdmin && <TableCell>{cross.nfs.join(', ') || '-'}</TableCell>}
                       <TableCell>{cross.rua || '-'}</TableCell>
                       {isAdmin && <TableCell>{getConferenteNome(cross.cargaId)}</TableCell>}
-                      {isAdmin && <TableCell>{getDivergencia(cross.cargaId)}</TableCell>}
+                      {isAdmin && <TableCell>{getDivergenciaRecebimento(cross.cargaId)}</TableCell>}
+                      {isAdmin && <TableCell>{cross.observacao || '-'}</TableCell>}
                       {!isAdmin && <TableCell className="font-bold">{cross.numeroCross || '-'}</TableCell>}
                       {isAdmin && <TableCell>{separador?.nome || '-'}</TableCell>}
                       <TableCell className="text-right">{cross.volumeRecebido}</TableCell>
@@ -217,9 +257,6 @@ export default function CrossDocking() {
                               <span className="text-sm text-muted-foreground italic">{separador?.nome || '...'}</span>
                               <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleFinalizarSeparacao(cross)}>Finalizar Separação</Button>
                             </>
-                          )}
-                          {isAdmin && cross.status === 'finalizado' && (
-                            <span className="text-sm text-muted-foreground italic">{cross.observacao || 'Concluído'}</span>
                           )}
                           {!isAdmin && cross.status === 'aguardando_separacao' && (
                             <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleIniciarSeparacao(cross)}>Começar Separação</Button>
