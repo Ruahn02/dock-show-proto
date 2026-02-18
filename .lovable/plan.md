@@ -1,59 +1,49 @@
 
-# Ocultar Divergencias do Cross para Usuario Operacional
+# Auto-redirecionamento para usuarios ja autenticados
 
-## O que muda
+## Problema atual
 
-### 1. `src/pages/CrossDocking.tsx` - Tabela
-As colunas "Div. Receb." e "Div. Cross" ja estao condicionadas a `isAdmin` no estado atual. **Nenhuma alteracao necessaria na tabela.**
+O sistema ja salva a sessao no `localStorage` atraves do `ProfileContext`. Porem, as telas de login (`/login` e `/acesso`) nao verificam se o usuario ja esta autenticado. Resultado: mesmo com sessao ativa, o usuario ve o formulario de login ao acessar essas rotas.
 
-### 2. `src/components/cross/SeparacaoModal.tsx` - Modal de Finalizacao
-O modal `FinalizarSeparacaoModal` hoje mostra os campos de divergencia (radio "Houve divergencia?" e textarea "Observacao") para todos os usuarios. Precisa receber uma prop `isAdmin` para ocultar esses campos do operacional.
+## Solucao
 
-**Alteracoes:**
-- Adicionar prop `isAdmin` (default `false`) na interface `FinalizarSeparacaoModalProps`
-- Envolver os campos de divergencia e observacao com `{isAdmin && (...)}`
-- Quando operacional finalizar, chamar `onConfirm(false, undefined)` sem campos de divergencia
+Adicionar verificacao de autenticacao no inicio de cada tela de login. Se ja autenticado, redirecionar automaticamente para a pagina correta.
 
-### 3. `src/pages/CrossDocking.tsx` - Passagem da prop
-Passar `isAdmin={isAdmin}` ao renderizar `<FinalizarSeparacaoModal>`.
+## Alteracoes
 
----
+### 1. `src/pages/LoginAdmin.tsx`
 
-## Detalhes tecnicos
+Adicionar no inicio do componente:
 
-**SeparacaoModal.tsx:**
 ```text
-interface FinalizarSeparacaoModalProps {
-  open: boolean;
-  onClose: () => void;
-  onConfirm: (temDivergencia: boolean, observacao?: string) => void;
-  isAdmin?: boolean;  // NOVO
+const { login, autenticado, isAdmin } = useProfile();
+
+if (autenticado && isAdmin) {
+  return <Navigate to="/" replace />;
 }
-
-// Dentro do DialogContent:
-{isAdmin && (
-  <>
-    <div> ... radio divergencia ... </div>
-    <div> ... textarea observacao ... </div>
-  </>
-)}
 ```
 
-**CrossDocking.tsx:**
+Se o admin ja esta logado, vai direto pro Dashboard.
+
+### 2. `src/pages/LoginOperacional.tsx`
+
+Adicionar no inicio do componente:
+
 ```text
-<FinalizarSeparacaoModal
-  open={finalizarModalOpen}
-  onClose={...}
-  onConfirm={handleFinalizarConfirm}
-  isAdmin={isAdmin}        // NOVO
-/>
+const { login, autenticado } = useProfile();
+
+if (autenticado) {
+  return <Navigate to="/docas" replace />;
+}
 ```
+
+Se o operacional ja esta logado, vai direto pra Docas.
 
 ## Arquivos modificados
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/components/cross/SeparacaoModal.tsx` | Adiciona prop `isAdmin`, oculta campos de divergencia para operacional |
-| `src/pages/CrossDocking.tsx` | Passa `isAdmin` para FinalizarSeparacaoModal |
+| `src/pages/LoginAdmin.tsx` | Redireciona admin autenticado para `/` |
+| `src/pages/LoginOperacional.tsx` | Redireciona operacional autenticado para `/docas` |
 
-Nenhuma alteracao no banco de dados.
+Nenhuma alteracao no banco de dados. A persistencia ja funciona via localStorage.
