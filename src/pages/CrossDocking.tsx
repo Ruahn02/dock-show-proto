@@ -289,7 +289,7 @@ export default function CrossDocking() {
 
         <MontarCrossModal open={montarModalOpen} onClose={() => { setMontarModalOpen(false); setSelectedCross(null); }} onConfirm={handleMontarConfirm} />
         <IniciarSeparacaoModal open={iniciarModalOpen} onClose={() => { setIniciarModalOpen(false); setSelectedCross(null); }} onConfirm={handleIniciarConfirm} />
-        <FinalizarSeparacaoModal open={finalizarModalOpen} onClose={() => { setFinalizarModalOpen(false); setSelectedCross(null); }} onConfirm={handleFinalizarConfirm} />
+        <FinalizarSeparacaoModal open={finalizarModalOpen} onClose={() => { setFinalizarModalOpen(false); setSelectedCross(null); }} onConfirm={handleFinalizarConfirm} isAdmin={isAdmin} />
       </div>
     </Layout>
   );
