@@ -61,9 +61,10 @@ interface FinalizarSeparacaoModalProps {
   open: boolean;
   onClose: () => void;
   onConfirm: (temDivergencia: boolean, observacao?: string) => void;
+  isAdmin?: boolean;
 }
 
-export function FinalizarSeparacaoModal({ open, onClose, onConfirm }: FinalizarSeparacaoModalProps) {
+export function FinalizarSeparacaoModal({ open, onClose, onConfirm, isAdmin = false }: FinalizarSeparacaoModalProps) {
   const [temDivergencia, setTemDivergencia] = useState<string>('nao');
   const [observacao, setObservacao] = useState('');
 
@@ -81,23 +82,27 @@ export function FinalizarSeparacaoModal({ open, onClose, onConfirm }: FinalizarS
       <DialogContent className="sm:max-w-md">
         <DialogHeader><DialogTitle>Finalizar Separação</DialogTitle></DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="space-y-3">
-            <Label>Houve divergência?</Label>
-            <RadioGroup value={temDivergencia} onValueChange={setTemDivergencia}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="sim" id="sim" />
-                <Label htmlFor="sim" className="font-normal">Sim</Label>
+          {isAdmin && (
+            <>
+              <div className="space-y-3">
+                <Label>Houve divergência?</Label>
+                <RadioGroup value={temDivergencia} onValueChange={setTemDivergencia}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="sim" id="sim" />
+                    <Label htmlFor="sim" className="font-normal">Sim</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="nao" id="nao" />
+                    <Label htmlFor="nao" className="font-normal">Não</Label>
+                  </div>
+                </RadioGroup>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="nao" id="nao" />
-                <Label htmlFor="nao" className="font-normal">Não</Label>
+              <div className="space-y-2">
+                <Label htmlFor="observacao">Observação (opcional)</Label>
+                <Textarea id="observacao" value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Digite uma observação..." rows={3} />
               </div>
-            </RadioGroup>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="observacao">Observação (opcional)</Label>
-            <Textarea id="observacao" value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Digite uma observação..." rows={3} />
-          </div>
+            </>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>Cancelar</Button>
