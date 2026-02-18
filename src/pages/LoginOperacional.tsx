@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,8 +11,12 @@ import { Warehouse, User, AlertCircle } from 'lucide-react';
 export default function LoginOperacional() {
   const [codigo, setCodigo] = useState('');
   const [erro, setErro] = useState('');
-  const { login } = useProfile();
+  const { login, autenticado } = useProfile();
   const navigate = useNavigate();
+
+  if (autenticado) {
+    return <Navigate to="/docas" replace />;
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
