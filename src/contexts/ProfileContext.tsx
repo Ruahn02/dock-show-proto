@@ -17,11 +17,15 @@ const CODIGOS: Record<Perfil, string> = {
   operacional: 'ACESSO123',
 };
 
-const STORAGE_KEY = 'dock_show_session';
+const STORAGE_KEY_ADMIN = 'dock_show_session_admin';
+const STORAGE_KEY_OPERACIONAL = 'dock_show_session_operacional';
 
 function getStoredSession(): { perfil: Perfil; autenticado: boolean } | null {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const path = window.location.pathname;
+    const isOperacionalRoute = ['/acesso', '/docas', '/cross'].some(r => path.startsWith(r));
+    const key = isOperacionalRoute ? STORAGE_KEY_OPERACIONAL : STORAGE_KEY_ADMIN;
+    const stored = localStorage.getItem(key);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed.autenticado && (parsed.perfil === 'administrador' || parsed.perfil === 'operacional')) {
@@ -41,16 +45,18 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     if (codigo === CODIGOS[perfilAlvo]) {
       setPerfilState(perfilAlvo);
       setAutenticado(true);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ perfil: perfilAlvo, autenticado: true }));
+      const key = perfilAlvo === 'administrador' ? STORAGE_KEY_ADMIN : STORAGE_KEY_OPERACIONAL;
+      localStorage.setItem(key, JSON.stringify({ perfil: perfilAlvo, autenticado: true }));
       return true;
     }
     return false;
   };
 
   const logout = () => {
+    const key = perfil === 'administrador' ? STORAGE_KEY_ADMIN : STORAGE_KEY_OPERACIONAL;
     setAutenticado(false);
     setPerfilState('administrador');
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(key);
   };
 
   const value = {
