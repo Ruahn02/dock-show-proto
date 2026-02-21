@@ -1,50 +1,88 @@
 
 
-# Limpar Dados Operacionais do Supabase (manter Funcionarios e Fornecedores)
+# Persistencia de Senhas no Dispositivo do Motorista
 
-## Resumo
+## Problema
 
-Apagar todos os registros das tabelas operacionais, mantendo intactos os cadastros de **Funcionarios (conferentes)** e **Fornecedores**. As tabelas, colunas e logica permanecem inalteradas.
+Quando o motorista gera uma senha e acidentalmente sai da tela ou atualiza a pagina, ele perde a referencia da senha e volta para a tela de gerar nova senha.
 
-## Tabelas que serao limpas
+## Solucao
 
-| Tabela | Acao |
-|---|---|
-| `cross_docking` | DELETE todos os registros |
-| `cargas` | DELETE todos os registros |
-| `senhas` | DELETE todos os registros |
-| `solicitacoes` | DELETE todos os registros |
-| `docas` | Resetar para estado livre (status='livre', limpar referencias) |
+Usar **localStorage** para identificar o dispositivo e guardar os IDs das senhas geradas nele. Ao acessar `/senha`, o sistema verifica se existem senhas ativas vinculadas ao dispositivo.
 
-## Tabelas preservadas (sem alteracao)
-
-- `conferentes` (Funcionarios)
-- `fornecedores`
-
-## Ordem de execucao
-
-A limpeza precisa respeitar dependencias entre tabelas:
-
-1. `cross_docking` (referencia cargas)
-2. `docas` - resetar campos (carga_id, senha_id, conferente_id, volume_conferido, rua para NULL, status para 'livre')
-3. `cargas` (referencia senhas e solicitacoes)
-4. `senhas`
-5. `solicitacoes`
-
-## Detalhes tecnicos
-
-Sera usado o insert tool (para operacoes de dados) com os seguintes comandos SQL:
+## Fluxo do usuario
 
 ```text
-DELETE FROM cross_docking;
-
-UPDATE docas SET status = 'livre', carga_id = NULL, senha_id = NULL, 
-  conferente_id = NULL, volume_conferido = NULL, rua = NULL;
-
-DELETE FROM cargas;
-DELETE FROM senhas;
-DELETE FROM solicitacoes;
+Motorista acessa /senha
+        |
+        v
+  Tem senhas ativas no dispositivo?
+        |
+   SIM  |  NAO
+   |         |
+   v         v
+ Tela com 2 botoes:          Vai direto para
+ [Solicitar Nova Senha]      formulario de
+ [Minhas Senhas]             gerar senha
+        |
+        v (Minhas Senhas)
+ Lista de senhas do dia
+ vinculadas ao dispositivo
+ (clicando em uma, abre o
+  acompanhamento em tempo real)
 ```
 
-Isso afeta apenas o ambiente de **teste**. O ambiente live nao sera alterado.
+## Como funciona a identificacao do dispositivo
+
+- Na primeira visita, gera um UUID aleatorio e salva no localStorage com a chave `dock_device_id`
+- Cada vez que o motorista gera uma senha, o ID da senha e salvo em um array no localStorage: `dock_device_senhas`
+- Nao precisa alterar o banco de dados -- tudo fica no navegador do motorista
+- Como o localStorage persiste entre refreshes e fechamentos de aba, o motorista nunca perde suas senhas
+
+## Telas
+
+### 1. Tela inicial (quando tem senhas ativas)
+- Header com icone do caminhao (igual ao atual)
+- Dois botoes grandes:
+  - "SOLICITAR NOVA SENHA" - vai para o formulario de gerar senha
+  - "MINHAS SENHAS" - mostra lista de senhas do dispositivo
+
+### 2. Tela "Minhas Senhas"
+- Lista das senhas geradas neste dispositivo (filtradas pelo dia de hoje)
+- Cada item mostra: numero da senha, fornecedor, status atual
+- Senhas ativas (nao conferidas/recusadas) ficam destacadas
+- Ao clicar em uma senha, abre a tela de acompanhamento (a mesma que ja existe)
+- Botao "Voltar" para retornar a tela inicial
+
+### 3. Formulario e acompanhamento
+- Permanecem iguais ao atual
+- Apos gerar senha, salva o ID no localStorage automaticamente
+
+## Alteracoes tecnicas
+
+### `src/pages/SenhaCaminhoneiro.tsx`
+
+Refatorar o componente para ter 3 "views" controladas por estado:
+
+1. **View "menu"**: Exibe os 2 botoes (solicitar nova / minhas senhas). So aparece se existem senhas salvas no dispositivo. Se nao existem, pula direto para "formulario".
+
+2. **View "formulario"**: O formulario atual de gerar senha. Apos gerar, salva o ID da senha no localStorage e muda para view "acompanhamento".
+
+3. **View "minhasSenhas"**: Lista de senhas do dispositivo. Ao clicar em uma, muda para view "acompanhamento" com aquele ID.
+
+4. **View "acompanhamento"**: A tela de status atual (ja existe). Adiciona botao "Voltar" para ir ao menu.
+
+Logica de localStorage:
+- `getDeviceId()`: retorna ou cria UUID do dispositivo
+- `saveDeviceSenha(senhaId)`: adiciona ID ao array salvo
+- `getDeviceSenhas()`: retorna array de IDs salvos
+- Filtrar senhas do contexto que pertencem ao dispositivo e sao do dia de hoje
+
+### Nenhuma alteracao no banco de dados
+
+Tudo e resolvido com localStorage no navegador. A tabela `senhas` nao precisa de coluna nova.
+
+| Arquivo | Alteracao |
+|---|---|
+| `src/pages/SenhaCaminhoneiro.tsx` | Adicionar sistema de views com menu, lista de senhas e persistencia via localStorage |
 
