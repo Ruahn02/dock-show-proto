@@ -1,87 +1,103 @@
 
-# Corrigir conflito de sessao entre abas Admin e Operacional
+# Gerar PDF de Aprovacao e Recusa com Template Completo
 
-## Problema
+## Resumo
 
-O sistema usa uma unica chave no localStorage (`dock_show_session`) para guardar a sessao. Quando o usuario abre duas abas (uma como admin, outra como operacional), a ultima que fez login sobrescreve o valor. Ao atualizar qualquer aba, ela le o mesmo dado e assume o perfil errado.
+Ao aprovar ou recusar uma solicitacao, o sistema gera automaticamente um PDF com o layout exato dos templates de e-mail fornecidos e inicia o download. Tambem serao adicionados novos campos no formulario de solicitacao (NF, Pedido, Comprador) e um campo de motivo obrigatorio no modal de recusa.
 
-```text
-Aba 1: Login Admin   -> localStorage = { perfil: 'administrador', autenticado: true }
-Aba 2: Login Operac. -> localStorage = { perfil: 'operacional', autenticado: true }  // sobrescreveu!
-Aba 1: F5            -> le 'operacional' -> vira operacional!
-```
+---
 
-## Solucao
+## Parte 1 - Novos campos na Solicitacao
 
-Usar duas chaves separadas no localStorage, uma para cada perfil:
+### Banco de dados (migracao SQL)
 
-- `dock_show_session_admin` - sessao do administrador
-- `dock_show_session_operacional` - sessao do operacional
-
-Cada tela de login grava e le apenas sua propria chave. Assim, atualizar uma aba nao afeta a outra.
-
-## Alteracoes
-
-### 1. `src/contexts/ProfileContext.tsx`
-
-Substituir a chave unica por duas chaves e ajustar a logica:
-
-**Login:**
-- Admin grava em `dock_show_session_admin`
-- Operacional grava em `dock_show_session_operacional`
-
-**Leitura inicial (ao carregar a pagina):**
-- Verificar `window.location.pathname` para decidir qual chave ler:
-  - Se a rota comeca com `/acesso` ou `/docas` ou `/cross`: ler chave operacional
-  - Caso contrario: ler chave admin
-
-**Logout:**
-- Limpar apenas a chave correspondente ao perfil atual
-
-### 2. Logica detalhada
+Adicionar 3 colunas na tabela `solicitacoes`:
 
 ```text
-const STORAGE_KEY_ADMIN = 'dock_show_session_admin';
-const STORAGE_KEY_OPERACIONAL = 'dock_show_session_operacional';
-
-// Na inicializacao:
-function getStoredSession(): { perfil: Perfil; autenticado: boolean } | null {
-  const path = window.location.pathname;
-  const isOperacionalRoute = ['/acesso', '/docas', '/cross'].some(r => path.startsWith(r));
-  
-  const key = isOperacionalRoute ? STORAGE_KEY_OPERACIONAL : STORAGE_KEY_ADMIN;
-  const stored = localStorage.getItem(key);
-  // ... parse e retorna
-}
-
-// No login:
-const login = (perfilAlvo: Perfil, codigo: string): boolean => {
-  if (codigo === CODIGOS[perfilAlvo]) {
-    const key = perfilAlvo === 'administrador' ? STORAGE_KEY_ADMIN : STORAGE_KEY_OPERACIONAL;
-    localStorage.setItem(key, JSON.stringify({ perfil: perfilAlvo, autenticado: true }));
-    // ...
-  }
-};
-
-// No logout:
-const logout = () => {
-  const key = perfil === 'administrador' ? STORAGE_KEY_ADMIN : STORAGE_KEY_OPERACIONAL;
-  localStorage.removeItem(key);
-  // ...
-};
+ALTER TABLE solicitacoes ADD COLUMN nota_fiscal text;
+ALTER TABLE solicitacoes ADD COLUMN numero_pedido text;
+ALTER TABLE solicitacoes ADD COLUMN comprador text;
 ```
+
+### Tipo TypeScript (`src/types/index.ts`)
+
+Adicionar ao `SolicitacaoEntrega`:
+
+```text
+notaFiscal?: string;
+numeroPedido?: string;
+comprador?: string;
+```
+
+### Formulario do fornecedor (`src/pages/SolicitacaoEntrega.tsx`)
+
+Adicionar 3 campos:
+- **Nota Fiscal** (opcional)
+- **Numero do Pedido** (obrigatorio)
+- **Comprador** (obrigatorio)
+
+### Hook (`src/hooks/useSolicitacoesDB.ts`)
+
+Atualizar `mapFromDB` e `mapToDB` para incluir `nota_fiscal`, `numero_pedido` e `comprador`.
+
+### Contexto (`src/contexts/SolicitacaoContext.tsx`)
+
+Sem alteracao de logica, os novos campos passam automaticamente pelo `criarSolicitacao`.
+
+---
+
+## Parte 2 - Motivo da recusa (campo obrigatorio)
+
+### Modal de recusa (`src/pages/Solicitacoes.tsx`)
+
+Trocar o `AlertDialog` simples por um `Dialog` com:
+- Campo **Motivo da Recusa** (textarea, obrigatorio)
+- Botao desabilitado ate preencher o motivo
+
+O motivo sera passado para a funcao de gerar PDF.
+
+---
+
+## Parte 3 - Geracao dos PDFs
+
+### Novo arquivo: `src/lib/gerarPdfSolicitacao.ts`
+
+Duas funcoes usando `jspdf` (ja instalado):
+
+**`gerarPdfAprovacao(dados)`** - Layout:
+- Cabecalho verde: "Agendamento de Entrega Confirmado"
+- Texto introdutorio conforme template
+- Bloco "Dados da Entrega": Empresa Centerlar, endereco, contato
+- Bloco "Agendamento": data e horario
+- Bloco "Informacoes do Pedido": NF e Pedido
+- Bloco "Responsaveis": Compradores fixos + fornecedor
+- Bloco "Detalhes da Carga": volumes
+- Bloco "Regras e Procedimentos": 5 itens fixos
+- Bloco "Politica de Comparecimento"
+- Bloco "Envio antecipado de NF"
+
+**`gerarPdfRecusa(dados)`** - Layout:
+- Cabecalho vermelho: "Solicitacao de Agendamento - Nao Aprovada"
+- Texto introdutorio
+- Bloco "Informacoes da Solicitacao": fornecedor, pedido, NF, data/horario solicitados
+- Bloco "Motivo da Recusa"
+- Mensagem de orientacao
+- Assinatura: Centerlar
+
+### Integracao em `src/pages/Solicitacoes.tsx`
+
+- Apos `handleAprovar` com sucesso: chamar `gerarPdfAprovacao(...)` com os dados da solicitacao
+- Apos `handleRecusar` com sucesso: chamar `gerarPdfRecusa(...)` com os dados + motivo
+
+---
 
 ## Arquivos modificados
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/contexts/ProfileContext.tsx` | Separar chaves de sessao por perfil, ler com base na rota atual |
-
-Nenhuma alteracao no banco de dados.
-
-## Resultado esperado
-
-- Aba admin atualizada continua admin
-- Aba operacional atualizada continua operacional
-- Login em uma aba nao afeta a outra
-- Logout limpa apenas a sessao do perfil correspondente
+| Migracao SQL | Adiciona colunas `nota_fiscal`, `numero_pedido`, `comprador` |
+| `src/types/index.ts` | 3 campos opcionais no tipo `SolicitacaoEntrega` |
+| `src/hooks/useSolicitacoesDB.ts` | Mapeamento dos novos campos |
+| `src/pages/SolicitacaoEntrega.tsx` | 3 novos campos no formulario |
+| `src/lib/gerarPdfSolicitacao.ts` | NOVO - funcoes de geracao de PDF |
+| `src/pages/Solicitacoes.tsx` | Modal de recusa com motivo + chamada PDF apos aprovar/recusar |
