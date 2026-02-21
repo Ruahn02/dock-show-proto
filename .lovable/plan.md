@@ -1,37 +1,50 @@
 
 
-# Corrigir Comprador no PDF e Adicionar Botao de Re-download
+# Limpar Dados Operacionais do Supabase (manter Funcionarios e Fornecedores)
 
-## Problema 1: Comprador hardcoded no PDF
+## Resumo
 
-Na funcao `gerarPdfAprovacao` (linha 128 de `gerarPdfSolicitacao.ts`), o campo COMPRADOR esta fixo como `'DANIELE / JAQUELINE / LETICIA'` em vez de usar o valor `dados.comprador` que ja e passado corretamente pela pagina de Solicitacoes.
+Apagar todos os registros das tabelas operacionais, mantendo intactos os cadastros de **Funcionarios (conferentes)** e **Fornecedores**. As tabelas, colunas e logica permanecem inalteradas.
 
-**Correcao**: Substituir o texto fixo por `dados.comprador || 'N/A'` na linha 128.
+## Tabelas que serao limpas
 
-## Problema 2: Sem botao para re-download do PDF
-
-Atualmente, o PDF so e gerado no momento da aprovacao/recusa. Para solicitacoes ja processadas (status `aprovada` ou `recusada`), a coluna de Acoes fica vazia -- nao ha como baixar o PDF novamente.
-
-**Correcao**: Adicionar botoes de download na coluna de Acoes para solicitacoes ja processadas:
-- Para **aprovadas**: botao "Baixar PDF" que chama `gerarPdfAprovacao` com os dados da solicitacao
-- Para **recusadas**: botao "Baixar PDF" que chama `gerarPdfRecusa` com os dados da solicitacao
-
-## Alteracoes tecnicas
-
-### `src/lib/gerarPdfSolicitacao.ts`
-
-- Linha 128: trocar `'DANIELE / JAQUELINE / LETICIA'` por `dados.comprador || 'N/A'`
-
-### `src/pages/Solicitacoes.tsx`
-
-- Importar icone `Download` do lucide-react
-- No bloco da coluna Acoes (linhas 191-202), adicionar condicoes para `aprovada` e `recusada`:
-  - Se `aprovada`: botao com icone Download que gera o PDF de aprovacao (usando `dataAgendada` e `horarioAgendado` da solicitacao)
-  - Se `recusada`: botao com icone Download que gera o PDF de recusa
-- Para recusa, o motivo nao esta salvo no banco atualmente, entao o PDF de recusa sera gerado com motivo generico "Solicitacao recusada" (limitacao dos dados atuais)
-
-| Arquivo | Alteracao |
+| Tabela | Acao |
 |---|---|
-| `src/lib/gerarPdfSolicitacao.ts` | Usar `dados.comprador` em vez de texto fixo |
-| `src/pages/Solicitacoes.tsx` | Adicionar botao "Baixar PDF" para solicitacoes aprovadas e recusadas |
+| `cross_docking` | DELETE todos os registros |
+| `cargas` | DELETE todos os registros |
+| `senhas` | DELETE todos os registros |
+| `solicitacoes` | DELETE todos os registros |
+| `docas` | Resetar para estado livre (status='livre', limpar referencias) |
+
+## Tabelas preservadas (sem alteracao)
+
+- `conferentes` (Funcionarios)
+- `fornecedores`
+
+## Ordem de execucao
+
+A limpeza precisa respeitar dependencias entre tabelas:
+
+1. `cross_docking` (referencia cargas)
+2. `docas` - resetar campos (carga_id, senha_id, conferente_id, volume_conferido, rua para NULL, status para 'livre')
+3. `cargas` (referencia senhas e solicitacoes)
+4. `senhas`
+5. `solicitacoes`
+
+## Detalhes tecnicos
+
+Sera usado o insert tool (para operacoes de dados) com os seguintes comandos SQL:
+
+```text
+DELETE FROM cross_docking;
+
+UPDATE docas SET status = 'livre', carga_id = NULL, senha_id = NULL, 
+  conferente_id = NULL, volume_conferido = NULL, rua = NULL;
+
+DELETE FROM cargas;
+DELETE FROM senhas;
+DELETE FROM solicitacoes;
+```
+
+Isso afeta apenas o ambiente de **teste**. O ambiente live nao sera alterado.
 
