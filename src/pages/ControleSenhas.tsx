@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MultiSelectStatus, StatusOption } from '@/components/ui/multi-select-status';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -56,7 +57,15 @@ export default function ControleSenhas() {
   const [selectedDoca, setSelectedDoca] = useState<string>('');
 
   // Filtros
-  const [filtroStatus, setFiltroStatus] = useState<string>('todos');
+  const [filtroStatus, setFiltroStatus] = useState<string[]>([]);
+
+  const statusOptionsSenha: StatusOption[] = [
+    { value: 'aguardando_doca', label: 'Aguardando Doca' },
+    { value: 'em_doca', label: 'Em Doca' },
+    { value: 'em_conferencia', label: 'Em Conferência' },
+    { value: 'conferido', label: 'Conferido' },
+    { value: 'recusado', label: 'Recusado' },
+  ];
   const [filtroFornecedor, setFiltroFornecedor] = useState<string>('todos');
   const [filtroLocal, setFiltroLocal] = useState<string>('todos');
   
@@ -67,7 +76,7 @@ export default function ControleSenhas() {
   // Aplicar filtros (camada extra: excluir recusados)
   const senhasFiltradas = senhasAtivas
     .filter(s => s.status !== 'recusado')
-    .filter(s => filtroStatus === 'todos' || s.status === filtroStatus)
+    .filter(s => filtroStatus.length === 0 || filtroStatus.includes(s.status))
     .filter(s => filtroFornecedor === 'todos' || s.fornecedorId === filtroFornecedor)
     .filter(s => filtroLocal === 'todos' || s.localAtual === filtroLocal);
   
@@ -330,19 +339,12 @@ export default function ControleSenhas() {
               {/* Filtros */}
               <div className="flex flex-wrap gap-3 mb-4">
                 <div className="w-48">
-                  <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos os Status</SelectItem>
-                      <SelectItem value="aguardando_doca">Aguardando Doca</SelectItem>
-                      <SelectItem value="em_doca">Em Doca</SelectItem>
-                      <SelectItem value="em_conferencia">Em Conferência</SelectItem>
-                      <SelectItem value="conferido">Conferido</SelectItem>
-                      <SelectItem value="recusado">Recusado</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <MultiSelectStatus
+                    options={statusOptionsSenha}
+                    selected={filtroStatus}
+                    onChange={setFiltroStatus}
+                    placeholder="Status"
+                  />
                 </div>
                 <div className="w-56">
                   <Select value={filtroFornecedor} onValueChange={setFiltroFornecedor}>

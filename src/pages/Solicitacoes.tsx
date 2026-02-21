@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { MultiSelectStatus, StatusOption } from '@/components/ui/multi-select-status';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,16 +49,22 @@ export default function Solicitacoes() {
   const [unificar, setUnificar] = useState(false);
   const [motivoRecusa, setMotivoRecusa] = useState('');
 
-  const [filtroStatus, setFiltroStatus] = useState<string>('todos');
+  const [filtroStatus, setFiltroStatus] = useState<string[]>([]);
   const [filtroData, setFiltroData] = useState<Date | undefined>(undefined);
   const [filtroDataOpen, setFiltroDataOpen] = useState(false);
 
   const pendentes = getSolicitacoesPendentes();
   const getFornecedorNome = (id: string) => fornecedores.find(f => f.id === id)?.nome || 'N/A';
 
+  const statusOptionsSolicitacao: StatusOption[] = [
+    { value: 'pendente', label: 'Pendente' },
+    { value: 'aprovada', label: 'Aprovada' },
+    { value: 'recusada', label: 'Recusada' },
+  ];
+
   const solicitacoesFiltradas = useMemo(() => {
     return solicitacoes.filter(sol => {
-      if (filtroStatus !== 'todos' && sol.status !== filtroStatus) return false;
+      if (filtroStatus.length > 0 && !filtroStatus.includes(sol.status)) return false;
       if (filtroData) {
         const dataStr = format(filtroData, 'yyyy-MM-dd');
         if (sol.dataSolicitacao !== dataStr) return false;
@@ -130,17 +137,13 @@ export default function Solicitacoes() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="aprovada">Aprovada</SelectItem>
-              <SelectItem value="recusada">Recusada</SelectItem>
-            </SelectContent>
-          </Select>
+          <MultiSelectStatus
+            options={statusOptionsSolicitacao}
+            selected={filtroStatus}
+            onChange={setFiltroStatus}
+            placeholder="Status"
+            className="w-[200px]"
+          />
 
           <Popover open={filtroDataOpen} onOpenChange={setFiltroDataOpen}>
             <PopoverTrigger asChild>
