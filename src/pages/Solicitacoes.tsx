@@ -24,7 +24,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, AlertTriangle } from 'lucide-react';
 import { SolicitacaoEntrega, StatusSolicitacao } from '@/types';
 import { toast } from 'sonner';
-import { ClipboardList, CalendarIcon, Check, X } from 'lucide-react';
+import { ClipboardList, CalendarIcon, Check, X, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -198,6 +198,35 @@ export default function Solicitacoes() {
                             <X className="h-4 w-4" />Recusar
                           </Button>
                         </div>
+                      )}
+                      {sol.status === 'aprovada' && (
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => {
+                          gerarPdfAprovacao({
+                            fornecedorNome: getFornecedorNome(sol.fornecedorId),
+                            dataAgendada: sol.dataAgendada ? format(parseISO(sol.dataAgendada), 'dd/MM/yyyy') : 'N/A',
+                            horarioAgendado: sol.horarioAgendado || 'N/A',
+                            notaFiscal: sol.notaFiscal,
+                            numeroPedido: sol.numeroPedido,
+                            comprador: sol.comprador,
+                            volumePrevisto: sol.volumePrevisto,
+                          });
+                        }}>
+                          <Download className="h-4 w-4" />Baixar PDF
+                        </Button>
+                      )}
+                      {sol.status === 'recusada' && (
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => {
+                          gerarPdfRecusa({
+                            fornecedorNome: getFornecedorNome(sol.fornecedorId),
+                            notaFiscal: sol.notaFiscal,
+                            numeroPedido: sol.numeroPedido,
+                            dataSolicitacao: format(parseISO(sol.dataSolicitacao), 'dd/MM/yyyy'),
+                            motivoRecusa: 'Solicitação recusada',
+                            volumePrevisto: sol.volumePrevisto,
+                          });
+                        }}>
+                          <Download className="h-4 w-4" />Baixar PDF
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>

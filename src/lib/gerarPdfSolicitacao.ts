@@ -125,7 +125,7 @@ export function gerarPdfAprovacao(dados: DadosAprovacao) {
   drawLabelCell(tableX, y, labelCol, rowH, 'HORÁRIO');
   drawValueCell(tableX + labelCol, y, halfVal, rowH, dados.horarioAgendado, red);
   drawLabelCell(tableX + labelCol + halfVal, y, labelCol, rowH, 'COMPRADOR');
-  drawValueCell(tableX + labelCol * 2 + halfVal, y, halfVal, rowH, 'DANIELE / JAQUELINE / LETÍCIA');
+  drawValueCell(tableX + labelCol * 2 + halfVal, y, halfVal, rowH, dados.comprador || 'N/A');
   y += rowH;
 
   // Row 5: NF | valor | VOLUMES | valor
