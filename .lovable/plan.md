@@ -1,34 +1,42 @@
 
-# Puxar NF da Solicitacao para Agenda e Agendamento
+
+# Corrigir NFs de cargas antigas (retroativo)
 
 ## Problema
 
-Quando uma solicitacao e aprovada, a carga e criada com `nfs: []` (array vazio) no arquivo `src/contexts/SolicitacaoContext.tsx` (linha 65). A NF preenchida na solicitacao nao e repassada para a carga, e como a view `vw_carga_operacional` usa `c.nfs` como `nota_fiscal`, as telas de Agenda e Agendamento nunca recebem essa informacao.
+O ajuste no codigo so se aplica a novas aprovacoes. Cargas criadas antes da correcao continuam com `nfs = '{}'` mesmo quando a solicitacao correspondente tem `nota_fiscal` preenchida.
+
+Exemplo concreto: solicitacao `3a5dfb39` tem NF "5689", mas a carga `762c229d` criada a partir dela tem `nfs = '{}'`.
 
 ## Solucao
 
-Alterar a funcao `aprovarSolicitacao` em `src/contexts/SolicitacaoContext.tsx` para incluir a NF da solicitacao no array `nfs` da carga criada.
+Executar uma migracao SQL que atualiza todas as cargas existentes, puxando a `nota_fiscal` da solicitacao vinculada para o campo `nfs` da carga.
 
 ## Alteracao
 
-### `src/contexts/SolicitacaoContext.tsx`
-
-Na funcao `aprovarSolicitacao` (linha 62-71), mudar:
+### Migracao SQL
 
 ```text
-nfs: [],
+UPDATE cargas c
+SET nfs = ARRAY[s.nota_fiscal]
+FROM solicitacoes s
+WHERE c.solicitacao_id = s.id
+  AND s.nota_fiscal IS NOT NULL
+  AND s.nota_fiscal <> ''
+  AND c.nfs = '{}'::text[];
 ```
 
-Para:
+Esse comando:
+- Encontra todas as cargas com `nfs` vazio que tem uma solicitacao vinculada
+- Verifica se a solicitacao tem `nota_fiscal` preenchida
+- Copia a NF para o array `nfs` da carga
 
-```text
-nfs: sol.notaFiscal ? [sol.notaFiscal] : [],
-```
-
-Isso garante que, se a solicitacao tiver uma NF preenchida, ela sera incluida na carga e consequentemente aparecera nas telas de Agenda e Agendamento atraves da view `vw_carga_operacional`.
+Apos isso, as telas de Agenda e Agendamento vao exibir a NF corretamente para essas cargas, pois a view `vw_carga_operacional` le diretamente de `cargas.nfs`.
 
 ## Arquivos modificados
 
-| Arquivo | Alteracao |
+| Tipo | Alteracao |
 |---|---|
-| `src/contexts/SolicitacaoContext.tsx` | Passar `notaFiscal` da solicitacao para o campo `nfs` da carga |
+| Migracao SQL | UPDATE retroativo das cargas com NF vazia |
+
+Nenhum arquivo de codigo precisa ser alterado - o ajuste anterior no `SolicitacaoContext.tsx` ja garante que novas aprovacoes funcionam corretamente.
