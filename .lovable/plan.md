@@ -1,42 +1,60 @@
 
 
-# Corrigir NFs de cargas antigas (retroativo)
+# Redesenhar PDF de Aprovacao para Layout Tabular (estilo da imagem)
 
-## Problema
+## Objetivo
 
-O ajuste no codigo so se aplica a novas aprovacoes. Cargas criadas antes da correcao continuam com `nfs = '{}'` mesmo quando a solicitacao correspondente tem `nota_fiscal` preenchida.
+Recriar o layout do PDF `gerarPdfAprovacao` para ficar visualmente igual a imagem de referencia, com tabela azul escuro e campos organizados em grid.
 
-Exemplo concreto: solicitacao `3a5dfb39` tem NF "5689", mas a carga `762c229d` criada a partir dela tem `nfs = '{}'`.
+## Layout baseado na imagem
 
-## Solucao
+O PDF tera a seguinte estrutura:
 
-Executar uma migracao SQL que atualiza todas as cargas existentes, puxando a `nota_fiscal` da solicitacao vinculada para o campo `nfs` da carga.
+1. **Texto introdutorio** (sem fundo):
+   - "Senhores,"
+   - "Segue data para agendamento solicitado, favor comparecer no dia e horario agendado."
+   - Paragrafo sobre reagendamento com link do formulario
 
-## Alteracao
+2. **Tabela principal** com borda azul escura e fundo azul escuro nos rotulos:
+   - Linha 1: EMPRESA | Centerlar Comercial Utilidades Ltda | telefone
+   - Linha 2: ENDERECO | Avenida Monte Libano...
+   - Linha 3: DATA AGENDAMENTO | valor (vermelho)
+   - Linha 4: HORARIO | valor (vermelho) | COMPRADOR | nomes
+   - Linha 5: NF | valor (vermelho) | VOLUMES | valor (vermelho)
+   - Linha 6: PEDIDO | valor (vermelho) | FORNECEDOR | valor (vermelho)
 
-### Migracao SQL
+3. **Secao "PONTOS DE ATENCAO"** (header centralizado azul):
+   - Bullets com regras (rompimento lacre, EPI, SKU, ajudantes, palete)
+   - "OBS:" em vermelho/negrito sobre cancelamento
 
-```text
-UPDATE cargas c
-SET nfs = ARRAY[s.nota_fiscal]
-FROM solicitacoes s
-WHERE c.solicitacao_id = s.id
-  AND s.nota_fiscal IS NOT NULL
-  AND s.nota_fiscal <> ''
-  AND c.nfs = '{}'::text[];
-```
+4. **Rodape**: Texto sobre envio antecipado de NF
 
-Esse comando:
-- Encontra todas as cargas com `nfs` vazio que tem uma solicitacao vinculada
-- Verifica se a solicitacao tem `nota_fiscal` preenchida
-- Copia a NF para o array `nfs` da carga
+## Alteracoes tecnicas
 
-Apos isso, as telas de Agenda e Agendamento vao exibir a NF corretamente para essas cargas, pois a view `vw_carga_operacional` le diretamente de `cargas.nfs`.
+### `src/lib/gerarPdfSolicitacao.ts`
+
+Reescrever a funcao `gerarPdfAprovacao` usando `jspdf` com desenho manual de retangulos e texto posicionado para replicar o layout tabular:
+
+- Usar `doc.setFillColor(0, 32, 96)` (azul escuro) para celulas de rotulo
+- Texto branco nos rotulos, preto nos valores
+- Valores dinamicos (data, horario, NF, pedido, volumes, fornecedor) em vermelho (`doc.setTextColor(255, 0, 0)`)
+- Celulas desenhadas com `doc.rect()` para bordas
+- Comprador fixo: "DANIELE NASCIMENTO/JAQUELINE OLIVEIRA/LETICIA BRITO"
+- Secao "PONTOS DE ATENCAO" com header azul centralizado
+- Regras atualizadas conforme imagem:
+  - Rompimento do lacre mediante presenca do conferente
+  - Obrigatorio uso de EPI (calcado de seguranca e colete c/ faixa refletiva)
+  - Divisao de SKU por palete
+  - Minimo de 3 ajudantes p/ descarregamento
+  - Palete Padrao: PBR 1,5m de altura
+- OBS em vermelho/negrito sobre cancelamento
+- Rodape sobre envio de NF com 24h de antecedencia
+
+A funcao `gerarPdfRecusa` permanece inalterada.
 
 ## Arquivos modificados
 
-| Tipo | Alteracao |
+| Arquivo | Alteracao |
 |---|---|
-| Migracao SQL | UPDATE retroativo das cargas com NF vazia |
+| `src/lib/gerarPdfSolicitacao.ts` | Reescrever `gerarPdfAprovacao` com layout tabular azul escuro igual a imagem |
 
-Nenhum arquivo de codigo precisa ser alterado - o ajuste anterior no `SolicitacaoContext.tsx` ja garante que novas aprovacoes funcionam corretamente.
