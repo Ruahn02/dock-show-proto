@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { MultiSelectStatus, StatusOption } from '@/components/ui/multi-select-status';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,7 +59,16 @@ export default function CrossDocking() {
   const [dataSelecionada, setDataSelecionada] = useState<Date | null>(new Date());
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [fornecedorSelecionado, setFornecedorSelecionado] = useState<string>('todos');
-  const [statusSelecionado, setStatusSelecionado] = useState<string>('todos');
+  const [statusSelecionado, setStatusSelecionado] = useState<string[]>([]);
+
+  const statusOptionsCross: StatusOption[] = [
+    { value: 'aguardando_decisao', label: 'Aguardando Decisão' },
+    { value: 'cross_confirmado', label: 'Cross Confirmado' },
+    { value: 'aguardando_separacao', label: 'Aguard. Separação' },
+    { value: 'em_separacao', label: 'Em Separação' },
+    { value: 'finalizado', label: 'Finalizado' },
+    { value: 'armazenado', label: 'Armazenado' },
+  ];
   const [tipoSelecionado, setTipoSelecionado] = useState<string>('todos');
 
   const allCrossItems = isAdmin ? getCrossParaAdmin() : getCrossParaOperacional();
@@ -71,8 +81,8 @@ export default function CrossDocking() {
     if (fornecedorSelecionado && fornecedorSelecionado !== 'todos') {
       items = items.filter(c => c.fornecedorId === fornecedorSelecionado);
     }
-    if (statusSelecionado && statusSelecionado !== 'todos') {
-      items = items.filter(c => c.status === statusSelecionado);
+    if (statusSelecionado.length > 0) {
+      items = items.filter(c => statusSelecionado.includes(c.status));
     }
     if (tipoSelecionado && tipoSelecionado !== 'todos') {
       if (tipoSelecionado === 'armazenar') {
@@ -154,20 +164,13 @@ export default function CrossDocking() {
                 <SelectItem value="armazenar">Armazenar</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={statusSelecionado} onValueChange={setStatusSelecionado}>
-              <SelectTrigger className="w-[180px] gap-2">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos status</SelectItem>
-                <SelectItem value="aguardando_decisao">Aguardando Decisão</SelectItem>
-                <SelectItem value="cross_confirmado">Cross Confirmado</SelectItem>
-                <SelectItem value="aguardando_separacao">Aguard. Separação</SelectItem>
-                <SelectItem value="em_separacao">Em Separação</SelectItem>
-                <SelectItem value="finalizado">Finalizado</SelectItem>
-                <SelectItem value="armazenado">Armazenado</SelectItem>
-              </SelectContent>
-            </Select>
+            <MultiSelectStatus
+              options={statusOptionsCross}
+              selected={statusSelecionado}
+              onChange={setStatusSelecionado}
+              placeholder="Status"
+              className="w-[200px]"
+            />
             <Select value={fornecedorSelecionado} onValueChange={setFornecedorSelecionado}>
               <SelectTrigger className="w-[200px] gap-2">
                 <Filter className="h-4 w-4" />
