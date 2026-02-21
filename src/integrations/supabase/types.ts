@@ -354,6 +354,7 @@ export type Database = {
       }
       solicitacoes: {
         Row: {
+          comprador: string | null
           created_at: string
           data_agendada: string | null
           data_solicitacao: string
@@ -361,6 +362,8 @@ export type Database = {
           fornecedor_id: string
           horario_agendado: string | null
           id: string
+          nota_fiscal: string | null
+          numero_pedido: string | null
           observacoes: string | null
           quantidade_veiculos: number
           status: string
@@ -368,6 +371,7 @@ export type Database = {
           volume_previsto: number
         }
         Insert: {
+          comprador?: string | null
           created_at?: string
           data_agendada?: string | null
           data_solicitacao?: string
@@ -375,6 +379,8 @@ export type Database = {
           fornecedor_id: string
           horario_agendado?: string | null
           id?: string
+          nota_fiscal?: string | null
+          numero_pedido?: string | null
           observacoes?: string | null
           quantidade_veiculos?: number
           status?: string
@@ -382,6 +388,7 @@ export type Database = {
           volume_previsto: number
         }
         Update: {
+          comprador?: string | null
           created_at?: string
           data_agendada?: string | null
           data_solicitacao?: string
@@ -389,6 +396,8 @@ export type Database = {
           fornecedor_id?: string
           horario_agendado?: string | null
           id?: string
+          nota_fiscal?: string | null
+          numero_pedido?: string | null
           observacoes?: string | null
           quantidade_veiculos?: number
           status?: string

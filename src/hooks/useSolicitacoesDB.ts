@@ -16,6 +16,9 @@ function mapFromDB(row: any): SolicitacaoEntrega {
     dataAgendada: row.data_agendada ?? undefined,
     horarioAgendado: row.horario_agendado ?? undefined,
     emailContato: row.email_contato,
+    notaFiscal: row.nota_fiscal ?? undefined,
+    numeroPedido: row.numero_pedido ?? undefined,
+    comprador: row.comprador ?? undefined,
   };
 }
 
@@ -30,6 +33,9 @@ function mapToDB(data: Partial<SolicitacaoEntrega>): any {
   if ('dataAgendada' in data) result.data_agendada = data.dataAgendada ?? null;
   if ('horarioAgendado' in data) result.horario_agendado = data.horarioAgendado ?? null;
   if (data.emailContato !== undefined) result.email_contato = data.emailContato;
+  if ('notaFiscal' in data) result.nota_fiscal = data.notaFiscal ?? null;
+  if ('numeroPedido' in data) result.numero_pedido = data.numeroPedido ?? null;
+  if ('comprador' in data) result.comprador = data.comprador ?? null;
   return result;
 }
 
@@ -59,6 +65,9 @@ export function useSolicitacoesDB() {
         volume_previsto: dados.volumePrevisto,
         observacoes: dados.observacoes ?? null,
         email_contato: dados.emailContato,
+        nota_fiscal: dados.notaFiscal ?? null,
+        numero_pedido: dados.numeroPedido ?? null,
+        comprador: dados.comprador ?? null,
         status: 'pendente',
       })
       .select()
