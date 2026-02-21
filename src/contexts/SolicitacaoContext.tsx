@@ -62,7 +62,7 @@ export function SolicitacaoProvider({ children }: { children: ReactNode }) {
     await adicionarCarga({
       data: dataAgendada,
       fornecedorId: sol.fornecedorId,
-      nfs: [],
+      nfs: sol.notaFiscal ? [sol.notaFiscal] : [],
       volumePrevisto: sol.volumePrevisto,
       horarioPrevisto: horarioAgendado,
       tipoCaminhao: sol.tipoCaminhao,
