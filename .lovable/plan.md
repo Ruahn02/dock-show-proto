@@ -1,60 +1,37 @@
 
 
-# Redesenhar PDF de Aprovacao para Layout Tabular (estilo da imagem)
+# Corrigir Comprador no PDF e Adicionar Botao de Re-download
 
-## Objetivo
+## Problema 1: Comprador hardcoded no PDF
 
-Recriar o layout do PDF `gerarPdfAprovacao` para ficar visualmente igual a imagem de referencia, com tabela azul escuro e campos organizados em grid.
+Na funcao `gerarPdfAprovacao` (linha 128 de `gerarPdfSolicitacao.ts`), o campo COMPRADOR esta fixo como `'DANIELE / JAQUELINE / LETICIA'` em vez de usar o valor `dados.comprador` que ja e passado corretamente pela pagina de Solicitacoes.
 
-## Layout baseado na imagem
+**Correcao**: Substituir o texto fixo por `dados.comprador || 'N/A'` na linha 128.
 
-O PDF tera a seguinte estrutura:
+## Problema 2: Sem botao para re-download do PDF
 
-1. **Texto introdutorio** (sem fundo):
-   - "Senhores,"
-   - "Segue data para agendamento solicitado, favor comparecer no dia e horario agendado."
-   - Paragrafo sobre reagendamento com link do formulario
+Atualmente, o PDF so e gerado no momento da aprovacao/recusa. Para solicitacoes ja processadas (status `aprovada` ou `recusada`), a coluna de Acoes fica vazia -- nao ha como baixar o PDF novamente.
 
-2. **Tabela principal** com borda azul escura e fundo azul escuro nos rotulos:
-   - Linha 1: EMPRESA | Centerlar Comercial Utilidades Ltda | telefone
-   - Linha 2: ENDERECO | Avenida Monte Libano...
-   - Linha 3: DATA AGENDAMENTO | valor (vermelho)
-   - Linha 4: HORARIO | valor (vermelho) | COMPRADOR | nomes
-   - Linha 5: NF | valor (vermelho) | VOLUMES | valor (vermelho)
-   - Linha 6: PEDIDO | valor (vermelho) | FORNECEDOR | valor (vermelho)
-
-3. **Secao "PONTOS DE ATENCAO"** (header centralizado azul):
-   - Bullets com regras (rompimento lacre, EPI, SKU, ajudantes, palete)
-   - "OBS:" em vermelho/negrito sobre cancelamento
-
-4. **Rodape**: Texto sobre envio antecipado de NF
+**Correcao**: Adicionar botoes de download na coluna de Acoes para solicitacoes ja processadas:
+- Para **aprovadas**: botao "Baixar PDF" que chama `gerarPdfAprovacao` com os dados da solicitacao
+- Para **recusadas**: botao "Baixar PDF" que chama `gerarPdfRecusa` com os dados da solicitacao
 
 ## Alteracoes tecnicas
 
 ### `src/lib/gerarPdfSolicitacao.ts`
 
-Reescrever a funcao `gerarPdfAprovacao` usando `jspdf` com desenho manual de retangulos e texto posicionado para replicar o layout tabular:
+- Linha 128: trocar `'DANIELE / JAQUELINE / LETICIA'` por `dados.comprador || 'N/A'`
 
-- Usar `doc.setFillColor(0, 32, 96)` (azul escuro) para celulas de rotulo
-- Texto branco nos rotulos, preto nos valores
-- Valores dinamicos (data, horario, NF, pedido, volumes, fornecedor) em vermelho (`doc.setTextColor(255, 0, 0)`)
-- Celulas desenhadas com `doc.rect()` para bordas
-- Comprador fixo: "DANIELE NASCIMENTO/JAQUELINE OLIVEIRA/LETICIA BRITO"
-- Secao "PONTOS DE ATENCAO" com header azul centralizado
-- Regras atualizadas conforme imagem:
-  - Rompimento do lacre mediante presenca do conferente
-  - Obrigatorio uso de EPI (calcado de seguranca e colete c/ faixa refletiva)
-  - Divisao de SKU por palete
-  - Minimo de 3 ajudantes p/ descarregamento
-  - Palete Padrao: PBR 1,5m de altura
-- OBS em vermelho/negrito sobre cancelamento
-- Rodape sobre envio de NF com 24h de antecedencia
+### `src/pages/Solicitacoes.tsx`
 
-A funcao `gerarPdfRecusa` permanece inalterada.
-
-## Arquivos modificados
+- Importar icone `Download` do lucide-react
+- No bloco da coluna Acoes (linhas 191-202), adicionar condicoes para `aprovada` e `recusada`:
+  - Se `aprovada`: botao com icone Download que gera o PDF de aprovacao (usando `dataAgendada` e `horarioAgendado` da solicitacao)
+  - Se `recusada`: botao com icone Download que gera o PDF de recusa
+- Para recusa, o motivo nao esta salvo no banco atualmente, entao o PDF de recusa sera gerado com motivo generico "Solicitacao recusada" (limitacao dos dados atuais)
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/lib/gerarPdfSolicitacao.ts` | Reescrever `gerarPdfAprovacao` com layout tabular azul escuro igual a imagem |
+| `src/lib/gerarPdfSolicitacao.ts` | Usar `dados.comprador` em vez de texto fixo |
+| `src/pages/Solicitacoes.tsx` | Adicionar botao "Baixar PDF" para solicitacoes aprovadas e recusadas |
 
