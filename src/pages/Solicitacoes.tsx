@@ -165,13 +165,13 @@ export default function Solicitacoes() {
               <TableRow>
                 <TableHead>Fornecedor</TableHead><TableHead>E-mail Contato</TableHead>
                 <TableHead>Tipo Caminhão</TableHead><TableHead className="text-center">Qtd Veículos</TableHead>
-                <TableHead className="text-right">Volume</TableHead><TableHead>Data Solicitação</TableHead>
+                <TableHead className="text-right">Volume</TableHead><TableHead>Nota Fiscal</TableHead><TableHead>N. Pedido</TableHead><TableHead>Comprador</TableHead><TableHead>Data Solicitação</TableHead>
                 <TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {solicitacoesFiltradas.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhuma solicitação encontrada</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Nenhuma solicitação encontrada</TableCell></TableRow>
               ) : (
                 solicitacoesFiltradas.map((sol) => (
                   <TableRow key={sol.id}>
@@ -180,6 +180,9 @@ export default function Solicitacoes() {
                     <TableCell>{tipoCaminhaoLabels[sol.tipoCaminhao]}</TableCell>
                     <TableCell className="text-center">{sol.quantidadeVeiculos}</TableCell>
                     <TableCell className="text-right">{sol.volumePrevisto}</TableCell>
+                    <TableCell>{sol.notaFiscal || '-'}</TableCell>
+                    <TableCell>{sol.numeroPedido || '-'}</TableCell>
+                    <TableCell>{sol.comprador || '-'}</TableCell>
                     <TableCell>{format(parseISO(sol.dataSolicitacao), 'dd/MM/yyyy')}</TableCell>
                     <TableCell><Badge variant="outline" className={statusStyles[sol.status]}>{statusSolicitacaoLabels[sol.status]}</Badge></TableCell>
                     <TableCell className="text-right">
