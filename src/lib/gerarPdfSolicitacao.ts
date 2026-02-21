@@ -53,90 +53,140 @@ function checkPage(doc: jsPDF, y: number, needed: number): number {
 export function gerarPdfAprovacao(dados: DadosAprovacao) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 20;
+  const margin = 15;
   const contentWidth = pageWidth - margin * 2;
   let y = 20;
 
-  // Header green
-  doc.setFillColor(34, 139, 34);
-  doc.rect(0, 0, pageWidth, 35, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Agendamento de Entrega Confirmado', pageWidth / 2, 22, { align: 'center' });
-  y = 45;
+  const darkBlue: [number, number, number] = [0, 32, 96];
+  const white: [number, number, number] = [255, 255, 255];
+  const red: [number, number, number] = [255, 0, 0];
+  const black: [number, number, number] = [0, 0, 0];
 
-  // Intro
-  doc.setTextColor(60, 60, 60);
+  // --- Texto introdutório ---
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  y = addText(doc, 'Prezados,', y, margin, contentWidth);
-  y += 4;
-  y = addText(doc, 'Segue a data e horário agendados para a entrega. Solicitamos que compareçam conforme o agendamento.', y, margin, contentWidth);
-  y += 4;
-  y = addText(doc, 'Caso não seja possível comparecer na data e horário informados, pedimos que comuniquem previamente por e-mail e solicitem o reagendamento por meio do formulário indicado no link disponibilizado.', y, margin, contentWidth);
-  y += 6;
+  doc.setTextColor(...black);
+  doc.text('Senhores,', margin, y);
+  y += 7;
+  const intro1 = doc.splitTextToSize(
+    'Segue data para agendamento solicitado, favor comparecer no dia e horário agendado.',
+    contentWidth
+  );
+  doc.text(intro1, margin, y);
+  y += intro1.length * 5 + 3;
+  const intro2 = doc.splitTextToSize(
+    'Caso não seja possível comparecer na data e horário informados, pedimos que comuniquem previamente por e-mail e solicitem o reagendamento por meio do formulário indicado no link disponibilizado.',
+    contentWidth
+  );
+  doc.text(intro2, margin, y);
+  y += intro2.length * 5 + 8;
 
-  // Dados da Entrega
-  y = addSection(doc, 'Dados da Entrega', y, pageWidth);
-  y = addText(doc, 'Empresa: Centerlar Comercial Utilidades Ltda', y, margin, contentWidth);
-  y = addText(doc, 'Endereço: Avenida Monte Líbano, Lote 11, 11º Logis 1135 – Jd.', y, margin, contentWidth);
-  y = addText(doc, 'Contato: (11) 98863-6873', y, margin, contentWidth);
-  y += 6;
+  // --- Tabela principal ---
+  const rowH = 10;
+  const labelCol = 40;
+  const tableX = margin;
 
-  // Agendamento
-  y = checkPage(doc, y, 30);
-  y = addSection(doc, 'Agendamento', y, pageWidth);
-  y = addText(doc, `Data: ${dados.dataAgendada}`, y, margin, contentWidth);
-  y = addText(doc, `Horário: ${dados.horarioAgendado}`, y, margin, contentWidth);
-  y += 6;
+  function drawLabelCell(x: number, cy: number, w: number, h: number, text: string) {
+    doc.setFillColor(...darkBlue);
+    doc.rect(x, cy, w, h, 'FD');
+    doc.setTextColor(...white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text(text, x + 2, cy + h / 2 + 1, { baseline: 'middle' });
+  }
 
-  // Informações do Pedido
-  y = checkPage(doc, y, 30);
-  y = addSection(doc, 'Informações do Pedido', y, pageWidth);
-  y = addText(doc, `Nota Fiscal: ${dados.notaFiscal || 'N/A'}`, y, margin, contentWidth);
-  y = addText(doc, `Pedido: ${dados.numeroPedido || 'N/A'}`, y, margin, contentWidth);
-  y += 6;
+  function drawValueCell(x: number, cy: number, w: number, h: number, text: string, color: [number, number, number] = black) {
+    doc.setDrawColor(...darkBlue);
+    doc.rect(x, cy, w, h, 'S');
+    doc.setTextColor(...color);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(text, x + 2, cy + h / 2 + 1, { baseline: 'middle' });
+  }
 
-  // Responsáveis
-  y = checkPage(doc, y, 30);
-  y = addSection(doc, 'Responsáveis', y, pageWidth);
-  y = addText(doc, 'Compradores: Daniele Nascimento / Jaqueline Oliveira / Letícia Brito', y, margin, contentWidth);
-  y = addText(doc, `Fornecedor: ${dados.fornecedorNome}`, y, margin, contentWidth);
-  y += 6;
+  // Row 1: EMPRESA | valor | telefone
+  drawLabelCell(tableX, y, labelCol, rowH, 'EMPRESA');
+  drawValueCell(tableX + labelCol, y, contentWidth - labelCol - 45, rowH, 'Centerlar Comercial Utilidades Ltda');
+  drawValueCell(tableX + contentWidth - 45, y, 45, rowH, '(11) 98863-6873');
+  y += rowH;
 
-  // Detalhes da Carga
-  y = checkPage(doc, y, 20);
-  y = addSection(doc, 'Detalhes da Carga', y, pageWidth);
-  y = addText(doc, `Quantidade de volumes: ${dados.volumePrevisto}`, y, margin, contentWidth);
-  y += 6;
+  // Row 2: ENDEREÇO | valor
+  drawLabelCell(tableX, y, labelCol, rowH, 'ENDEREÇO');
+  drawValueCell(tableX + labelCol, y, contentWidth - labelCol, rowH, 'Av. Monte Líbano, Lote 11, 11º Logis 1135 – Jd.');
+  y += rowH;
 
-  // Regras e Procedimentos
-  y = checkPage(doc, y, 50);
-  y = addSection(doc, 'Regras e Procedimentos para Entrega', y, pageWidth);
+  // Row 3: DATA AGENDAMENTO | valor (vermelho, full width)
+  drawLabelCell(tableX, y, labelCol, rowH, 'DATA AGENDAMENTO');
+  drawValueCell(tableX + labelCol, y, contentWidth - labelCol, rowH, dados.dataAgendada, red);
+  y += rowH;
+
+  // Row 4: HORÁRIO | valor | COMPRADOR | nomes
+  const halfVal = (contentWidth - labelCol * 2) / 2;
+  drawLabelCell(tableX, y, labelCol, rowH, 'HORÁRIO');
+  drawValueCell(tableX + labelCol, y, halfVal, rowH, dados.horarioAgendado, red);
+  drawLabelCell(tableX + labelCol + halfVal, y, labelCol, rowH, 'COMPRADOR');
+  drawValueCell(tableX + labelCol * 2 + halfVal, y, halfVal, rowH, 'DANIELE / JAQUELINE / LETÍCIA');
+  y += rowH;
+
+  // Row 5: NF | valor | VOLUMES | valor
+  drawLabelCell(tableX, y, labelCol, rowH, 'NF');
+  drawValueCell(tableX + labelCol, y, halfVal, rowH, dados.notaFiscal || 'N/A', red);
+  drawLabelCell(tableX + labelCol + halfVal, y, labelCol, rowH, 'VOLUMES');
+  drawValueCell(tableX + labelCol * 2 + halfVal, y, halfVal, rowH, String(dados.volumePrevisto), red);
+  y += rowH;
+
+  // Row 6: PEDIDO | valor | FORNECEDOR | valor
+  drawLabelCell(tableX, y, labelCol, rowH, 'PEDIDO');
+  drawValueCell(tableX + labelCol, y, halfVal, rowH, dados.numeroPedido || 'N/A', red);
+  drawLabelCell(tableX + labelCol + halfVal, y, labelCol, rowH, 'FORNECEDOR');
+  drawValueCell(tableX + labelCol * 2 + halfVal, y, halfVal, rowH, dados.fornecedorNome, red);
+  y += rowH + 10;
+
+  // --- PONTOS DE ATENÇÃO ---
+  doc.setFillColor(...darkBlue);
+  doc.rect(tableX, y, contentWidth, 8, 'F');
+  doc.setTextColor(...white);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('PONTOS DE ATENÇÃO', pageWidth / 2, y + 4.5, { align: 'center', baseline: 'middle' });
+  y += 12;
+
+  doc.setTextColor(...black);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
   const regras = [
-    '• A descarga somente será realizada mediante conferência no ato da entrega',
-    '• Uso obrigatório de EPI: calçado de segurança e colete refletivo',
-    '• Separação de SKU por pallet',
-    '• Altura máxima: 3 pallets',
-    '• Peso máximo por pallet: 1.500 kg',
+    '• Rompimento do lacre somente mediante presença do conferente;',
+    '• Obrigatório uso de EPI: calçado de segurança e colete c/ faixa refletiva;',
+    '• Divisão de SKU por palete;',
+    '• Mínimo de 3 ajudantes p/ descarregamento;',
+    '• Palete Padrão: PBR 1,5m de altura.',
   ];
   for (const regra of regras) {
-    y = addText(doc, regra, y, margin, contentWidth);
-    y += 1;
+    doc.text(regra, margin + 2, y);
+    y += 5;
   }
-  y += 4;
+  y += 3;
 
-  // Política de Comparecimento
-  y = checkPage(doc, y, 20);
-  y = addSection(doc, 'Política de Comparecimento', y, pageWidth);
-  y = addText(doc, 'O não comparecimento no horário agendado implicará no cancelamento automático do agendamento.', y, margin, contentWidth);
-  y += 6;
+  // OBS em vermelho/negrito
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...red);
+  doc.setFontSize(8);
+  const obs = doc.splitTextToSize(
+    'OBS: O não comparecimento no horário agendado implicará no cancelamento automático do agendamento, sendo necessário realizar nova solicitação.',
+    contentWidth - 4
+  );
+  doc.text(obs, margin + 2, y);
+  y += obs.length * 5 + 8;
 
-  // Envio antecipado de NF
-  y = checkPage(doc, y, 20);
-  y = addSection(doc, 'Envio antecipado de Nota Fiscal', y, pageWidth);
-  y = addText(doc, 'Enviar a Nota Fiscal com no mínimo 24 horas de antecedência para validação.', y, margin, contentWidth);
+  // --- Rodapé ---
+  doc.setTextColor(...black);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const rodape = doc.splitTextToSize(
+    'Solicitamos o envio da Nota Fiscal com no mínimo 24 horas de antecedência para validação prévia.',
+    contentWidth
+  );
+  doc.text(rodape, margin, y);
 
   doc.save(`aprovacao_${dados.fornecedorNome.replace(/\s+/g, '_')}.pdf`);
 }
