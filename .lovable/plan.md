@@ -1,33 +1,34 @@
 
+# Puxar NF da Solicitacao para Agenda e Agendamento
 
-# Exibir NF, Pedido e Comprador na tabela de Solicitacoes (Admin)
+## Problema
 
-## O que sera feito
+Quando uma solicitacao e aprovada, a carga e criada com `nfs: []` (array vazio) no arquivo `src/contexts/SolicitacaoContext.tsx` (linha 65). A NF preenchida na solicitacao nao e repassada para a carga, e como a view `vw_carga_operacional` usa `c.nfs` como `nota_fiscal`, as telas de Agenda e Agendamento nunca recebem essa informacao.
 
-Adicionar 3 novas colunas na tabela de listagem de solicitacoes em `src/pages/Solicitacoes.tsx`:
+## Solucao
 
-- **Nota Fiscal** - exibe o valor de `sol.notaFiscal` ou "-" se vazio
-- **N. Pedido** - exibe `sol.numeroPedido` ou "-"
-- **Comprador** - exibe `sol.comprador` ou "-"
+Alterar a funcao `aprovarSolicitacao` em `src/contexts/SolicitacaoContext.tsx` para incluir a NF da solicitacao no array `nfs` da carga criada.
 
 ## Alteracao
 
-### `src/pages/Solicitacoes.tsx`
+### `src/contexts/SolicitacaoContext.tsx`
 
-Na secao `TableHeader`, adicionar 3 novos `TableHead` apos "Volume":
-- Nota Fiscal
-- N. Pedido
-- Comprador
+Na funcao `aprovarSolicitacao` (linha 62-71), mudar:
 
-Na secao `TableBody`, adicionar 3 novos `TableCell` correspondentes em cada linha.
+```text
+nfs: [],
+```
 
-Atualizar o `colSpan` da mensagem "Nenhuma solicitacao encontrada" de 8 para 11.
+Para:
 
-## Detalhes tecnicos
+```text
+nfs: sol.notaFiscal ? [sol.notaFiscal] : [],
+```
+
+Isso garante que, se a solicitacao tiver uma NF preenchida, ela sera incluida na carga e consequentemente aparecera nas telas de Agenda e Agendamento atraves da view `vw_carga_operacional`.
+
+## Arquivos modificados
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/pages/Solicitacoes.tsx` | Adicionar colunas NF, Pedido e Comprador na tabela |
-
-Nenhuma alteracao no banco de dados.
-
+| `src/contexts/SolicitacaoContext.tsx` | Passar `notaFiscal` da solicitacao para o campo `nfs` da carga |
