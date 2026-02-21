@@ -143,4 +143,7 @@ export interface SolicitacaoEntrega {
   dataAgendada?: string;
   horarioAgendado?: string;
   emailContato: string;
+  notaFiscal?: string;
+  numeroPedido?: string;
+  comprador?: string;
 }

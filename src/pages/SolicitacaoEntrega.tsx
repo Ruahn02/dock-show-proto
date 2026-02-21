@@ -22,6 +22,9 @@ export default function SolicitacaoEntrega() {
   const [quantidadeVeiculos, setQuantidadeVeiculos] = useState('1');
   const [volumePrevisto, setVolumePrevisto] = useState('');
   const [emailContato, setEmailContato] = useState('');
+  const [notaFiscal, setNotaFiscal] = useState('');
+  const [numeroPedido, setNumeroPedido] = useState('');
+  const [comprador, setComprador] = useState('');
   const [openFornecedor, setOpenFornecedor] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const { fornecedores } = useFornecedoresDB();
@@ -34,7 +37,7 @@ export default function SolicitacaoEntrega() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!fornecedorId || !tipoCaminhao || !volumePrevisto || !emailContato) {
+    if (!fornecedorId || !tipoCaminhao || !volumePrevisto || !emailContato || !numeroPedido || !comprador) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
@@ -46,6 +49,9 @@ export default function SolicitacaoEntrega() {
         quantidadeVeiculos: parseInt(quantidadeVeiculos) || 1,
         volumePrevisto: parseInt(volumePrevisto) || 0,
         emailContato,
+        notaFiscal: notaFiscal || undefined,
+        numeroPedido,
+        comprador,
       });
       setEnviado(true);
       toast.success('Solicitação enviada com sucesso!');
@@ -60,6 +66,9 @@ export default function SolicitacaoEntrega() {
     setQuantidadeVeiculos('1');
     setVolumePrevisto('');
     setEmailContato('');
+    setNotaFiscal('');
+    setNumeroPedido('');
+    setComprador('');
     setEnviado(false);
   };
 
@@ -168,6 +177,21 @@ export default function SolicitacaoEntrega() {
             <div className="space-y-2">
               <Label htmlFor="email">E-mail para Contato *</Label>
               <Input id="email" type="email" value={emailContato} onChange={(e) => setEmailContato(e.target.value)} placeholder="email@exemplo.com" />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notaFiscal">Nota Fiscal</Label>
+              <Input id="notaFiscal" value={notaFiscal} onChange={(e) => setNotaFiscal(e.target.value)} placeholder="Número da NF (opcional)" />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="numeroPedido">Número do Pedido *</Label>
+              <Input id="numeroPedido" value={numeroPedido} onChange={(e) => setNumeroPedido(e.target.value)} placeholder="Número do pedido" />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="comprador">Comprador *</Label>
+              <Input id="comprador" value={comprador} onChange={(e) => setComprador(e.target.value)} placeholder="Nome do comprador" />
             </div>
 
             <Button type="submit" className="w-full">

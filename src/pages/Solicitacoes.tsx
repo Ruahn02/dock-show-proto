@@ -8,14 +8,12 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useSolicitacao } from '@/contexts/SolicitacaoContext';
 import { useSenha } from '@/contexts/SenhaContext';
@@ -29,6 +27,7 @@ import { ClipboardList, CalendarIcon, Check, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { gerarPdfAprovacao, gerarPdfRecusa } from '@/lib/gerarPdfSolicitacao';
 
 const statusStyles: Record<StatusSolicitacao, string> = {
   pendente: 'bg-yellow-100 text-yellow-800 border-yellow-300',
@@ -47,6 +46,7 @@ export default function Solicitacoes() {
   const [horarioAgendado, setHorarioAgendado] = useState('08:00');
   const [openCalendar, setOpenCalendar] = useState(false);
   const [unificar, setUnificar] = useState(false);
+  const [motivoRecusa, setMotivoRecusa] = useState('');
 
   const [filtroStatus, setFiltroStatus] = useState<string>('todos');
   const [filtroData, setFiltroData] = useState<Date | undefined>(undefined);
@@ -74,12 +74,13 @@ export default function Solicitacoes() {
   }, [selectedSolicitacao, dataAgendada, cargas]);
 
   const handleOpenAprovar = (sol: SolicitacaoEntrega) => { setSelectedSolicitacao(sol); setDataAgendada(undefined); setHorarioAgendado('08:00'); setUnificar(false); setAprovarModalOpen(true); };
-  const handleOpenRecusar = (sol: SolicitacaoEntrega) => { setSelectedSolicitacao(sol); setRecusarDialogOpen(true); };
+  const handleOpenRecusar = (sol: SolicitacaoEntrega) => { setSelectedSolicitacao(sol); setMotivoRecusa(''); setRecusarDialogOpen(true); };
 
   const handleAprovar = async () => {
     if (!selectedSolicitacao || !dataAgendada) { toast.error('Selecione uma data para o agendamento'); return; }
     try {
       const dataStr = format(dataAgendada, 'yyyy-MM-dd');
+      const dataFormatada = format(dataAgendada, 'dd/MM/yyyy');
       if (unificar && cargaDuplicada) {
         await aprovarSolicitacaoUnificada(selectedSolicitacao.id, cargaDuplicada.id, dataStr, horarioAgendado);
         toast.success('Solicitação aprovada e cargas unificadas!');
@@ -87,14 +88,31 @@ export default function Solicitacoes() {
         await aprovarSolicitacao(selectedSolicitacao.id, dataStr, horarioAgendado);
         toast.success('Solicitação aprovada e agendamento criado!');
       }
+      gerarPdfAprovacao({
+        fornecedorNome: getFornecedorNome(selectedSolicitacao.fornecedorId),
+        dataAgendada: dataFormatada,
+        horarioAgendado,
+        notaFiscal: selectedSolicitacao.notaFiscal,
+        numeroPedido: selectedSolicitacao.numeroPedido,
+        comprador: selectedSolicitacao.comprador,
+        volumePrevisto: selectedSolicitacao.volumePrevisto,
+      });
       setAprovarModalOpen(false); setSelectedSolicitacao(null);
     } catch { toast.error('Erro ao aprovar'); }
   };
 
   const handleRecusar = async () => {
-    if (!selectedSolicitacao) return;
+    if (!selectedSolicitacao || !motivoRecusa.trim()) return;
     try {
       await recusarSolicitacao(selectedSolicitacao.id);
+      gerarPdfRecusa({
+        fornecedorNome: getFornecedorNome(selectedSolicitacao.fornecedorId),
+        notaFiscal: selectedSolicitacao.notaFiscal,
+        numeroPedido: selectedSolicitacao.numeroPedido,
+        dataSolicitacao: format(parseISO(selectedSolicitacao.dataSolicitacao), 'dd/MM/yyyy'),
+        motivoRecusa: motivoRecusa.trim(),
+        volumePrevisto: selectedSolicitacao.volumePrevisto,
+      });
       toast.success('Solicitação recusada');
       setRecusarDialogOpen(false); setSelectedSolicitacao(null);
     } catch { toast.error('Erro ao recusar'); }
@@ -252,21 +270,40 @@ export default function Solicitacoes() {
           </DialogContent>
         </Dialog>
 
-        <AlertDialog open={recusarDialogOpen} onOpenChange={setRecusarDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Recusar Solicitação</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tem certeza que deseja recusar esta solicitação de entrega?
-                {selectedSolicitacao && (<span className="block mt-2 text-foreground">Fornecedor: {getFornecedorNome(selectedSolicitacao.fornecedorId)}</span>)}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleRecusar} className="bg-red-600 hover:bg-red-700">Recusar</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Dialog open={recusarDialogOpen} onOpenChange={setRecusarDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Recusar Solicitação</DialogTitle>
+            </DialogHeader>
+            {selectedSolicitacao && (
+              <div className="space-y-4 py-2">
+                <p className="text-sm text-muted-foreground">
+                  Fornecedor: <strong>{getFornecedorNome(selectedSolicitacao.fornecedorId)}</strong>
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="motivoRecusa">Motivo da Recusa *</Label>
+                  <Textarea
+                    id="motivoRecusa"
+                    value={motivoRecusa}
+                    onChange={(e) => setMotivoRecusa(e.target.value)}
+                    placeholder="Informe o motivo da recusa..."
+                    rows={4}
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRecusarDialogOpen(false)}>Cancelar</Button>
+              <Button
+                variant="destructive"
+                onClick={handleRecusar}
+                disabled={!motivoRecusa.trim()}
+              >
+                Recusar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
