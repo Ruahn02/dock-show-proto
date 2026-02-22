@@ -39,7 +39,7 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function AgendamentoPlanejamento() {
-  const { dados } = useFluxoOperacional();
+  const { dados, atualizarFluxo } = useFluxoOperacional();
   const { criarCarga, atualizarCarga } = useCargasDB();
   const { fornecedores } = useFornecedoresDB();
   const [modalOpen, setModalOpen] = useState(false);
@@ -76,7 +76,7 @@ export default function AgendamentoPlanejamento() {
     return { totalCargas, totalCaminhoes, volumePrevisto, volumeConferido };
   }, [cargasFiltradas]);
 
-  const { atualizarFluxo } = useFluxoOperacional();
+  
 
   const handleNovo = () => {
     setEditingCargaId(null); setFormData(selectedDate); setFormFornecedorId('');
