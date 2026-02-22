@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -12,7 +13,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { Fornecedor } from '@/types';
 import { toast } from 'sonner';
-import { Plus, Edit, Building2 } from 'lucide-react';
+import { Plus, Edit, Building2, Search } from 'lucide-react';
 
 export default function Fornecedores() {
   const { isAdmin } = useProfile();
@@ -20,6 +21,11 @@ export default function Fornecedores() {
   const { fornecedores, criarFornecedor, atualizarFornecedor } = useFornecedoresDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedFornecedor, setSelectedFornecedor] = useState<Fornecedor | null>(null);
+  const [filtroNome, setFiltroNome] = useState('');
+
+  const fornecedoresFiltrados = fornecedores.filter(f =>
+    f.nome.toLowerCase().includes(filtroNome.toLowerCase())
+  );
 
   useEffect(() => {
     if (!isAdmin) navigate('/');
@@ -66,6 +72,16 @@ export default function Fornecedores() {
           </Button>
         </div>
 
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar fornecedor por nome..."
+            value={filtroNome}
+            onChange={(e) => setFiltroNome(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
@@ -76,7 +92,7 @@ export default function Fornecedores() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {fornecedores.map((fornecedor) => (
+              {fornecedoresFiltrados.map((fornecedor) => (
                 <TableRow key={fornecedor.id}>
                   <TableCell className="font-medium">{fornecedor.nome}</TableCell>
                   <TableCell>
@@ -103,6 +119,7 @@ export default function Fornecedores() {
           onClose={() => setModalOpen(false)}
           fornecedor={selectedFornecedor}
           onSave={handleSave}
+          fornecedoresExistentes={fornecedores}
         />
       </div>
     </Layout>
