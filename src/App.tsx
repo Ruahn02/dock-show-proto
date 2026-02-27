@@ -24,6 +24,8 @@ import PainelSenhas from "./pages/PainelSenhas";
 import SolicitacaoEntrega from "./pages/SolicitacaoEntrega";
 import LoginAdmin from "./pages/LoginAdmin";
 import LoginOperacional from "./pages/LoginOperacional";
+import LoginComprador from "./pages/LoginComprador";
+import AgendamentoComprador from "./pages/AgendamentoComprador";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +48,8 @@ const App = () => (
                   <Route path="/solicitacao" element={<SolicitacaoEntrega />} />
                   <Route path="/senha" element={<SenhaCaminhoneiro />} />
                   <Route path="/painel" element={<PainelSenhas />} />
+                  <Route path="/comprador" element={<LoginComprador />} />
+                  <Route path="/comprador/agenda" element={<AgendamentoComprador />} />
 
                   {/* Rotas admin only */}
                   <Route path="/" element={

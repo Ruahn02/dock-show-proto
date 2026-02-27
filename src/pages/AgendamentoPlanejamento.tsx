@@ -31,12 +31,20 @@ import { cn } from '@/lib/utils';
 
 const statusStyles: Record<string, string> = {
   aguardando_chegada: 'bg-blue-100 text-blue-800 border-blue-300',
+  aguardando_doca: 'bg-indigo-100 text-indigo-800 border-indigo-300',
   aguardando_conferencia: 'bg-cyan-100 text-cyan-800 border-cyan-300',
   em_conferencia: 'bg-yellow-100 text-yellow-800 border-yellow-300',
   conferido: 'bg-green-100 text-green-800 border-green-300',
   no_show: 'bg-gray-100 text-gray-800 border-gray-300',
   recusado: 'bg-red-100 text-red-800 border-red-300',
 };
+
+function getDisplayStatus(d: FluxoOperacional): { key: string; label: string } {
+  if (d.chegou && d.status_carga === 'aguardando_chegada') {
+    return { key: 'aguardando_doca', label: 'Aguardando Doca' };
+  }
+  return { key: d.status_carga || '', label: statusCargaLabels[d.status_carga || ''] || d.status_carga || '-' };
+}
 
 export default function AgendamentoPlanejamento() {
   const { dados, atualizarFluxo } = useFluxoOperacional();
@@ -210,9 +218,9 @@ export default function AgendamentoPlanejamento() {
                       <TableCell>{d.tipo_veiculo ? (tipoCaminhaoLabels[d.tipo_veiculo] || d.tipo_veiculo) : '-'}</TableCell>
                       <TableCell>{d.divergencia || '-'}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={statusStyles[d.status_carga || ''] || ''}>
-                          {statusCargaLabels[d.status_carga || ''] || d.status_carga || '-'}
-                        </Badge>
+                        {(() => { const s = getDisplayStatus(d); return (
+                          <Badge variant="outline" className={statusStyles[s.key] || ''}>{s.label}</Badge>
+                        ); })()}
                       </TableCell>
                       <TableCell className="text-right">
                         {d.status_carga === 'aguardando_chegada' && (
