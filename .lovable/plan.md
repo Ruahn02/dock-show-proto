@@ -1,34 +1,49 @@
 
+# Login de Comprador (somente leitura) e Correcao de Status
 
-# Filtro por nome e aviso de duplicidade na tela de Fornecedores
+## 1. Correcao do bug de status na tela de Agendamento
 
-## O que sera feito
+Na tela de Agendamento (`AgendamentoPlanejamento.tsx`), quando o caminhao chega e pega senha, o campo `chegou` fica `true` mas o status exibido continua "Aguardando Chegada" porque nao existe a mesma logica de mapeamento visual que a tela de Agenda usa.
 
-1. **Campo de busca por nome** acima da tabela -- o usuario digita e a lista filtra em tempo real (sem precisar arrastar ou selecionar de dropdown).
-2. **Aviso de fornecedor duplicado** no modal de criacao -- ao digitar o nome, se ja existir um fornecedor com nome igual (ou muito similar), exibe um alerta antes de salvar.
+**Correcao**: Adicionar a mesma funcao `getDisplayStatus` que ja existe na Agenda, verificando se `chegou === true` e `status_carga === 'aguardando_chegada'` para exibir "Aguardando Doca" com o estilo correto. Tambem adicionar o estilo `aguardando_doca` ao mapa de estilos.
 
-## Alteracoes
+## 2. Acesso de Comprador (somente leitura)
 
-### `src/pages/Fornecedores.tsx`
+Criar um novo perfil "comprador" com acesso somente leitura a uma versao simplificada da tela de Agendamento (sem botoes de acao).
 
-- Adicionar um estado `filtroNome` (string)
-- Renderizar um `Input` com icone de busca (Search) entre o header e a tabela, onde o usuario digita o nome para filtrar
-- Filtrar a lista `fornecedores` pelo texto digitado (case-insensitive, busca parcial) antes de renderizar na tabela
-- Passar a lista completa de `fornecedores` para o `FornecedorModal` via nova prop `fornecedoresExistentes` (para validacao de duplicidade)
+### Fluxo
 
-### `src/components/fornecedores/FornecedorModal.tsx`
+```text
+Comprador acessa /comprador
+        |
+        v
+  Tela de login com codigo
+  (similar ao login operacional)
+        |
+        v
+  Tela de Agendamento somente leitura:
+  - Calendario para filtrar por dia
+  - Tabela com cargas, horarios, status
+  - SEM botoes de Novo, Editar, Cancelar
+  - SEM sidebar nem menu admin
+```
 
-- Receber nova prop `fornecedoresExistentes: Fornecedor[]`
-- Ao digitar no campo "Nome", verificar se ja existe um fornecedor com o mesmo nome (comparacao case-insensitive, ignorando o proprio fornecedor em caso de edicao)
-- Se existir duplicata, exibir um alerta amarelo abaixo do campo ("Ja existe um fornecedor com este nome")
-- Desabilitar o botao "Salvar" quando houver duplicata exata
+### Alteracoes
 
-## Detalhes tecnicos
-
-O filtro de busca usa `String.includes()` com `toLowerCase()` para busca parcial. A validacao de duplicidade usa `trim().toLowerCase()` para comparacao exata. Nenhuma alteracao no banco de dados.
-
-| Arquivo | Alteracao |
+| Arquivo | O que muda |
 |---|---|
-| `src/pages/Fornecedores.tsx` | Adicionar campo de busca por nome e passar fornecedores ao modal |
-| `src/components/fornecedores/FornecedorModal.tsx` | Adicionar validacao de nome duplicado com alerta visual |
+| `src/types/index.ts` | Adicionar `'comprador'` ao tipo `Perfil` |
+| `src/contexts/ProfileContext.tsx` | Adicionar codigo de acesso para comprador e storage key separada |
+| `src/pages/LoginComprador.tsx` | **Novo** - Tela de login para comprador (similar a LoginOperacional) |
+| `src/pages/AgendamentoComprador.tsx` | **Novo** - Versao somente leitura do Agendamento (tabela + calendario, sem acoes) |
+| `src/components/auth/ProtectedRoute.tsx` | Suportar perfil comprador (redirecionar para rota correta) |
+| `src/App.tsx` | Adicionar rotas `/comprador` (login) e `/comprador/agenda` (tela read-only) |
+| `src/pages/AgendamentoPlanejamento.tsx` | Corrigir exibicao do status "Aguardando Doca" |
 
+### Detalhes tecnicos
+
+**Perfil comprador**: Segue o mesmo padrao dos perfis existentes (administrador/operacional) com codigo de acesso proprio. O comprador so tera acesso a rota `/comprador/agenda`. Se tentar acessar qualquer outra rota protegida, sera redirecionado.
+
+**Tela somente leitura**: Usa os mesmos dados da view `vw_carga_operacional` mas renderiza apenas calendario, resumo e tabela -- sem nenhum botao de acao (Novo, Editar, Cancelar, No-show, Recusado). O layout sera simplificado (sem sidebar completa).
+
+**Codigo de acesso**: Sera adicionado um codigo fixo para o perfil comprador (ex: `COMPRADOR123`), seguindo o mesmo padrao dos outros perfis.
