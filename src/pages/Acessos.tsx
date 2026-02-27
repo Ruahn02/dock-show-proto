@@ -1,7 +1,7 @@
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shield, User, Truck, ClipboardList, Copy } from 'lucide-react';
+import { Shield, User, Truck, ClipboardList, Copy, ShoppingCart } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 
@@ -30,6 +30,12 @@ const acessos = [
     path: '/solicitacao',
     icon: ClipboardList,
   },
+  {
+    titulo: 'Acesso Comprador',
+    descricao: 'Acesso somente leitura com código COMPRAS123. Para compradores visualizarem o agendamento.',
+    path: '/comprador',
+    icon: ShoppingCart,
+  },
 ];
 
 export default function Acessos() {
@@ -48,7 +54,7 @@ export default function Acessos() {
           <p className="text-muted-foreground mt-1">Links e QR Codes fixos para compartilhamento</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           {acessos.map((item) => {
             const url = `${origin}${item.path}`;
             return (

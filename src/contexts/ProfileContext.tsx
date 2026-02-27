@@ -15,7 +15,7 @@ const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 const CODIGOS: Record<Perfil, string> = {
   administrador: 'admin123',
   operacional: 'ACESSO123',
-  comprador: 'COMPRADOR123',
+  comprador: 'COMPRAS123',
 };
 
 const STORAGE_KEY_ADMIN = 'dock_show_session_admin';
@@ -37,7 +37,7 @@ function getStoredSession(): { perfil: Perfil; autenticado: boolean } | null {
     const stored = localStorage.getItem(key);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (parsed.autenticado && (parsed.perfil === 'administrador' || parsed.perfil === 'operacional')) {
+      if (parsed.autenticado && (parsed.perfil === 'administrador' || parsed.perfil === 'operacional' || parsed.perfil === 'comprador')) {
         return parsed;
       }
     }
