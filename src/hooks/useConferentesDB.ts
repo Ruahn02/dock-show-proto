@@ -21,6 +21,7 @@ export function useConferentesDB() {
 
   useEffect(() => {
     fetchConferentes();
+    const interval = setInterval(fetchConferentes, 15000);
 
     const channel = supabase
       .channel('conferentes-realtime')
@@ -29,7 +30,10 @@ export function useConferentesDB() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [fetchConferentes]);
 
   const criarConferente = useCallback(async (dados: Partial<Conferente>) => {

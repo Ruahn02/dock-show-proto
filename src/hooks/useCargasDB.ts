@@ -63,6 +63,7 @@ export function useCargasDB() {
 
   useEffect(() => {
     fetchCargas();
+    const interval = setInterval(fetchCargas, 15000);
 
     const channel = supabase
       .channel('cargas-realtime')
@@ -71,7 +72,10 @@ export function useCargasDB() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [fetchCargas]);
 
   const criarCarga = useCallback(async (dados: {

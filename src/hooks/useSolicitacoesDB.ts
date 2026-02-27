@@ -53,6 +53,19 @@ export function useSolicitacoesDB() {
 
   useEffect(() => {
     fetchSolicitacoes();
+    const interval = setInterval(fetchSolicitacoes, 15000);
+
+    const channel = supabase
+      .channel('solicitacoes-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacoes' }, () => {
+        fetchSolicitacoes();
+      })
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [fetchSolicitacoes]);
 
   const criarSolicitacao = useCallback(async (dados: Omit<SolicitacaoEntrega, 'id' | 'status' | 'dataSolicitacao'>) => {

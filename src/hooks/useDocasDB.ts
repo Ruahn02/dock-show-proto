@@ -42,6 +42,7 @@ export function useDocasDB() {
 
   useEffect(() => {
     fetchDocas();
+    const interval = setInterval(fetchDocas, 15000);
 
     const channel = supabase
       .channel('docas-realtime')
@@ -50,7 +51,10 @@ export function useDocasDB() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [fetchDocas]);
 
   const atualizarDoca = useCallback(async (id: string, dados: Partial<Doca>) => {

@@ -50,6 +50,7 @@ export function useCrossDB() {
 
   useEffect(() => {
     fetchCross();
+    const interval = setInterval(fetchCross, 15000);
 
     const channel = supabase
       .channel('cross-docking-realtime')
@@ -58,7 +59,10 @@ export function useCrossDB() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [fetchCross]);
 
   const criarCross = useCallback(async (dados: {
