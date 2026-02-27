@@ -1,49 +1,18 @@
 
-# Login de Comprador (somente leitura) e Correcao de Status
 
-## 1. Correcao do bug de status na tela de Agendamento
+# Adicionar Acesso Comprador na tela de Acessos e corrigir codigo
 
-Na tela de Agendamento (`AgendamentoPlanejamento.tsx`), quando o caminhao chega e pega senha, o campo `chegou` fica `true` mas o status exibido continua "Aguardando Chegada" porque nao existe a mesma logica de mapeamento visual que a tela de Agenda usa.
+## O que sera feito
 
-**Correcao**: Adicionar a mesma funcao `getDisplayStatus` que ja existe na Agenda, verificando se `chegou === true` e `status_carga === 'aguardando_chegada'` para exibir "Aguardando Doca" com o estilo correto. Tambem adicionar o estilo `aguardando_doca` ao mapa de estilos.
+1. **Adicionar card do Comprador** na tela "Acessos do Sistema" com link para `/comprador`, QR Code e botao de copiar -- seguindo o mesmo padrao dos outros cards.
+2. **Alterar codigo de acesso** de `COMPRADOR123` para `COMPRAS123` conforme solicitado.
+3. **Corrigir bug de sessao do comprador** -- a funcao `getStoredSession` atualmente so restaura sessoes de `administrador` e `operacional`, ignorando o comprador (linha 40 do ProfileContext).
+4. **Ajustar grid** de 4 para 5 colunas no desktop (`lg:grid-cols-5`) para acomodar o novo card.
 
-## 2. Acesso de Comprador (somente leitura)
-
-Criar um novo perfil "comprador" com acesso somente leitura a uma versao simplificada da tela de Agendamento (sem botoes de acao).
-
-### Fluxo
-
-```text
-Comprador acessa /comprador
-        |
-        v
-  Tela de login com codigo
-  (similar ao login operacional)
-        |
-        v
-  Tela de Agendamento somente leitura:
-  - Calendario para filtrar por dia
-  - Tabela com cargas, horarios, status
-  - SEM botoes de Novo, Editar, Cancelar
-  - SEM sidebar nem menu admin
-```
-
-### Alteracoes
+## Alteracoes
 
 | Arquivo | O que muda |
 |---|---|
-| `src/types/index.ts` | Adicionar `'comprador'` ao tipo `Perfil` |
-| `src/contexts/ProfileContext.tsx` | Adicionar codigo de acesso para comprador e storage key separada |
-| `src/pages/LoginComprador.tsx` | **Novo** - Tela de login para comprador (similar a LoginOperacional) |
-| `src/pages/AgendamentoComprador.tsx` | **Novo** - Versao somente leitura do Agendamento (tabela + calendario, sem acoes) |
-| `src/components/auth/ProtectedRoute.tsx` | Suportar perfil comprador (redirecionar para rota correta) |
-| `src/App.tsx` | Adicionar rotas `/comprador` (login) e `/comprador/agenda` (tela read-only) |
-| `src/pages/AgendamentoPlanejamento.tsx` | Corrigir exibicao do status "Aguardando Doca" |
+| `src/contexts/ProfileContext.tsx` | Alterar codigo do comprador de `COMPRADOR123` para `COMPRAS123`; incluir `parsed.perfil === 'comprador'` na validacao de `getStoredSession` |
+| `src/pages/Acessos.tsx` | Adicionar item "Acesso Comprador" ao array `acessos` com path `/comprador`, icone `ShoppingCart` e descricao mencionando o codigo `COMPRAS123`; ajustar grid para `lg:grid-cols-5` |
 
-### Detalhes tecnicos
-
-**Perfil comprador**: Segue o mesmo padrao dos perfis existentes (administrador/operacional) com codigo de acesso proprio. O comprador so tera acesso a rota `/comprador/agenda`. Se tentar acessar qualquer outra rota protegida, sera redirecionado.
-
-**Tela somente leitura**: Usa os mesmos dados da view `vw_carga_operacional` mas renderiza apenas calendario, resumo e tabela -- sem nenhum botao de acao (Novo, Editar, Cancelar, No-show, Recusado). O layout sera simplificado (sem sidebar completa).
-
-**Codigo de acesso**: Sera adicionado um codigo fixo para o perfil comprador (ex: `COMPRADOR123`), seguindo o mesmo padrao dos outros perfis.
