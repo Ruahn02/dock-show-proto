@@ -26,6 +26,7 @@ export function useFornecedoresDB() {
 
   useEffect(() => {
     fetchFornecedores();
+    const interval = setInterval(fetchFornecedores, 15000);
 
     const channel = supabase
       .channel('fornecedores-realtime')
@@ -34,7 +35,10 @@ export function useFornecedoresDB() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [fetchFornecedores]);
 
   const criarFornecedor = useCallback(async (dados: Partial<Fornecedor>) => {

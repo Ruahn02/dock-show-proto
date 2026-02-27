@@ -62,8 +62,8 @@ export function useFluxoOperacional() {
 
   useEffect(() => {
     fetchDados();
+    const interval = setInterval(fetchDados, 15000);
 
-    // Realtime subscriptions on underlying tables
     const channel = supabase
       .channel('fluxo-operacional')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cargas' }, () => fetchDados())
@@ -72,6 +72,7 @@ export function useFluxoOperacional() {
       .subscribe();
 
     return () => {
+      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchDados]);

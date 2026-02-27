@@ -51,6 +51,7 @@ export function useSenhasDB() {
 
   useEffect(() => {
     fetchSenhas();
+    const interval = setInterval(fetchSenhas, 15000);
 
     const channel = supabase
       .channel('senhas-realtime')
@@ -59,7 +60,10 @@ export function useSenhasDB() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [fetchSenhas]);
 
   const criarSenha = useCallback(async (dados: {
