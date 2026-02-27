@@ -15,16 +15,25 @@ const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 const CODIGOS: Record<Perfil, string> = {
   administrador: 'admin123',
   operacional: 'ACESSO123',
+  comprador: 'COMPRADOR123',
 };
 
 const STORAGE_KEY_ADMIN = 'dock_show_session_admin';
 const STORAGE_KEY_OPERACIONAL = 'dock_show_session_operacional';
+const STORAGE_KEY_COMPRADOR = 'dock_show_session_comprador';
+
+function getStorageKey(perfil: Perfil): string {
+  if (perfil === 'comprador') return STORAGE_KEY_COMPRADOR;
+  if (perfil === 'operacional') return STORAGE_KEY_OPERACIONAL;
+  return STORAGE_KEY_ADMIN;
+}
 
 function getStoredSession(): { perfil: Perfil; autenticado: boolean } | null {
   try {
     const path = window.location.pathname;
+    const isCompradorRoute = path.startsWith('/comprador');
     const isOperacionalRoute = ['/acesso', '/docas', '/cross'].some(r => path.startsWith(r));
-    const key = isOperacionalRoute ? STORAGE_KEY_OPERACIONAL : STORAGE_KEY_ADMIN;
+    const key = isCompradorRoute ? STORAGE_KEY_COMPRADOR : isOperacionalRoute ? STORAGE_KEY_OPERACIONAL : STORAGE_KEY_ADMIN;
     const stored = localStorage.getItem(key);
     if (stored) {
       const parsed = JSON.parse(stored);
@@ -45,7 +54,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     if (codigo === CODIGOS[perfilAlvo]) {
       setPerfilState(perfilAlvo);
       setAutenticado(true);
-      const key = perfilAlvo === 'administrador' ? STORAGE_KEY_ADMIN : STORAGE_KEY_OPERACIONAL;
+      const key = getStorageKey(perfilAlvo);
       localStorage.setItem(key, JSON.stringify({ perfil: perfilAlvo, autenticado: true }));
       return true;
     }
@@ -53,7 +62,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    const key = perfil === 'administrador' ? STORAGE_KEY_ADMIN : STORAGE_KEY_OPERACIONAL;
+    const key = getStorageKey(perfil);
     setAutenticado(false);
     setPerfilState('administrador');
     localStorage.removeItem(key);

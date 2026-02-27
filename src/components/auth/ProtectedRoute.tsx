@@ -7,10 +7,15 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, adminOnly = false }: ProtectedRouteProps) {
-  const { autenticado, isAdmin } = useProfile();
+  const { autenticado, isAdmin, perfil } = useProfile();
   
   if (!autenticado) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Comprador só acessa /comprador/agenda
+  if (perfil === 'comprador') {
+    return <Navigate to="/comprador/agenda" replace />;
   }
 
   if (adminOnly && !isAdmin) {

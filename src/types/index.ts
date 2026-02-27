@@ -1,4 +1,4 @@
-export type Perfil = 'administrador' | 'operacional';
+export type Perfil = 'administrador' | 'operacional' | 'comprador';
 
 export type StatusDoca = 'livre' | 'ocupada' | 'em_conferencia' | 'conferido' | 'uso_consumo';
 
