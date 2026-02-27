@@ -1,18 +1,42 @@
 
 
-# Adicionar Acesso Comprador na tela de Acessos e corrigir codigo
+# Polling de 15 segundos em todos os hooks de dados
 
-## O que sera feito
+Adicionar `setInterval` de 15 segundos em todos os hooks que fazem fetch de dados do Supabase, mantendo o Realtime existente como camada principal.
 
-1. **Adicionar card do Comprador** na tela "Acessos do Sistema" com link para `/comprador`, QR Code e botao de copiar -- seguindo o mesmo padrao dos outros cards.
-2. **Alterar codigo de acesso** de `COMPRADOR123` para `COMPRAS123` conforme solicitado.
-3. **Corrigir bug de sessao do comprador** -- a funcao `getStoredSession` atualmente so restaura sessoes de `administrador` e `operacional`, ignorando o comprador (linha 40 do ProfileContext).
-4. **Ajustar grid** de 4 para 5 colunas no desktop (`lg:grid-cols-5`) para acomodar o novo card.
+## Hooks que serao alterados
 
-## Alteracoes
-
-| Arquivo | O que muda |
+| Hook | Arquivo |
 |---|---|
-| `src/contexts/ProfileContext.tsx` | Alterar codigo do comprador de `COMPRADOR123` para `COMPRAS123`; incluir `parsed.perfil === 'comprador'` na validacao de `getStoredSession` |
-| `src/pages/Acessos.tsx` | Adicionar item "Acesso Comprador" ao array `acessos` com path `/comprador`, icone `ShoppingCart` e descricao mencionando o codigo `COMPRAS123`; ajustar grid para `lg:grid-cols-5` |
+| `useFluxoOperacional` | `src/hooks/useFluxoOperacional.ts` |
+| `useCargasDB` | `src/hooks/useCargasDB.ts` |
+| `useSenhasDB` | `src/hooks/useSenhasDB.ts` |
+| `useDocasDB` | `src/hooks/useDocasDB.ts` |
+| `useCrossDB` | `src/hooks/useCrossDB.ts` |
+| `useConferentesDB` | `src/hooks/useConferentesDB.ts` |
+| `useFornecedoresDB` | `src/hooks/useFornecedoresDB.ts` |
+| `useSolicitacoesDB` | `src/hooks/useSolicitacoesDB.ts` |
+
+## O que muda em cada hook
+
+Dentro do `useEffect` que ja faz o `fetchDados()` inicial e configura o Realtime, adicionar um `setInterval` de 15 segundos e limpa-lo no cleanup:
+
+```typescript
+useEffect(() => {
+  fetchDados();
+  const interval = setInterval(fetchDados, 15000);
+
+  const channel = supabase
+    .channel('...')
+    .on('postgres_changes', { ... }, () => fetchDados())
+    .subscribe();
+
+  return () => {
+    clearInterval(interval);
+    supabase.removeChannel(channel);
+  };
+}, [fetchDados]);
+```
+
+Nenhuma outra alteracao -- a logica de Realtime continua identica, o polling apenas garante que os dados se atualizem mesmo se o WebSocket falhar.
 
