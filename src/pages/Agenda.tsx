@@ -93,12 +93,11 @@ export default function Agenda() {
     if (!isAdmin) return false;
     if (carga.status === 'conferido' || carga.status === 'recusado' || carga.status === 'no_show') return false;
     const senhasDaCarga = senhas.filter(s => s.cargaId === carga.id && s.status !== 'recusado');
-    if (senhasDaCarga.length === 0) return false;
-    const todasConferidas = senhasDaCarga.every(s => s.status === 'conferido');
-    const senhasEmitidas = senhasDaCarga.length;
-    const qtdVeiculos = carga.quantidadeVeiculos || 1;
-    // All emitted senhas are conferido but fewer than expected
-    return todasConferidas && senhasEmitidas < qtdVeiculos;
+    return senhasDaCarga.length > 0;
+  };
+
+  const getSenhasPendentes = (cargaId: string) => {
+    return senhas.filter(s => s.cargaId === cargaId && s.status !== 'conferido' && s.status !== 'recusado').length;
   };
 
   const cargasDeHoje = useMemo(() => cargas.filter(c => c.data === hojeStr), [cargas, hojeStr]);
@@ -313,26 +312,27 @@ export default function Agenda() {
                         })()}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          {canFinalizarEntrega(carga) && (
-                            <Button size="sm" variant="outline" className="gap-1 text-green-700 border-green-300 hover:bg-green-50"
-                              onClick={() => openFinalizarConfirm(carga)}>
-                              <CheckCircle className="h-4 w-4" />
-                              Finalizar
-                            </Button>
-                          )}
-                          {canChangeStatus(carga) && (
+                         {(canChangeStatus(carga) || canFinalizarEntrega(carga)) && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="sm" className="gap-1">Ações<MoreHorizontal className="h-4 w-4" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => openNoShowConfirm(carga)}>Marcar como No-show</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openRecusadoConfirm(carga)} className="text-red-600">Marcar como Recusado</DropdownMenuItem>
+                                {canFinalizarEntrega(carga) && (
+                                  <DropdownMenuItem onClick={() => openFinalizarConfirm(carga)} className="text-green-700">
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Finalizar Entrega
+                                  </DropdownMenuItem>
+                                )}
+                                {canChangeStatus(carga) && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => openNoShowConfirm(carga)}>Marcar como No-show</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => openRecusadoConfirm(carga)} className="text-red-600">Marcar como Recusado</DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           )}
-                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -379,16 +379,18 @@ export default function Agenda() {
             <AlertDialogHeader>
               <AlertDialogTitle>Finalizar Entrega</AlertDialogTitle>
               <AlertDialogDescription>
-                Tem certeza que deseja <strong>finalizar</strong> esta entrega manualmente?
+                Tem certeza que deseja <strong>finalizar</strong> esta entrega?
                 {cargaToUpdate && (
                   <>
                     <span className="block mt-2 text-foreground">Fornecedor: {getFornecedorNome(cargaToUpdate.fornecedorId)}</span>
                     <span className="block mt-1 text-muted-foreground">
                       Senhas emitidas: {getSenhasEmitidas(cargaToUpdate.id)} / Caminhões previstos: {cargaToUpdate.quantidadeVeiculos || 1}
                     </span>
-                    <span className="block mt-1 text-amber-600">
-                      Atenção: nem todos os caminhões previstos chegaram. A entrega será marcada como conferida com os volumes já recebidos.
-                    </span>
+                    {getSenhasPendentes(cargaToUpdate.id) > 0 && (
+                      <span className="block mt-1 text-amber-600">
+                        Atenção: {getSenhasPendentes(cargaToUpdate.id)} senha(s) pendente(s) serão marcadas como recusadas. A entrega será finalizada com os volumes já conferidos.
+                      </span>
+                    )}
                   </>
                 )}
               </AlertDialogDescription>
