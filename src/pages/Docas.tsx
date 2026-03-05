@@ -292,14 +292,19 @@ export default function Docas() {
           return sum + (s.volumeConferido || 0);
         }, 0);
         
-        adicionarCross({
-          cargaId: selectedDoca.cargaId!,
-          fornecedorId: carga.fornecedorId,
-          nfs: carga.nfs,
-          data: carga.data,
-          rua: ruaAtual || data.rua || '',
-          volumeRecebido: totalVolume
-        });
+        try {
+          await adicionarCross({
+            cargaId: selectedDoca.cargaId!,
+            fornecedorId: carga.fornecedorId,
+            nfs: carga.nfs,
+            data: carga.data,
+            rua: ruaAtual || data.rua || '',
+            volumeRecebido: totalVolume
+          });
+        } catch (err: any) {
+          // Unique constraint violation — cross already registered by another operator
+          console.warn('Cross Docking já registrado para esta carga:', err?.message);
+        }
       }
       
       await refetchDocas();
