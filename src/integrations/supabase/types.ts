@@ -28,7 +28,6 @@ export type Database = {
           nfs: string[]
           quantidade_veiculos: number | null
           rua: string | null
-          senha_id: string | null
           solicitacao_id: string | null
           status: string
           tipo_caminhao: string | null
@@ -48,7 +47,6 @@ export type Database = {
           nfs?: string[]
           quantidade_veiculos?: number | null
           rua?: string | null
-          senha_id?: string | null
           solicitacao_id?: string | null
           status?: string
           tipo_caminhao?: string | null
@@ -68,7 +66,6 @@ export type Database = {
           nfs?: string[]
           quantidade_veiculos?: number | null
           rua?: string | null
-          senha_id?: string | null
           solicitacao_id?: string | null
           status?: string
           tipo_caminhao?: string | null
@@ -95,13 +92,6 @@ export type Database = {
             columns: ["fornecedor_id"]
             isOneToOne: false
             referencedRelation: "fornecedores"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cargas_senha_id_fkey"
-            columns: ["senha_id"]
-            isOneToOne: false
-            referencedRelation: "senhas"
             referencedColumns: ["id"]
           },
           {
@@ -302,6 +292,7 @@ export type Database = {
           rua: string | null
           status: string
           tipo_caminhao: string
+          volume_conferido: number | null
         }
         Insert: {
           carga_id?: string | null
@@ -318,6 +309,7 @@ export type Database = {
           rua?: string | null
           status?: string
           tipo_caminhao: string
+          volume_conferido?: number | null
         }
         Update: {
           carga_id?: string | null
@@ -334,6 +326,7 @@ export type Database = {
           rua?: string | null
           status?: string
           tipo_caminhao?: string
+          volume_conferido?: number | null
         }
         Relationships: [
           {
@@ -466,6 +459,10 @@ export type Database = {
           p_senha_id?: string
           p_volume_conferido?: number
         }
+        Returns: undefined
+      }
+      rpc_finalizar_entrega: {
+        Args: { p_carga_id: string }
         Returns: undefined
       }
     }
