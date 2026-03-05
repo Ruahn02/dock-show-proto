@@ -232,10 +232,16 @@ export default function ControleSenhas() {
               <p className="text-muted-foreground">Acompanhamento de chegadas</p>
             </div>
           </div>
-          <Button variant="outline" onClick={() => window.open('/painel', '_blank')}>
-            <Monitor className="h-4 w-4 mr-2" />
-            Painel de Senhas (TV)
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => window.open('/senha', '_blank')}>
+              <Ticket className="h-4 w-4 mr-2" />
+              Gerar Senha
+            </Button>
+            <Button variant="outline" onClick={() => window.open('/painel', '_blank')}>
+              <Monitor className="h-4 w-4 mr-2" />
+              Painel de Senhas (TV)
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

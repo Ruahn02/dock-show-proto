@@ -1,17 +1,42 @@
 
 
-# Adicionar botão "Abrir" na tela de Controle de Senhas
+# Polling de 15 segundos em todos os hooks de dados
 
-## Alteração
+Adicionar `setInterval` de 15 segundos em todos os hooks que fazem fetch de dados do Supabase, mantendo o Realtime existente como camada principal.
 
-Em `src/pages/ControleSenhas.tsx`, linha 235, ao lado do botão "Painel de Senhas (TV)", adicionar um novo botão que abre a página `/senha` em nova aba para facilitar o acesso direto à tela de geração de senha do motorista.
+## Hooks que serao alterados
 
-```tsx
-<Button variant="outline" onClick={() => window.open('/senha', '_blank')}>
-  <Ticket className="h-4 w-4 mr-2" />
-  Gerar Senha
-</Button>
+| Hook | Arquivo |
+|---|---|
+| `useFluxoOperacional` | `src/hooks/useFluxoOperacional.ts` |
+| `useCargasDB` | `src/hooks/useCargasDB.ts` |
+| `useSenhasDB` | `src/hooks/useSenhasDB.ts` |
+| `useDocasDB` | `src/hooks/useDocasDB.ts` |
+| `useCrossDB` | `src/hooks/useCrossDB.ts` |
+| `useConferentesDB` | `src/hooks/useConferentesDB.ts` |
+| `useFornecedoresDB` | `src/hooks/useFornecedoresDB.ts` |
+| `useSolicitacoesDB` | `src/hooks/useSolicitacoesDB.ts` |
+
+## O que muda em cada hook
+
+Dentro do `useEffect` que ja faz o `fetchDados()` inicial e configura o Realtime, adicionar um `setInterval` de 15 segundos e limpa-lo no cleanup:
+
+```typescript
+useEffect(() => {
+  fetchDados();
+  const interval = setInterval(fetchDados, 15000);
+
+  const channel = supabase
+    .channel('...')
+    .on('postgres_changes', { ... }, () => fetchDados())
+    .subscribe();
+
+  return () => {
+    clearInterval(interval);
+    supabase.removeChannel(channel);
+  };
+}, [fetchDados]);
 ```
 
-Será posicionado antes do botão "Painel de Senhas (TV)" no mesmo `div` de ações do header.
+Nenhuma outra alteracao -- a logica de Realtime continua identica, o polling apenas garante que os dados se atualizem mesmo se o WebSocket falhar.
 
