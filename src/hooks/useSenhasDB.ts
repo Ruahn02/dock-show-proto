@@ -18,6 +18,7 @@ export function mapSenhaFromDB(row: any): Senha {
     localAtual: row.local_atual as LocalSenha,
     rua: row.rua ?? undefined,
     liberada: row.liberada,
+    volumeConferido: row.volume_conferido ?? undefined,
   };
 }
 
@@ -34,6 +35,7 @@ function mapSenhaToDB(data: Partial<Senha>): any {
   if (data.localAtual !== undefined) result.local_atual = data.localAtual;
   if ('rua' in data) result.rua = data.rua ?? null;
   if (data.liberada !== undefined) result.liberada = data.liberada;
+  if ('volumeConferido' in data) result.volume_conferido = data.volumeConferido ?? null;
   return result;
 }
 
@@ -71,6 +73,7 @@ export function useSenhasDB() {
     nomeMotorista: string;
     tipoCaminhao: TipoCaminhao;
     horaChegada: string;
+    cargaId?: string;
   }) => {
     const { data, error } = await supabase
       .from('senhas')
@@ -79,6 +82,7 @@ export function useSenhasDB() {
         nome_motorista: dados.nomeMotorista,
         tipo_caminhao: dados.tipoCaminhao,
         hora_chegada: dados.horaChegada,
+        carga_id: dados.cargaId ?? null,
         status: 'aguardando_doca',
         local_atual: 'aguardando_doca',
         liberada: false,

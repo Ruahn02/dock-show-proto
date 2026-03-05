@@ -42,7 +42,6 @@ export interface Carga {
   rua?: string;
   divergencia?: string;
   chegou?: boolean;
-  senhaId?: string;
   horarioPrevisto?: string;
   tipoCaminhao?: TipoCaminhao;
   quantidadeVeiculos?: number;
@@ -75,6 +74,7 @@ export interface Senha {
   localAtual: LocalSenha;
   rua?: string;
   liberada: boolean;
+  volumeConferido?: number;
 }
 
 export interface DashboardPorPeriodo {
