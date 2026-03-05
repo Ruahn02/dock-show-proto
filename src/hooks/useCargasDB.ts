@@ -17,7 +17,6 @@ export function mapCargaFromDB(row: any): Carga {
     rua: row.rua ?? undefined,
     divergencia: row.divergencia ?? undefined,
     chegou: row.chegou ?? undefined,
-    senhaId: row.senha_id ?? undefined,
     horarioPrevisto: row.horario_previsto ?? undefined,
     tipoCaminhao: row.tipo_caminhao as TipoCaminhao ?? undefined,
     quantidadeVeiculos: row.quantidade_veiculos ?? undefined,
@@ -38,7 +37,6 @@ function mapCargaToDB(data: Partial<Carga>): any {
   if ('rua' in data) result.rua = data.rua ?? null;
   if ('divergencia' in data) result.divergencia = data.divergencia ?? null;
   if ('chegou' in data) result.chegou = data.chegou ?? null;
-  if ('senhaId' in data) result.senha_id = data.senhaId ?? null;
   if ('horarioPrevisto' in data) result.horario_previsto = data.horarioPrevisto ?? null;
   if ('tipoCaminhao' in data) result.tipo_caminhao = data.tipoCaminhao ?? null;
   if ('quantidadeVeiculos' in data) result.quantidade_veiculos = data.quantidadeVeiculos ?? null;

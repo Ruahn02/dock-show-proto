@@ -18,12 +18,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useSenha } from '@/contexts/SenhaContext';
+import { useProfile } from '@/contexts/ProfileContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
 import { statusCargaLabels } from '@/data/mockData';
 import { Carga, StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { CalendarCheck, CalendarIcon, Download, FileSpreadsheet, MoreHorizontal } from 'lucide-react';
+import { CalendarCheck, CalendarIcon, Download, FileSpreadsheet, MoreHorizontal, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -49,13 +50,15 @@ const getDisplayStatus = (carga: Carga): { label: string; styleKey: string } => 
 };
 
 export default function Agenda() {
-  const { cargas, atualizarCarga, recusarCarga } = useSenha();
+  const { cargas, senhas, atualizarCarga, recusarCarga, finalizarEntrega } = useSenha();
+  const { isAdmin } = useProfile();
   const { atualizarFluxo } = useFluxoOperacional();
   const { fornecedores } = useFornecedoresDB();
   const { conferentes } = useConferentesDB();
   
   const [confirmNoShow, setConfirmNoShow] = useState(false);
   const [confirmRecusado, setConfirmRecusado] = useState(false);
+  const [confirmFinalizar, setConfirmFinalizar] = useState(false);
   const [cargaToUpdate, setCargaToUpdate] = useState<Carga | null>(null);
 
   const [dataSelecionada, setDataSelecionada] = useState<Date>(new Date());
@@ -72,6 +75,32 @@ export default function Agenda() {
     return '';
   };
 
+  // Helper: count senhas emitidas for a carga
+  const getSenhasEmitidas = (cargaId: string) => {
+    return senhas.filter(s => s.cargaId === cargaId && s.status !== 'recusado').length;
+  };
+
+  // Helper: sum volume_conferido from senhas
+  const getVolumeRecebido = (carga: Carga) => {
+    const senhasDaCarga = senhas.filter(s => s.cargaId === carga.id && s.status !== 'recusado');
+    if (senhasDaCarga.length === 0) return carga.volumeConferido ?? undefined;
+    const total = senhasDaCarga.reduce((sum, s) => sum + (s.volumeConferido || 0), 0);
+    return total > 0 ? total : (carga.volumeConferido ?? undefined);
+  };
+
+  // Check if "Finalizar Entrega" should be shown
+  const canFinalizarEntrega = (carga: Carga) => {
+    if (!isAdmin) return false;
+    if (carga.status === 'conferido' || carga.status === 'recusado' || carga.status === 'no_show') return false;
+    const senhasDaCarga = senhas.filter(s => s.cargaId === carga.id && s.status !== 'recusado');
+    if (senhasDaCarga.length === 0) return false;
+    const todasConferidas = senhasDaCarga.every(s => s.status === 'conferido');
+    const senhasEmitidas = senhasDaCarga.length;
+    const qtdVeiculos = carga.quantidadeVeiculos || 1;
+    // All emitted senhas are conferido but fewer than expected
+    return todasConferidas && senhasEmitidas < qtdVeiculos;
+  };
+
   const cargasDeHoje = useMemo(() => cargas.filter(c => c.data === hojeStr), [cargas, hojeStr]);
 
   const fornecedoresDoDia = useMemo(() => {
@@ -86,6 +115,7 @@ export default function Agenda() {
 
   const openNoShowConfirm = (carga: Carga) => { setCargaToUpdate(carga); setConfirmNoShow(true); };
   const openRecusadoConfirm = (carga: Carga) => { setCargaToUpdate(carga); setConfirmRecusado(true); };
+  const openFinalizarConfirm = (carga: Carga) => { setCargaToUpdate(carga); setConfirmFinalizar(true); };
 
   const handleNoShow = async () => {
     if (!cargaToUpdate) return;
@@ -97,9 +127,21 @@ export default function Agenda() {
 
   const handleRecusado = async () => {
     if (!cargaToUpdate) return;
-    await atualizarFluxo({ p_carga_id: cargaToUpdate.id, p_senha_id: cargaToUpdate.senhaId || null, p_novo_status: 'recusado' });
+    await atualizarFluxo({ p_carga_id: cargaToUpdate.id, p_novo_status: 'recusado' });
     toast.success(`Carga marcada como Recusado`);
     setConfirmRecusado(false);
+    setCargaToUpdate(null);
+  };
+
+  const handleFinalizar = async () => {
+    if (!cargaToUpdate) return;
+    try {
+      await finalizarEntrega(cargaToUpdate.id);
+      toast.success('Entrega finalizada com sucesso');
+    } catch {
+      toast.error('Erro ao finalizar entrega');
+    }
+    setConfirmFinalizar(false);
     setCargaToUpdate(null);
   };
 
@@ -107,12 +149,15 @@ export default function Agenda() {
 
   const mapCargaParaLinha = (carga: Carga) => {
     const display = getDisplayStatus(carga);
+    const volRecebido = getVolumeRecebido(carga);
     return {
       'Horário': carga.horarioPrevisto || '-',
       'Fornecedor': getFornecedorNome(carga.fornecedorId),
       'NF(s)': carga.nfs?.join(', ') || '-',
+      'Cam. Prev.': carga.quantidadeVeiculos || 1,
+      'Senhas': getSenhasEmitidas(carga.id),
       'Vol. Previsto': carga.volumePrevisto,
-      'Vol. Recebido': carga.volumeConferido ?? '-',
+      'Vol. Recebido': volRecebido ?? '-',
       'Conferente': getConferenteNome(carga.conferenteId),
       'Rua': carga.rua || '-',
       'Divergência': carga.divergencia || '-',
@@ -131,15 +176,18 @@ export default function Agenda() {
       doc.text(`Fornecedor: ${getFornecedorNome(fornecedorFiltro)}`, 14, 23);
     }
 
-    const headers = ['Horário', 'Fornecedor', 'NF(s)', 'Vol. Prev.', 'Vol. Rec.', 'Conferente', 'Rua', 'Diverg.', 'Status'];
+    const headers = ['Horário', 'Fornecedor', 'NF(s)', 'Cam.', 'Senhas', 'Vol. Prev.', 'Vol. Rec.', 'Conferente', 'Rua', 'Diverg.', 'Status'];
     const rows = cargasFiltradas.map(c => {
       const display = getDisplayStatus(c);
+      const volRecebido = getVolumeRecebido(c);
       return [
         c.horarioPrevisto || '-',
         getFornecedorNome(c.fornecedorId),
         c.nfs?.join(', ') || '-',
+        String(c.quantidadeVeiculos || 1),
+        String(getSenhasEmitidas(c.id)),
         String(c.volumePrevisto),
-        c.volumeConferido != null ? String(c.volumeConferido) : '-',
+        volRecebido != null ? String(volRecebido) : '-',
         getConferenteNome(c.conferenteId),
         c.rua || '-',
         c.divergencia || '-',
@@ -151,7 +199,7 @@ export default function Agenda() {
       head: [headers],
       body: rows,
       startY: fornecedorFiltro !== 'todos' ? 28 : 22,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 7 },
       headStyles: { fillColor: [59, 130, 246] },
     });
 
@@ -227,6 +275,8 @@ export default function Agenda() {
                 <TableHead>Horário</TableHead>
                 <TableHead>Fornecedor</TableHead>
                 <TableHead>NF(s)</TableHead>
+                <TableHead className="text-center">Cam. Prev.</TableHead>
+                <TableHead className="text-center">Senhas</TableHead>
                 <TableHead className="text-right">Vol. Previsto</TableHead>
                 <TableHead className="text-right">Vol. Recebido</TableHead>
                 <TableHead>Conferente</TableHead>
@@ -238,41 +288,55 @@ export default function Agenda() {
             </TableHeader>
             <TableBody>
               {cargasFiltradas.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma entrega agendada para esta data</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma entrega agendada para esta data</TableCell></TableRow>
               ) : (
-                cargasFiltradas.map((carga) => (
-                  <TableRow key={carga.id}>
-                    <TableCell className="whitespace-nowrap">{carga.horarioPrevisto || '-'}</TableCell>
-                    <TableCell className={`font-medium ${getFornecedorColor(carga)}`}>{getFornecedorNome(carga.fornecedorId)}</TableCell>
-                    <TableCell className="text-sm">{carga.nfs?.join(', ') || '-'}</TableCell>
-                    <TableCell className="text-right">{carga.volumePrevisto}</TableCell>
-                    <TableCell className="text-right font-semibold">{carga.volumeConferido ?? '-'}</TableCell>
-                    <TableCell>{getConferenteNome(carga.conferenteId)}</TableCell>
-                    <TableCell>{carga.rua || '-'}</TableCell>
-                    <TableCell className="text-sm">{carga.divergencia || '-'}</TableCell>
-                    <TableCell>
-                    {(() => {
-                      const display = getDisplayStatus(carga);
-                      return (
-                        <Badge variant="outline" className={statusStyles[display.styleKey]}>{display.label}</Badge>
-                      );
-                    })()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {canChangeStatus(carga) && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="gap-1">Ações<MoreHorizontal className="h-4 w-4" /></Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openNoShowConfirm(carga)}>Marcar como No-show</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openRecusadoConfirm(carga)} className="text-red-600">Marcar como Recusado</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                cargasFiltradas.map((carga) => {
+                  const volRecebido = getVolumeRecebido(carga);
+                  return (
+                    <TableRow key={carga.id}>
+                      <TableCell className="whitespace-nowrap">{carga.horarioPrevisto || '-'}</TableCell>
+                      <TableCell className={`font-medium ${getFornecedorColor(carga)}`}>{getFornecedorNome(carga.fornecedorId)}</TableCell>
+                      <TableCell className="text-sm">{carga.nfs?.join(', ') || '-'}</TableCell>
+                      <TableCell className="text-center">{carga.quantidadeVeiculos || 1}</TableCell>
+                      <TableCell className="text-center">{getSenhasEmitidas(carga.id)}</TableCell>
+                      <TableCell className="text-right">{carga.volumePrevisto}</TableCell>
+                      <TableCell className="text-right font-semibold">{volRecebido ?? '-'}</TableCell>
+                      <TableCell>{getConferenteNome(carga.conferenteId)}</TableCell>
+                      <TableCell>{carga.rua || '-'}</TableCell>
+                      <TableCell className="text-sm">{carga.divergencia || '-'}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const display = getDisplayStatus(carga);
+                          return (
+                            <Badge variant="outline" className={statusStyles[display.styleKey]}>{display.label}</Badge>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          {canFinalizarEntrega(carga) && (
+                            <Button size="sm" variant="outline" className="gap-1 text-green-700 border-green-300 hover:bg-green-50"
+                              onClick={() => openFinalizarConfirm(carga)}>
+                              <CheckCircle className="h-4 w-4" />
+                              Finalizar
+                            </Button>
+                          )}
+                          {canChangeStatus(carga) && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-1">Ações<MoreHorizontal className="h-4 w-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openNoShowConfirm(carga)}>Marcar como No-show</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openRecusadoConfirm(carga)} className="text-red-600">Marcar como Recusado</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -306,6 +370,32 @@ export default function Agenda() {
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleRecusado} className="bg-red-600 hover:bg-red-700">Confirmar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={confirmFinalizar} onOpenChange={setConfirmFinalizar}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Finalizar Entrega</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja <strong>finalizar</strong> esta entrega manualmente?
+                {cargaToUpdate && (
+                  <>
+                    <span className="block mt-2 text-foreground">Fornecedor: {getFornecedorNome(cargaToUpdate.fornecedorId)}</span>
+                    <span className="block mt-1 text-muted-foreground">
+                      Senhas emitidas: {getSenhasEmitidas(cargaToUpdate.id)} / Caminhões previstos: {cargaToUpdate.quantidadeVeiculos || 1}
+                    </span>
+                    <span className="block mt-1 text-amber-600">
+                      Atenção: nem todos os caminhões previstos chegaram. A entrega será marcada como conferida com os volumes já recebidos.
+                    </span>
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleFinalizar} className="bg-green-600 hover:bg-green-700">Finalizar Entrega</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

@@ -6,36 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { DocaModal } from '@/components/docas/DocaModal';
 import { AssociarCargaModal } from '@/components/docas/AssociarCargaModal';
@@ -89,18 +70,15 @@ export default function Docas() {
   const [selectedDoca, setSelectedDoca] = useState<Doca | null>(null);
   const [modalMode, setModalMode] = useState<'entrar' | 'finalizar'>('entrar');
   
-  // State para confirmação de recusa
   const [confirmRecusar, setConfirmRecusar] = useState(false);
   const [docaToRecusar, setDocaToRecusar] = useState<Doca | null>(null);
   
-  // State para mover para pátio e gerenciamento de localização
   const [gerenciarModalOpen, setGerenciarModalOpen] = useState(false);
   const [patioConfirmOpen, setPatioConfirmOpen] = useState(false);
   const [trocarDocaModalOpen, setTrocarDocaModalOpen] = useState(false);
   const [patioSenhaId, setPatioSenhaId] = useState<string | null>(null);
   const [docaToLiberar, setDocaToLiberar] = useState<Doca | null>(null);
   
-  // State para retomar do pátio
   const [retomarModalOpen, setRetomarModalOpen] = useState(false);
   const [retomarSenhaId, setRetomarSenhaId] = useState<string | null>(null);
   const [selectedDocaNumero, setSelectedDocaNumero] = useState<string>('');
@@ -108,20 +86,15 @@ export default function Docas() {
   const getCarga = (cargaId?: string) => cargas.find(c => c.id === cargaId);
   const getFornecedor = (fornecedorId?: string) => fornecedores?.find(f => f.id === fornecedorId);
   
-  // Senhas em pátio (para seção inferior)
   const senhasEmPatio = senhas.filter(s => s.localAtual === 'em_patio' && !s.liberada);
-  
-  // Docas livres (para modal de retomar)
   const docasLivres = docas.filter(d => d.status === 'livre');
-
-  // Cargas disponíveis: com status aguardando_chegada e que chegaram
   const cargasDisponiveis = getCargasDisponiveis();
 
   // Senhas órfãs: aguardando doca sem carga vinculada
   const senhasOrfas = senhas.filter(s => 
     s.localAtual === 'aguardando_doca' && 
     !s.liberada && 
-    !cargas.some(c => c.senhaId === s.id)
+    !s.cargaId
   );
 
   const handleVincularCarga = (doca: Doca) => {
@@ -144,31 +117,30 @@ export default function Docas() {
   const handleAssociarCarga = (cargaId: string) => {
     if (!selectedDoca) return;
     
-    const carga = getCarga(cargaId);
+    // Find the senha for this carga that's aguardando_doca
+    const senhaParaDoca = senhas.find(s => 
+      s.cargaId === cargaId && 
+      s.localAtual === 'aguardando_doca' && 
+      !s.liberada
+    );
     
-    // Atualizar doca com cargaId e senhaId
     atualizarDoca(selectedDoca.id, { 
       status: 'ocupada', 
       cargaId, 
-      senhaId: carga?.senhaId 
+      senhaId: senhaParaDoca?.id 
     });
     
-    // Atualizar senha e status da carga via vincularCargaADoca
     vincularCargaADoca(cargaId, selectedDoca.numero);
-    
     toast.success(`Carga associada à Doca ${selectedDoca.numero}`);
   };
 
   const handleAssociarSenha = (senhaId: string) => {
     if (!selectedDoca) return;
-    
-    // Vincular apenas a senha à doca (sem carga)
     atualizarDoca(selectedDoca.id, { 
       status: 'ocupada', 
       senhaId,
     });
     vincularSenhaADoca(senhaId, selectedDoca.numero);
-    
     toast.success(`Senha vinculada à Doca ${selectedDoca.numero}`);
   };
 
@@ -189,60 +161,41 @@ export default function Docas() {
 
   const handleRecusarCarga = async () => {
     if (!docaToRecusar) return;
-    
     await atualizarFluxo({
       p_carga_id: docaToRecusar.cargaId || null,
       p_senha_id: docaToRecusar.senhaId || null,
       p_novo_status: 'recusado',
     });
-    
     toast.success(`Carga recusada${docaToRecusar.numero ? ` - Doca ${docaToRecusar.numero} liberada` : ''}`);
     setConfirmRecusar(false);
     setDocaToRecusar(null);
   };
 
-  // Abrir modal de gerenciamento de localização
   const handleOpenGerenciarLocal = (doca: Doca) => {
-    const carga = getCarga(doca.cargaId);
-    if (carga) {
-      setPatioSenhaId(carga.senhaId || null);
-      setDocaToLiberar(doca);
-      setGerenciarModalOpen(true);
-    }
+    setPatioSenhaId(doca.senhaId || null);
+    setDocaToLiberar(doca);
+    setGerenciarModalOpen(true);
   };
 
-  // Mover para pátio (sem rua)
   const handleConfirmPatio = () => {
     if (!docaToLiberar) return;
-    
-    // Se tiver senha vinculada, mover para pátio
     if (patioSenhaId) {
       moverParaPatio(patioSenhaId);
     }
-    
-    // Liberar a doca
     atualizarDoca(docaToLiberar.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
-    
     toast.success(`Caminhão movido para pátio`);
     setPatioConfirmOpen(false);
     setGerenciarModalOpen(false);
     setPatioSenhaId(null);
   };
 
-  // Trocar de doca
   const handleConfirmTrocarDoca = () => {
     if (!docaToLiberar || !selectedDocaNumero) return;
-    
     const novaDocaNumero = parseInt(selectedDocaNumero);
     const novaDoca = docas.find(d => d.numero === novaDocaNumero);
-    
     if (!novaDoca) return;
     
-    const carga = getCarga(docaToLiberar.cargaId);
-    
-    // Liberar doca antiga
     atualizarDoca(docaToLiberar.id, { status: 'livre', cargaId: undefined, conferenteId: undefined, volumeConferido: undefined, rua: undefined, senhaId: undefined });
-    // Mover dados para nova doca
     atualizarDoca(novaDoca.id, {
       status: docaToLiberar.status,
       cargaId: docaToLiberar.cargaId,
@@ -252,7 +205,6 @@ export default function Docas() {
       senhaId: docaToLiberar.senhaId
     });
     
-    // Atualizar senha se existir
     if (patioSenhaId) {
       vincularSenhaADoca(patioSenhaId, novaDocaNumero);
     }
@@ -263,7 +215,6 @@ export default function Docas() {
     setSelectedDocaNumero('');
   };
 
-  // Retomar do pátio
   const handleOpenRetomar = (senhaId: string) => {
     setRetomarSenhaId(senhaId);
     setSelectedDocaNumero('');
@@ -272,23 +223,21 @@ export default function Docas() {
 
   const handleConfirmRetomar = () => {
     if (!retomarSenhaId || !selectedDocaNumero) return;
-    
     const docaNumero = parseInt(selectedDocaNumero);
     const doca = docas.find(d => d.numero === docaNumero);
-    
     if (!doca) return;
     
-    // Atualizar doca para ocupada, preservando cargaId
-    const cargaDaSenha = cargas.find(c => c.senhaId === retomarSenhaId);
+    // Find carga linked to this senha
+    const senhaDoPatio = senhas.find(s => s.id === retomarSenhaId);
+    const cargaDaSenha = senhaDoPatio?.cargaId ? cargas.find(c => c.id === senhaDoPatio.cargaId) : undefined;
+    
     atualizarDoca(doca.id, {
       status: 'ocupada',
       senhaId: retomarSenhaId,
       cargaId: cargaDaSenha?.id
     });
     
-    // Retomar senha do pátio
     retomarDoPatio(retomarSenhaId, docaNumero);
-    
     toast.success(`Caminhão retomado para Doca ${docaNumero}`);
     setRetomarModalOpen(false);
   };
@@ -299,13 +248,11 @@ export default function Docas() {
     const isPatioConferencia = selectedDoca.id.startsWith('patio_');
 
     if (modalMode === 'entrar') {
-      // COMEÇAR CONFERÊNCIA via RPC
-      const cargaCheck = getCarga(selectedDoca.cargaId);
-      if (!isPatioConferencia && !selectedDoca.senhaId && !cargaCheck?.senhaId) return;
+      if (!isPatioConferencia && !selectedDoca.senhaId) return;
       
       await atualizarFluxo({
         p_carga_id: selectedDoca.cargaId || null,
-        p_senha_id: selectedDoca.senhaId || cargaCheck?.senhaId || null,
+        p_senha_id: selectedDoca.senhaId || null,
         p_novo_status: 'em_conferencia',
         p_conferente_id: data.conferenteId || null,
         p_rua: data.rua || null,
@@ -315,14 +262,21 @@ export default function Docas() {
       const localMsg = isPatioConferencia ? 'no Pátio' : `na Doca ${selectedDoca.numero}`;
       toast.success(`Conferência iniciada ${localMsg}`);
     } else {
-      // TERMINAR CONFERÊNCIA via RPC
       const carga = getCarga(selectedDoca.cargaId);
       const conferenteAtual = selectedDoca.conferenteId || data.conferenteId;
       const ruaAtual = selectedDoca.rua || data.rua;
       
+      // Check if this is the last senha to be conferido for this carga
+      let isUltimaSenha = true;
+      if (carga) {
+        const senhasDaCarga = senhas.filter(s => s.cargaId === carga.id && s.status !== 'recusado');
+        const senhasPendentes = senhasDaCarga.filter(s => s.id !== selectedDoca.senhaId && s.status !== 'conferido');
+        isUltimaSenha = senhasPendentes.length === 0;
+      }
+      
       await atualizarFluxo({
         p_carga_id: selectedDoca.cargaId || null,
-        p_senha_id: selectedDoca.senhaId || carga?.senhaId || null,
+        p_senha_id: selectedDoca.senhaId || null,
         p_novo_status: 'conferido',
         p_volume_conferido: data.volume ?? null,
         p_conferente_id: conferenteAtual || null,
@@ -330,15 +284,21 @@ export default function Docas() {
         p_divergencia: data.divergencia || null,
       });
       
-      // Adicionar carga automaticamente à tela de Cross Docking
-      if (carga) {
+      // Only add to Cross Docking if ALL senhas of this carga are now conferido
+      if (carga && isUltimaSenha) {
+        const senhasDaCarga = senhas.filter(s => s.cargaId === carga.id && s.status !== 'recusado');
+        const totalVolume = senhasDaCarga.reduce((sum, s) => {
+          if (s.id === selectedDoca.senhaId) return sum + (data.volume || 0);
+          return sum + (s.volumeConferido || 0);
+        }, 0);
+        
         adicionarCross({
           cargaId: selectedDoca.cargaId!,
           fornecedorId: carga.fornecedorId,
           nfs: carga.nfs,
           data: carga.data,
           rua: ruaAtual || data.rua || '',
-          volumeRecebido: data.volume || 0
+          volumeRecebido: totalVolume
         });
       }
       
@@ -373,7 +333,6 @@ export default function Docas() {
           )}
         </div>
 
-        {/* Seção: Docas */}
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
@@ -402,12 +361,8 @@ export default function Docas() {
                     <TableCell className="font-bold text-lg">#{doca.numero}</TableCell>
                     <TableCell>{fornecedor?.nome || '-'}</TableCell>
                     <TableCell>{carga?.nfs.join(', ') || '-'}</TableCell>
-                    <TableCell className="text-right">
-                      {carga?.volumePrevisto || '-'}
-                    </TableCell>
-                    <TableCell>
-                      {doca.rua || carga?.rua || senha?.rua || '-'}
-                    </TableCell>
+                    <TableCell className="text-right">{carga?.volumePrevisto || '-'}</TableCell>
+                    <TableCell>{doca.rua || carga?.rua || senha?.rua || '-'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={statusStyles[doca.status]}>
                         {statusDocaLabels[doca.status]}
@@ -415,55 +370,30 @@ export default function Docas() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {/* Doca LIVRE - Admin: Vincular Carga + Uso e Consumo */}
                         {doca.status === 'livre' && isAdmin && (
                           <>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleVincularCarga(doca)}
-                            >
+                            <Button variant="outline" size="sm" onClick={() => handleVincularCarga(doca)}>
                               Vincular Carga
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleUsoConsumo(doca)}
-                              title="Uso e Consumo"
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => handleUsoConsumo(doca)} title="Uso e Consumo">
                               <Coffee className="h-4 w-4" />
                             </Button>
                           </>
                         )}
 
-                        {/* Doca OCUPADA - Todos: Começar Conferência / Admin: Recusar + Pátio */}
                         {doca.status === 'ocupada' && (
                           <>
                             {doca.senhaId && (
-                              <Button 
-                                size="sm"
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                                onClick={() => handleComecarConferencia(doca)}
-                              >
+                              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold" onClick={() => handleComecarConferencia(doca)}>
                                 COMEÇAR CONFERÊNCIA
                               </Button>
                             )}
                             {isAdmin && (
                               <>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleOpenGerenciarLocal(doca)}
-                                  title="Gerenciar Localização"
-                                >
+                                <Button variant="outline" size="sm" onClick={() => handleOpenGerenciarLocal(doca)} title="Gerenciar Localização">
                                   <MapPin className="h-4 w-4" />
                                 </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => openRecusarConfirm(doca)}
-                                  title="Recusar Carga"
-                                >
+                                <Button variant="destructive" size="sm" onClick={() => openRecusarConfirm(doca)} title="Recusar Carga">
                                   <XCircle className="h-4 w-4" />
                                 </Button>
                               </>
@@ -471,32 +401,17 @@ export default function Docas() {
                           </>
                         )}
 
-                        {/* Doca EM CONFERÊNCIA - Todos: Terminar Conferência / Admin: Recusar + Pátio */}
                         {doca.status === 'em_conferencia' && (
                           <>
-                            <Button 
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700 text-white font-semibold"
-                              onClick={() => handleTerminarConferencia(doca)}
-                            >
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white font-semibold" onClick={() => handleTerminarConferencia(doca)}>
                               TERMINAR CONFERÊNCIA
                             </Button>
                             {isAdmin && (
                               <>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleOpenGerenciarLocal(doca)}
-                                  title="Gerenciar Localização"
-                                >
+                                <Button variant="outline" size="sm" onClick={() => handleOpenGerenciarLocal(doca)} title="Gerenciar Localização">
                                   <MapPin className="h-4 w-4" />
                                 </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => openRecusarConfirm(doca)}
-                                  title="Recusar Carga"
-                                >
+                                <Button variant="destructive" size="sm" onClick={() => openRecusarConfirm(doca)} title="Recusar Carga">
                                   <XCircle className="h-4 w-4" />
                                 </Button>
                               </>
@@ -504,27 +419,15 @@ export default function Docas() {
                           </>
                         )}
 
-                        {/* Doca CONFERIDO - Admin: Liberar (se não liberou automaticamente) */}
                         {doca.status === 'conferido' && isAdmin && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleLiberar(doca)}
-                            className="gap-1"
-                          >
+                          <Button variant="outline" size="sm" onClick={() => handleLiberar(doca)} className="gap-1">
                             <Unlock className="h-4 w-4" />
                             Liberar Doca
                           </Button>
                         )}
 
-                        {/* Doca USO E CONSUMO - Admin: Liberar */}
                         {doca.status === 'uso_consumo' && isAdmin && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleLiberar(doca)}
-                            className="gap-1"
-                          >
+                          <Button variant="outline" size="sm" onClick={() => handleLiberar(doca)} className="gap-1">
                             <Unlock className="h-4 w-4" />
                             Liberar
                           </Button>
@@ -538,7 +441,7 @@ export default function Docas() {
           </Table>
         </div>
 
-        {/* Seção: Cargas em Pátio */}
+        {/* Cargas em Pátio */}
         {senhasEmPatio.length > 0 && (
           <Card>
             <CardHeader>
@@ -551,7 +454,7 @@ export default function Docas() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                     <TableHead className="w-20">Senha</TableHead>
+                    <TableHead className="w-20">Senha</TableHead>
                     <TableHead>Fornecedor</TableHead>
                     <TableHead>NF(s)</TableHead>
                     <TableHead className="text-right">Vol. Previsto</TableHead>
@@ -564,7 +467,7 @@ export default function Docas() {
                 </TableHeader>
                 <TableBody>
                   {senhasEmPatio.map((senha) => {
-                    const cargaDaSenha = cargas.find(c => c.senhaId === senha.id);
+                    const cargaDaSenha = senha.cargaId ? cargas.find(c => c.id === senha.cargaId) : undefined;
                     
                     return (
                       <TableRow key={senha.id}>
@@ -578,16 +481,13 @@ export default function Docas() {
                         <TableCell>{tipoCaminhaoLabels[senha.tipoCaminhao]}</TableCell>
                         <TableCell>{cargaDaSenha?.rua || senha.rua || '-'}</TableCell>
                         <TableCell>
-                          <Badge 
-                            variant="outline" 
-                            className={
-                              senha.status === 'em_conferencia' 
-                                ? 'bg-blue-100 text-blue-800 border-blue-300'
-                                : senha.status === 'conferido'
-                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                  : 'bg-orange-50 text-orange-700 border-orange-200'
-                            }
-                          >
+                          <Badge variant="outline" className={
+                            senha.status === 'em_conferencia' 
+                              ? 'bg-blue-100 text-blue-800 border-blue-300'
+                              : senha.status === 'conferido'
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                : 'bg-orange-50 text-orange-700 border-orange-200'
+                          }>
                             {senha.status === 'em_conferencia' ? 'Em Conferência' 
                               : senha.status === 'conferido' ? 'Conferido' 
                               : 'Aguardando'}
@@ -595,13 +495,9 @@ export default function Docas() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {/* Começar Conferência - se não está conferindo nem conferido */}
                             {senha.status !== 'em_conferencia' && senha.status !== 'conferido' && (
-                              <Button 
-                                size="sm"
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"
                                 onClick={() => {
-                                  // Criar uma doca virtual para o modal
                                   const docaVirtual: Doca = {
                                     id: `patio_${senha.id}`,
                                     numero: 0,
@@ -618,11 +514,8 @@ export default function Docas() {
                               </Button>
                             )}
                             
-                            {/* Terminar Conferência - se está conferindo */}
                             {senha.status === 'em_conferencia' && (
-                              <Button 
-                                size="sm"
-                                className="bg-green-600 hover:bg-green-700 text-white"
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white"
                                 onClick={() => {
                                   const docaVirtual: Doca = {
                                     id: `patio_${senha.id}`,
@@ -642,11 +535,8 @@ export default function Docas() {
                               </Button>
                             )}
                             
-                            {/* Recusar - se não está conferido */}
                             {isAdmin && senha.status !== 'conferido' && cargaDaSenha && (
-                              <Button 
-                                variant="destructive" 
-                                size="sm"
+                              <Button variant="destructive" size="sm"
                                 onClick={() => {
                                   const docaVirtual: Doca = {
                                     id: `patio_${senha.id}`,
@@ -664,14 +554,8 @@ export default function Docas() {
                               </Button>
                             )}
                             
-                            {/* Retomar para Doca */}
                             {isAdmin && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleOpenRetomar(senha.id)}
-                                className="gap-1"
-                              >
+                              <Button variant="outline" size="sm" onClick={() => handleOpenRetomar(senha.id)} className="gap-1">
                                 <RotateCcw className="h-4 w-4" />
                                 Retomar
                               </Button>
@@ -687,13 +571,7 @@ export default function Docas() {
           </Card>
         )}
 
-        <DocaModal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          doca={selectedDoca}
-          onConfirm={handleModalConfirm}
-          mode={modalMode}
-        />
+        <DocaModal open={modalOpen} onClose={() => setModalOpen(false)} doca={selectedDoca} onConfirm={handleModalConfirm} mode={modalMode} />
 
         <AssociarCargaModal
           open={associarModalOpen}
@@ -706,7 +584,7 @@ export default function Docas() {
           onConfirmSenha={handleAssociarSenha}
         />
 
-        {/* Confirmation Dialog - Recusar Carga */}
+        {/* Confirmation Dialog - Recusar */}
         <AlertDialog open={confirmRecusar} onOpenChange={setConfirmRecusar}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -739,30 +617,15 @@ export default function Docas() {
               <DialogTitle>Gerenciar Localização</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <p className="text-sm text-muted-foreground">
-                Escolha a ação para esta carga:
-              </p>
+              <p className="text-sm text-muted-foreground">Escolha a ação para esta carga:</p>
               <div className="flex flex-col gap-2">
-                <Button 
-                  variant="outline" 
-                  className="justify-start gap-2"
-                  onClick={() => {
-                    setGerenciarModalOpen(false);
-                    setPatioConfirmOpen(true);
-                  }}
-                >
+                <Button variant="outline" className="justify-start gap-2"
+                  onClick={() => { setGerenciarModalOpen(false); setPatioConfirmOpen(true); }}>
                   <MapPin className="h-4 w-4" />
                   Mover para Pátio
                 </Button>
-                <Button 
-                  variant="outline" 
-                  className="justify-start gap-2"
-                  onClick={() => {
-                    setGerenciarModalOpen(false);
-                    setSelectedDocaNumero('');
-                    setTrocarDocaModalOpen(true);
-                  }}
-                >
+                <Button variant="outline" className="justify-start gap-2"
+                  onClick={() => { setGerenciarModalOpen(false); setSelectedDocaNumero(''); setTrocarDocaModalOpen(true); }}>
                   <RotateCcw className="h-4 w-4" />
                   Trocar de Doca
                 </Button>
@@ -774,23 +637,19 @@ export default function Docas() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Confirmação Mover para Pátio */}
+        {/* Modal: Confirmação Pátio */}
         <AlertDialog open={patioConfirmOpen} onOpenChange={setPatioConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Mover para Pátio</AlertDialogTitle>
               <AlertDialogDescription>
                 Confirma mover esta carga para o pátio?
-                <span className="block mt-2 text-muted-foreground">
-                  A carga será removida da doca e ficará aguardando no pátio.
-                </span>
+                <span className="block mt-2 text-muted-foreground">A carga será removida da doca e ficará aguardando no pátio.</span>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmPatio}>
-                Confirmar
-              </AlertDialogAction>
+              <AlertDialogAction onClick={handleConfirmPatio}>Confirmar</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -802,23 +661,17 @@ export default function Docas() {
               <DialogTitle>Trocar de Doca</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <p className="text-sm text-muted-foreground">
-                Selecione a nova doca para esta carga:
-              </p>
+              <p className="text-sm text-muted-foreground">Selecione a nova doca para esta carga:</p>
               <div className="space-y-2">
                 <Label>Selecione a Doca</Label>
                 <Select value={selectedDocaNumero} onValueChange={setSelectedDocaNumero}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma doca livre..." />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Selecione uma doca livre..." /></SelectTrigger>
                   <SelectContent>
                     {docasLivres.length === 0 ? (
                       <SelectItem value="-" disabled>Nenhuma doca livre</SelectItem>
                     ) : (
                       docasLivres.map((doca) => (
-                        <SelectItem key={doca.id} value={String(doca.numero)}>
-                          Doca {doca.numero}
-                        </SelectItem>
+                        <SelectItem key={doca.id} value={String(doca.numero)}>Doca {doca.numero}</SelectItem>
                       ))
                     )}
                   </SelectContent>
@@ -842,17 +695,13 @@ export default function Docas() {
               <div className="space-y-2">
                 <Label>Selecione a Doca</Label>
                 <Select value={selectedDocaNumero} onValueChange={setSelectedDocaNumero}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma doca livre..." />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Selecione uma doca livre..." /></SelectTrigger>
                   <SelectContent>
                     {docasLivres.length === 0 ? (
                       <SelectItem value="-" disabled>Nenhuma doca livre</SelectItem>
                     ) : (
                       docasLivres.map((doca) => (
-                        <SelectItem key={doca.id} value={String(doca.numero)}>
-                          Doca {doca.numero}
-                        </SelectItem>
+                        <SelectItem key={doca.id} value={String(doca.numero)}>Doca {doca.numero}</SelectItem>
                       ))
                     )}
                   </SelectContent>
