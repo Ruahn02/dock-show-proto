@@ -23,12 +23,11 @@ import { Badge } from '@/components/ui/badge';
 type View = 'menu' | 'formulario' | 'minhasSenhas' | 'acompanhamento';
 
 export default function SenhaCaminhoneiro() {
-  const { gerarSenha, getSenhaById, cargas, marcarChegada, senhas } = useSenha();
+  const { gerarSenha, getSenhaById, cargas, senhas, atualizarCarga } = useSenha();
   const { fornecedores } = useFornecedoresDB();
 
   const dataHoje = format(new Date(), 'yyyy-MM-dd');
 
-  // Senhas do dispositivo que existem no contexto e são de hoje
   const deviceSenhaIds = getDeviceSenhas();
   const senhasDoDispositivo = useMemo(() => {
     return senhas.filter(s => deviceSenhaIds.includes(s.id));
@@ -38,7 +37,6 @@ export default function SenhaCaminhoneiro() {
     s => s.status !== 'conferido' && s.status !== 'recusado' && !s.liberada
   );
 
-  // Determinar view inicial
   const [view, setView] = useState<View>(() =>
     senhasDoDispositivo.length > 0 ? 'menu' : 'formulario'
   );
@@ -47,7 +45,6 @@ export default function SenhaCaminhoneiro() {
   const [nomeMotorista, setNomeMotorista] = useState('');
   const [tipoCaminhao, setTipoCaminhao] = useState<TipoCaminhao | ''>('');
 
-  // Se as senhas carregarem depois (async), recalcular view inicial
   useEffect(() => {
     if (view === 'formulario' && senhasDoDispositivo.length > 0 && !senhaGeradaId) {
       setView('menu');
@@ -65,22 +62,36 @@ export default function SenhaCaminhoneiro() {
     if (!nomeMotorista.trim()) { toast.error('Informe o nome do motorista'); return; }
     if (!tipoCaminhao) { toast.error('Selecione o tipo de veículo'); return; }
 
+    // Find available carga for this fornecedor today
+    const cargaDisponivel = cargas.find(
+      c => c.fornecedorId === fornecedorId && c.data === dataHoje &&
+           c.status !== 'conferido' && c.status !== 'recusado' && c.status !== 'no_show'
+    );
+
+    // Check limit: count senhas already emitted for this carga
+    if (cargaDisponivel && cargaDisponivel.quantidadeVeiculos) {
+      const senhasEmitidas = senhas.filter(
+        s => s.cargaId === cargaDisponivel.id && s.status !== 'recusado'
+      ).length;
+      if (senhasEmitidas >= cargaDisponivel.quantidadeVeiculos) {
+        toast.error('Limite de caminhões para esta entrega atingido.');
+        return;
+      }
+    }
+
     try {
       const senha = await gerarSenha({
         fornecedorId,
         nomeMotorista: nomeMotorista.trim(),
         tipoCaminhao: tipoCaminhao as TipoCaminhao,
+        cargaId: cargaDisponivel?.id,
       });
 
-      // Salvar no localStorage
       saveDeviceSenha(senha.id);
 
-      // Marcar chegada na primeira carga disponível
-      const cargaDisponivel = cargas.find(
-        c => c.fornecedorId === fornecedorId && c.data === dataHoje && c.status === 'aguardando_chegada' && !c.chegou
-      );
-      if (cargaDisponivel) {
-        await marcarChegada(cargaDisponivel.id, senha.id);
+      // Mark carga as arrived
+      if (cargaDisponivel && !cargaDisponivel.chegou) {
+        await atualizarCarga(cargaDisponivel.id, { chegou: true });
       }
 
       setSenhaGeradaId(senha.id);
@@ -132,7 +143,6 @@ export default function SenhaCaminhoneiro() {
     }
   };
 
-  // ===== HEADER (compartilhado) =====
   const header = (
     <div className="text-center mb-8">
       <div className="flex justify-center mb-4">

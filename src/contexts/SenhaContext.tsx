@@ -20,6 +20,7 @@ interface GerarSenhaData {
   fornecedorId: string;
   nomeMotorista: string;
   tipoCaminhao: TipoCaminhao;
+  cargaId?: string;
 }
 
 interface SenhaContextType {
@@ -30,6 +31,7 @@ interface SenhaContextType {
   getSenhaById: (senhaId: string) => Senha | undefined;
   getSenhaByFornecedor: (fornecedorId: string) => Senha | undefined;
   getSenhasAtivas: () => Senha[];
+  getSenhasByCarga: (cargaId: string) => Senha[];
   vincularSenhaADoca: (senhaId: string, docaNumero: number) => Promise<void>;
   liberarSenha: (senhaId: string) => Promise<void>;
   moverParaPatio: (senhaId: string) => Promise<void>;
@@ -38,10 +40,10 @@ interface SenhaContextType {
   atualizarStatusSenha: (senhaId: string, status: StatusSenha) => Promise<void>;
   vincularCargaADoca: (cargaId: string, docaNumero: number) => void;
   recusarCarga: (cargaId: string | null, senhaId?: string) => Promise<void>;
-  marcarChegada: (cargaId: string, senhaId: string) => Promise<void>;
   atualizarCarga: (cargaId: string, updates: Partial<Carga>) => Promise<void>;
   getCargasDisponiveis: () => Carga[];
   adicionarCarga: (data: AdicionarCargaData) => Promise<void>;
+  finalizarEntrega: (cargaId: string) => Promise<void>;
 }
 
 const SenhaContext = createContext<SenhaContextType | undefined>(undefined);
@@ -56,6 +58,7 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
       nomeMotorista: data.nomeMotorista,
       tipoCaminhao: data.tipoCaminhao,
       horaChegada: format(new Date(), 'HH:mm'),
+      cargaId: data.cargaId,
     });
     return nova;
   }, [criarSenhaDB]);
@@ -74,6 +77,10 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
 
   const getSenhasAtivas = useCallback(() => {
     return senhas.filter(s => !s.liberada && s.status !== 'recusado');
+  }, [senhas]);
+
+  const getSenhasByCarga = useCallback((cargaId: string) => {
+    return senhas.filter(s => s.cargaId === cargaId);
   }, [senhas]);
 
   const vincularSenhaADoca = useCallback(async (senhaId: string, docaNumero: number) => {
@@ -113,17 +120,21 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
   }, [atualizarSenhaDB]);
 
   const vincularCargaADoca = useCallback((cargaId: string, docaNumero: number) => {
-    const carga = cargas.find(c => c.id === cargaId);
-    if (carga?.senhaId) {
-      atualizarSenhaDB(carga.senhaId, {
+    // Find the senha for this carga that is aguardando_doca
+    const senhaParaDoca = senhas.find(s =>
+      s.cargaId === cargaId &&
+      s.localAtual === 'aguardando_doca' &&
+      !s.liberada
+    );
+    if (senhaParaDoca) {
+      atualizarSenhaDB(senhaParaDoca.id, {
         status: 'em_doca' as StatusSenha,
         localAtual: 'em_doca' as LocalSenha,
         docaNumero,
       });
     }
-    // Atualizar status da carga para aguardando_conferencia
     atualizarCargaDB(cargaId, { status: 'aguardando_conferencia' });
-  }, [cargas, atualizarSenhaDB, atualizarCargaDB]);
+  }, [senhas, atualizarSenhaDB, atualizarCargaDB]);
 
   const recusarCarga = useCallback(async (cargaId: string | null, senhaId?: string) => {
     await supabase.rpc('rpc_atualizar_fluxo_carga', {
@@ -132,10 +143,6 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
       p_novo_status: 'recusado',
     });
   }, []);
-
-  const marcarChegada = useCallback(async (cargaId: string, senhaId: string) => {
-    await atualizarCargaDB(cargaId, { chegou: true, senhaId });
-  }, [atualizarCargaDB]);
 
   const atualizarCargaFn = useCallback(async (cargaId: string, updates: Partial<Carga>) => {
     await atualizarCargaDB(cargaId, updates);
@@ -161,6 +168,16 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
     });
   }, [criarCargaDB]);
 
+  const finalizarEntrega = useCallback(async (cargaId: string) => {
+    const { error } = await supabase.rpc('rpc_finalizar_entrega', {
+      p_carga_id: cargaId,
+    });
+    if (error) {
+      console.error('Erro ao finalizar entrega:', error);
+      throw error;
+    }
+  }, []);
+
   return (
     <SenhaContext.Provider value={{
       senhas,
@@ -170,6 +187,7 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
       getSenhaById,
       getSenhaByFornecedor,
       getSenhasAtivas,
+      getSenhasByCarga,
       vincularSenhaADoca,
       liberarSenha,
       moverParaPatio,
@@ -178,10 +196,10 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
       atualizarStatusSenha,
       vincularCargaADoca,
       recusarCarga,
-      marcarChegada,
       atualizarCarga: atualizarCargaFn,
       getCargasDisponiveis,
       adicionarCarga,
+      finalizarEntrega,
     }}>
       {children}
     </SenhaContext.Provider>
