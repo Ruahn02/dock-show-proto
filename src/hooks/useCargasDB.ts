@@ -86,6 +86,39 @@ export function useCargasDB() {
     quantidadeVeiculos?: number;
     solicitacaoId?: string;
   }) => {
+    // Verificar se já existe carga do mesmo fornecedor na mesma data com status aguardando_chegada
+    const { data: existente } = await supabase
+      .from('cargas')
+      .select('*')
+      .eq('fornecedor_id', dados.fornecedorId)
+      .eq('data', dados.data)
+      .eq('status', 'aguardando_chegada')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (existente) {
+      // Unificar: somar volumes e veículos, concatenar NFs
+      const nfsAtualizadas = [...(existente.nfs || []), ...dados.nfs];
+      const { data: atualizada, error } = await supabase
+        .from('cargas')
+        .update({
+          volume_previsto: existente.volume_previsto + dados.volumePrevisto,
+          quantidade_veiculos: (existente.quantidade_veiculos || 1) + (dados.quantidadeVeiculos || 1),
+          nfs: nfsAtualizadas,
+        })
+        .eq('id', existente.id)
+        .select()
+        .single();
+      if (!error && atualizada) {
+        const unificada = mapCargaFromDB(atualizada);
+        setCargas(prev => prev.map(c => c.id === existente.id ? unificada : c));
+        return unificada;
+      }
+      throw error;
+    }
+
+    // Se não existir, criar nova carga normalmente
     const { data, error } = await supabase
       .from('cargas')
       .insert({
