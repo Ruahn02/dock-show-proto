@@ -1,55 +1,42 @@
 
 
-# Unificacao Automatica de Cargas no Agendamento
+# Polling de 15 segundos em todos os hooks de dados
 
-## Analise
+Adicionar `setInterval` de 15 segundos em todos os hooks que fazem fetch de dados do Supabase, mantendo o Realtime existente como camada principal.
 
-O status "agendado" nao existe no sistema. O equivalente e `aguardando_chegada` — cargas criadas que ainda nao tiveram chegada de caminhao. A unificacao deve verificar esse status.
+## Hooks que serao alterados
 
-**Pontos de criacao de cargas:**
-1. `AgendamentoPlanejamento.tsx` → chama `criarCarga` do hook
-2. `SenhaContext.tsx` → `adicionarCarga` (aprovacao de solicitacoes)
+| Hook | Arquivo |
+|---|---|
+| `useFluxoOperacional` | `src/hooks/useFluxoOperacional.ts` |
+| `useCargasDB` | `src/hooks/useCargasDB.ts` |
+| `useSenhasDB` | `src/hooks/useSenhasDB.ts` |
+| `useDocasDB` | `src/hooks/useDocasDB.ts` |
+| `useCrossDB` | `src/hooks/useCrossDB.ts` |
+| `useConferentesDB` | `src/hooks/useConferentesDB.ts` |
+| `useFornecedoresDB` | `src/hooks/useFornecedoresDB.ts` |
+| `useSolicitacoesDB` | `src/hooks/useSolicitacoesDB.ts` |
 
-Ambos passam por `useCargasDB.criarCarga`, entao a logica centralizada nesse hook cobre todos os casos.
+## O que muda em cada hook
 
-**Impacto em outros fluxos:** Nenhum. Senhas, conferencia e cross docking trabalham com `carga_id` — se a carga e unificada antes de qualquer senha ser gerada, tudo funciona normalmente. As NFs tambem serao concatenadas para nao perder informacao.
-
-## Alteracao
-
-### `src/hooks/useCargasDB.ts` — funcao `criarCarga`
-
-Antes do `insert`, adicionar verificacao:
+Dentro do `useEffect` que ja faz o `fetchDados()` inicial e configura o Realtime, adicionar um `setInterval` de 15 segundos e limpa-lo no cleanup:
 
 ```typescript
-// 1. Buscar carga existente (mesmo fornecedor + mesma data + aguardando_chegada)
-const { data: existente } = await supabase
-  .from('cargas')
-  .select('*')
-  .eq('fornecedor_id', dados.fornecedorId)
-  .eq('data', dados.data)
-  .eq('status', 'aguardando_chegada')
-  .order('created_at', { ascending: true })
-  .limit(1)
-  .maybeSingle();
+useEffect(() => {
+  fetchDados();
+  const interval = setInterval(fetchDados, 15000);
 
-// 2. Se existir, atualizar somando valores
-if (existente) {
-  const nfsAtualizadas = [...(existente.nfs || []), ...dados.nfs];
-  const { data: atualizada, error } = await supabase
-    .from('cargas')
-    .update({
-      volume_previsto: existente.volume_previsto + dados.volumePrevisto,
-      quantidade_veiculos: (existente.quantidade_veiculos || 1) + (dados.quantidadeVeiculos || 1),
-      nfs: nfsAtualizadas,
-    })
-    .eq('id', existente.id)
-    .select()
-    .single();
-  // retornar carga atualizada
-}
+  const channel = supabase
+    .channel('...')
+    .on('postgres_changes', { ... }, () => fetchDados())
+    .subscribe();
 
-// 3. Se nao existir, insert normal (codigo atual)
+  return () => {
+    clearInterval(interval);
+    supabase.removeChannel(channel);
+  };
+}, [fetchDados]);
 ```
 
-Nenhuma alteracao em banco, RPCs, triggers ou outros arquivos.
+Nenhuma outra alteracao -- a logica de Realtime continua identica, o polling apenas garante que os dados se atualizem mesmo se o WebSocket falhar.
 
