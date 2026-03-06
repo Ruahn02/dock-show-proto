@@ -576,7 +576,19 @@ export default function Docas() {
           </Card>
         )}
 
-        <DocaModal open={modalOpen} onClose={() => setModalOpen(false)} doca={selectedDoca} onConfirm={handleModalConfirm} mode={modalMode} />
+        <DocaModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          doca={selectedDoca}
+          onConfirm={handleModalConfirm}
+          mode={modalMode}
+          volumePrevisto={(() => {
+            if (modalMode !== 'finalizar' || !selectedDoca) return undefined;
+            const carga = getCarga(selectedDoca.cargaId);
+            if (!carga) return undefined;
+            return Math.round(carga.volumePrevisto / (carga.quantidadeVeiculos || 1));
+          })()}
+        />
 
         <AssociarCargaModal
           open={associarModalOpen}
