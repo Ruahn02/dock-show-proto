@@ -1,42 +1,46 @@
 
 
-# Polling de 15 segundos em todos os hooks de dados
+# Alerta de Divergencia na Finalizacao de Conferencia
 
-Adicionar `setInterval` de 15 segundos em todos os hooks que fazem fetch de dados do Supabase, mantendo o Realtime existente como camada principal.
+## Arquivo principal: `src/components/docas/DocaModal.tsx`
 
-## Hooks que serao alterados
+Toda a implementacao sera neste unico arquivo, com uma pequena alteracao em `src/pages/Docas.tsx` para passar o volume previsto.
 
-| Hook | Arquivo |
-|---|---|
-| `useFluxoOperacional` | `src/hooks/useFluxoOperacional.ts` |
-| `useCargasDB` | `src/hooks/useCargasDB.ts` |
-| `useSenhasDB` | `src/hooks/useSenhasDB.ts` |
-| `useDocasDB` | `src/hooks/useDocasDB.ts` |
-| `useCrossDB` | `src/hooks/useCrossDB.ts` |
-| `useConferentesDB` | `src/hooks/useConferentesDB.ts` |
-| `useFornecedoresDB` | `src/hooks/useFornecedoresDB.ts` |
-| `useSolicitacoesDB` | `src/hooks/useSolicitacoesDB.ts` |
+## Alteracoes
 
-## O que muda em cada hook
+### 1. `src/pages/Docas.tsx` — Passar volume previsto ao modal
 
-Dentro do `useEffect` que ja faz o `fetchDados()` inicial e configura o Realtime, adicionar um `setInterval` de 15 segundos e limpa-lo no cleanup:
+Quando `modalMode === 'finalizar'`, calcular o volume previsto por caminhao:
 
-```typescript
-useEffect(() => {
-  fetchDados();
-  const interval = setInterval(fetchDados, 15000);
-
-  const channel = supabase
-    .channel('...')
-    .on('postgres_changes', { ... }, () => fetchDados())
-    .subscribe();
-
-  return () => {
-    clearInterval(interval);
-    supabase.removeChannel(channel);
-  };
-}, [fetchDados]);
+```
+volumePrevisto = carga.volumePrevisto / (carga.quantidadeVeiculos || 1)
 ```
 
-Nenhuma outra alteracao -- a logica de Realtime continua identica, o polling apenas garante que os dados se atualizem mesmo se o WebSocket falhar.
+Passar como nova prop `volumePrevisto` ao `DocaModal`.
+
+### 2. `src/components/docas/DocaModal.tsx` — Duas alteracoes
+
+**Props**: Adicionar `volumePrevisto?: number` na interface `DocaModalProps`.
+
+**Parte 1 — Mostrar volume previsto**: No modo `finalizar`, antes do campo de input de volume, exibir um texto informativo:
+
+```
+Volume previsto para este caminhão: X volumes
+```
+
+Usar um `div` com `bg-blue-50 border border-blue-200 rounded p-3` para destacar visualmente.
+
+**Parte 2 — Alerta de divergencia**: Adicionar estado `showDivergenciaAlert` (boolean). No `handleConfirm`:
+
+- Se `mode === 'finalizar'` e `volumePrevisto` existe e `parseInt(volume) !== volumePrevisto`:
+  - Setar `showDivergenciaAlert = true` e retornar (nao salvar)
+- Se `showDivergenciaAlert === true` (usuario ja viu o alerta e confirmou), prosseguir normalmente
+
+Renderizar um `AlertDialog` com:
+- Titulo: "Divergencia detectada"
+- Mensagem: "Volume previsto: X | Volume informado: Y"
+- Botao "Confirmar divergencia" (prossegue)
+- Botao "Voltar e corrigir" (fecha o alert)
+
+### Nenhuma alteracao em backend, RPCs, triggers ou tabelas.
 
