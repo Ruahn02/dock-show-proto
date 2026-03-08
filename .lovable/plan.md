@@ -1,49 +1,42 @@
 
 
-# Alerta de Divergencia na Finalizacao de Separacao Cross Docking
+# Polling de 15 segundos em todos os hooks de dados
 
-## Analise
+Adicionar `setInterval` de 15 segundos em todos os hooks que fazem fetch de dados do Supabase, mantendo o Realtime existente como camada principal.
 
-O sistema nao possui tabela `cross_docking_itens`. O volume relevante esta em:
-- `cross_docking.volume_recebido` — volume recebido na conferencia
-- `cargas.volume_conferido` — volume total conferido da carga
+## Hooks que serao alterados
 
-A comparacao sera entre esses dois valores. Se diferirem, exibir alerta antes de finalizar.
+| Hook | Arquivo |
+|---|---|
+| `useFluxoOperacional` | `src/hooks/useFluxoOperacional.ts` |
+| `useCargasDB` | `src/hooks/useCargasDB.ts` |
+| `useSenhasDB` | `src/hooks/useSenhasDB.ts` |
+| `useDocasDB` | `src/hooks/useDocasDB.ts` |
+| `useCrossDB` | `src/hooks/useCrossDB.ts` |
+| `useConferentesDB` | `src/hooks/useConferentesDB.ts` |
+| `useFornecedoresDB` | `src/hooks/useFornecedoresDB.ts` |
+| `useSolicitacoesDB` | `src/hooks/useSolicitacoesDB.ts` |
 
-## Alteracoes
+## O que muda em cada hook
 
-### 1. `src/pages/CrossDocking.tsx`
-
-Passar o `volumeConferidoCarga` ao `FinalizarSeparacaoModal`:
+Dentro do `useEffect` que ja faz o `fetchDados()` inicial e configura o Realtime, adicionar um `setInterval` de 15 segundos e limpa-lo no cleanup:
 
 ```typescript
-// Ao abrir o modal, buscar volume_conferido da carga associada
-const carga = cargas.find(c => c.id === selectedCross.cargaId);
+useEffect(() => {
+  fetchDados();
+  const interval = setInterval(fetchDados, 15000);
+
+  const channel = supabase
+    .channel('...')
+    .on('postgres_changes', { ... }, () => fetchDados())
+    .subscribe();
+
+  return () => {
+    clearInterval(interval);
+    supabase.removeChannel(channel);
+  };
+}, [fetchDados]);
 ```
 
-Passar duas props novas ao modal:
-- `volumeRecebido`: `selectedCross.volumeRecebido`
-- `volumeConferidoCarga`: `carga?.volumeConferido`
-
-### 2. `src/components/cross/SeparacaoModal.tsx` — `FinalizarSeparacaoModal`
-
-**Props**: Adicionar `volumeRecebido?: number` e `volumeConferidoCarga?: number`.
-
-**UI**: Mostrar info box com volumes antes dos campos:
-```
-Volume recebido na conferência: X
-Volume da carga conferida: Y
-```
-
-**Logica**: Adicionar estado `showDivergenciaAlert`. No `handleConfirm`:
-- Calcular `divergencia = volumeRecebido - volumeConferidoCarga`
-- Se `divergencia !== 0` e alert ainda nao foi mostrado, setar `showDivergenciaAlert = true` e retornar
-- Se usuario confirmar no alert, prosseguir com `onConfirm`
-
-**AlertDialog**: Renderizar dentro do componente com:
-- Titulo: "Divergencia detectada na separacao"
-- Mensagem com volume recebido, volume conferido e diferenca
-- Botoes: "Cancelar" e "Finalizar mesmo assim"
-
-### Nenhuma alteracao em banco, RPCs ou tabelas.
+Nenhuma outra alteracao -- a logica de Realtime continua identica, o polling apenas garante que os dados se atualizem mesmo se o WebSocket falhar.
 
