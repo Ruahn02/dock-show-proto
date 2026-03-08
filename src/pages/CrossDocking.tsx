@@ -292,7 +292,14 @@ export default function CrossDocking() {
 
         <MontarCrossModal open={montarModalOpen} onClose={() => { setMontarModalOpen(false); setSelectedCross(null); }} onConfirm={handleMontarConfirm} />
         <IniciarSeparacaoModal open={iniciarModalOpen} onClose={() => { setIniciarModalOpen(false); setSelectedCross(null); }} onConfirm={handleIniciarConfirm} />
-        <FinalizarSeparacaoModal open={finalizarModalOpen} onClose={() => { setFinalizarModalOpen(false); setSelectedCross(null); }} onConfirm={handleFinalizarConfirm} isAdmin={isAdmin} />
+        <FinalizarSeparacaoModal
+          open={finalizarModalOpen}
+          onClose={() => { setFinalizarModalOpen(false); setSelectedCross(null); }}
+          onConfirm={handleFinalizarConfirm}
+          isAdmin={isAdmin}
+          volumeRecebido={selectedCross?.volumeRecebido}
+          volumeConferidoCarga={selectedCross ? cargas.find(c => c.id === selectedCross.cargaId)?.volumeConferido : undefined}
+        />
       </div>
     </Layout>
   );
