@@ -266,12 +266,15 @@ export default function Docas() {
       const conferenteAtual = selectedDoca.conferenteId || data.conferenteId;
       const ruaAtual = selectedDoca.rua || data.rua;
       
-      // Check if this is the last senha to be conferido for this carga
-      let isUltimaSenha = true;
+      // Check if volume conferido >= volume previsto for cross docking creation
+      let deveCriarCross = false;
       if (carga) {
         const senhasDaCarga = senhas.filter(s => s.cargaId === carga.id && s.status !== 'recusado');
-        const senhasPendentes = senhasDaCarga.filter(s => s.id !== selectedDoca.senhaId && s.status !== 'conferido');
-        isUltimaSenha = senhasPendentes.length === 0;
+        const totalVolume = senhasDaCarga.reduce((sum, s) => {
+          if (s.id === selectedDoca.senhaId) return sum + (data.volume || 0);
+          return sum + (s.volumeConferido || 0);
+        }, 0);
+        deveCriarCross = totalVolume >= carga.volumePrevisto;
       }
       
       await atualizarFluxo({
