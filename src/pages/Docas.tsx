@@ -287,8 +287,8 @@ export default function Docas() {
         p_divergencia: data.divergencia || null,
       });
       
-      // Only add to Cross Docking if ALL senhas of this carga are now conferido
-      if (carga && isUltimaSenha) {
+      // Only add to Cross Docking if volume conferido >= volume previsto
+      if (carga && deveCriarCross) {
         const senhasDaCarga = senhas.filter(s => s.cargaId === carga.id && s.status !== 'recusado');
         const totalVolume = senhasDaCarga.reduce((sum, s) => {
           if (s.id === selectedDoca.senhaId) return sum + (data.volume || 0);
