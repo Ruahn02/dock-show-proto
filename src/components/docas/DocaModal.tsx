@@ -149,11 +149,26 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2 pt-2">
               <p className="text-base">
-                <span className="font-semibold">Volume previsto:</span> {volumePrevisto}
+                <span className="font-semibold">Volume informado agora:</span> {volume}
               </p>
+              {(volumeJaConferido ?? 0) > 0 && (
+                <p className="text-base">
+                  <span className="font-semibold">Já recebido anteriormente:</span> {volumeJaConferido}
+                </p>
+              )}
               <p className="text-base">
-                <span className="font-semibold">Volume informado:</span> {volume}
+                <span className="font-semibold">Total que será recebido:</span> {parseInt(volume || '0') + (volumeJaConferido ?? 0)} de {volumePrevisto} previstos
               </p>
+              {(() => {
+                const totalComEste = parseInt(volume || '0') + (volumeJaConferido ?? 0);
+                const diferenca = (volumePrevisto ?? 0) - totalComEste;
+                if (diferenca > 0) {
+                  return <p className="text-amber-600 font-medium">Faltam {diferenca} volumes para completar a entrega.</p>;
+                } else if (diferenca < 0) {
+                  return <p className="text-red-600 font-medium">Excesso de {Math.abs(diferenca)} volumes em relação ao previsto.</p>;
+                }
+                return null;
+              })()}
               <p className="mt-3">Confirmar conferência mesmo assim?</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
