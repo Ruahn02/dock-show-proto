@@ -112,9 +112,12 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto
             {mode === 'finalizar' && (
               <>
                 {volumePrevisto !== undefined && (
-                  <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800">
-                    <span className="font-semibold">Volume previsto para este caminhão:</span>{' '}
-                    {volumePrevisto} volumes
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800 space-y-1">
+                    <p><span className="font-semibold">Volume total previsto:</span> {volumePrevisto} volumes</p>
+                    {(volumeJaConferido ?? 0) > 0 && (
+                      <p><span className="font-semibold">Já recebido (outros caminhões):</span> {volumeJaConferido} volumes</p>
+                    )}
+                    <p><span className="font-semibold">Restante a receber:</span> {volumePrevisto - (volumeJaConferido ?? 0)} volumes</p>
                   </div>
                 )}
                 <div className="space-y-2">
