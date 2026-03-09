@@ -107,6 +107,7 @@ export default function AgendamentoPlanejamento() {
           data: format(formData, 'yyyy-MM-dd'),
           nfs: formNfs.split(',').map(nf => nf.trim()).filter(Boolean),
           volumePrevisto: parseInt(formVolume) || 0,
+          quantidadeVeiculos: formQuantidadeVeiculos ? parseInt(formQuantidadeVeiculos) : undefined,
           horarioPrevisto: formHorario,
         });
         toast.success('Agendamento atualizado!');
