@@ -95,8 +95,8 @@ export default function AgendamentoPlanejamento() {
   const handleEdit = (d: FluxoOperacional) => {
     setEditingCargaId(d.carga_id); setFormData(d.data_agendada ? parseISO(d.data_agendada) : new Date());
     setFormFornecedorId(d.fornecedor_id); setFormNfs(d.nota_fiscal?.join(', ') || '');
-    setFormVolume(String(d.volume_previsto || '')); setFormHorario(d.horario_previsto || '08:00');
-    setModalOpen(true);
+    setFormVolume(String(d.volume_previsto || '')); setFormQuantidadeVeiculos(String(d.quantidade_veiculos || ''));
+    setFormHorario(d.horario_previsto || '08:00'); setModalOpen(true);
   };
 
   const handleSave = async () => {
