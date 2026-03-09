@@ -86,7 +86,7 @@ export default function Docas() {
   const getCarga = (cargaId?: string) => cargas.find(c => c.id === cargaId);
   const getFornecedor = (fornecedorId?: string) => fornecedores?.find(f => f.id === fornecedorId);
   
-  const senhasEmPatio = senhas.filter(s => s.localAtual === 'em_patio' && !s.liberada);
+  const senhasEmPatio = senhas.filter(s => s.localAtual === 'em_patio' && !s.liberada && s.status !== 'conferido');
   const docasLivres = docas.filter(d => d.status === 'livre');
   const cargasDisponiveis = getCargasDisponiveis();
 
