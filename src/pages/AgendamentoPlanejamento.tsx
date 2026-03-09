@@ -89,7 +89,7 @@ export default function AgendamentoPlanejamento() {
 
   const handleNovo = () => {
     setEditingCargaId(null); setFormData(selectedDate); setFormFornecedorId('');
-    setFormNfs(''); setFormVolume(''); setFormHorario('08:00'); setModalOpen(true);
+    setFormNfs(''); setFormVolume(''); setFormQuantidadeVeiculos(''); setFormHorario('08:00'); setModalOpen(true);
   };
 
   const handleEdit = (d: FluxoOperacional) => {
