@@ -22,6 +22,7 @@ interface DocaModalProps {
   onConfirm: (data: FinalizacaoData) => void | Promise<void>;
   mode: 'entrar' | 'finalizar';
   volumePrevisto?: number;
+  volumeJaConferido?: number;
 }
 
 interface FinalizacaoData {
@@ -32,7 +33,7 @@ interface FinalizacaoData {
   conferenteId?: string;
 }
 
-export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto }: DocaModalProps) {
+export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto, volumeJaConferido }: DocaModalProps) {
   const [volume, setVolume] = useState('');
   const [rua, setRua] = useState('');
   const [divergencia, setDivergencia] = useState('');
@@ -55,9 +56,12 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto
   };
 
   const handleConfirm = async () => {
-    if (mode === 'finalizar' && volumePrevisto !== undefined && volume && parseInt(volume) !== volumePrevisto) {
-      setShowDivergenciaAlert(true);
-      return;
+    if (mode === 'finalizar' && volumePrevisto !== undefined && volume) {
+      const totalComEste = parseInt(volume) + (volumeJaConferido ?? 0);
+      if (totalComEste !== volumePrevisto) {
+        setShowDivergenciaAlert(true);
+        return;
+      }
     }
     await executarConfirm();
   };
@@ -108,9 +112,12 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto
             {mode === 'finalizar' && (
               <>
                 {volumePrevisto !== undefined && (
-                  <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800">
-                    <span className="font-semibold">Volume previsto para este caminhão:</span>{' '}
-                    {volumePrevisto} volumes
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800 space-y-1">
+                    <p><span className="font-semibold">Volume total previsto:</span> {volumePrevisto} volumes</p>
+                    {(volumeJaConferido ?? 0) > 0 && (
+                      <p><span className="font-semibold">Já recebido (outros caminhões):</span> {volumeJaConferido} volumes</p>
+                    )}
+                    <p><span className="font-semibold">Restante a receber:</span> {volumePrevisto - (volumeJaConferido ?? 0)} volumes</p>
                   </div>
                 )}
                 <div className="space-y-2">
@@ -142,11 +149,26 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2 pt-2">
               <p className="text-base">
-                <span className="font-semibold">Volume previsto:</span> {volumePrevisto}
+                <span className="font-semibold">Volume informado agora:</span> {volume}
               </p>
+              {(volumeJaConferido ?? 0) > 0 && (
+                <p className="text-base">
+                  <span className="font-semibold">Já recebido anteriormente:</span> {volumeJaConferido}
+                </p>
+              )}
               <p className="text-base">
-                <span className="font-semibold">Volume informado:</span> {volume}
+                <span className="font-semibold">Total que será recebido:</span> {parseInt(volume || '0') + (volumeJaConferido ?? 0)} de {volumePrevisto} previstos
               </p>
+              {(() => {
+                const totalComEste = parseInt(volume || '0') + (volumeJaConferido ?? 0);
+                const diferenca = (volumePrevisto ?? 0) - totalComEste;
+                if (diferenca > 0) {
+                  return <p className="text-amber-600 font-medium">Faltam {diferenca} volumes para completar a entrega.</p>;
+                } else if (diferenca < 0) {
+                  return <p className="text-red-600 font-medium">Excesso de {Math.abs(diferenca)} volumes em relação ao previsto.</p>;
+                }
+                return null;
+              })()}
               <p className="mt-3">Confirmar conferência mesmo assim?</p>
             </AlertDialogDescription>
           </AlertDialogHeader>

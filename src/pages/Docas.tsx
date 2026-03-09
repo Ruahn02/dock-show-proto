@@ -588,8 +588,12 @@ export default function Docas() {
           volumePrevisto={(() => {
             if (modalMode !== 'finalizar' || !selectedDoca) return undefined;
             const carga = getCarga(selectedDoca.cargaId);
-            if (!carga) return undefined;
-            return Math.round(carga.volumePrevisto / (carga.quantidadeVeiculos || 1));
+            return carga?.volumePrevisto;
+          })()}
+          volumeJaConferido={(() => {
+            if (modalMode !== 'finalizar' || !selectedDoca) return undefined;
+            const carga = getCarga(selectedDoca.cargaId);
+            return carga?.volumeConferido || 0;
           })()}
         />
 
