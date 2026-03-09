@@ -68,7 +68,15 @@ export default function AgendamentoPlanejamento() {
 
   const cargasFiltradas = useMemo(() => {
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    return dados.filter(d => d.data_agendada === dateStr);
+    const filtered = dados.filter(d => d.data_agendada === dateStr);
+    // Deduplicate by carga_id — the view returns one row per senha (truck)
+    const seen = new Set<string>();
+    return filtered.filter(d => {
+      if (!d.carga_id) return true;
+      if (seen.has(d.carga_id)) return false;
+      seen.add(d.carga_id);
+      return true;
+    });
   }, [dados, selectedDate]);
 
   const datasComCargas = useMemo(() => {
