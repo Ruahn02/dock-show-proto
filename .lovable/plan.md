@@ -1,42 +1,50 @@
 
+## Problema identificado
 
-# Polling de 15 segundos em todos os hooks de dados
-
-Adicionar `setInterval` de 15 segundos em todos os hooks que fazem fetch de dados do Supabase, mantendo o Realtime existente como camada principal.
-
-## Hooks que serao alterados
-
-| Hook | Arquivo |
-|---|---|
-| `useFluxoOperacional` | `src/hooks/useFluxoOperacional.ts` |
-| `useCargasDB` | `src/hooks/useCargasDB.ts` |
-| `useSenhasDB` | `src/hooks/useSenhasDB.ts` |
-| `useDocasDB` | `src/hooks/useDocasDB.ts` |
-| `useCrossDB` | `src/hooks/useCrossDB.ts` |
-| `useConferentesDB` | `src/hooks/useConferentesDB.ts` |
-| `useFornecedoresDB` | `src/hooks/useFornecedoresDB.ts` |
-| `useSolicitacoesDB` | `src/hooks/useSolicitacoesDB.ts` |
-
-## O que muda em cada hook
-
-Dentro do `useEffect` que ja faz o `fetchDados()` inicial e configura o Realtime, adicionar um `setInterval` de 15 segundos e limpa-lo no cleanup:
-
+Em `src/pages/Docas.tsx` linha 592, o volume passado ao modal é dividido pelo número de caminhões:
 ```typescript
-useEffect(() => {
-  fetchDados();
-  const interval = setInterval(fetchDados, 15000);
-
-  const channel = supabase
-    .channel('...')
-    .on('postgres_changes', { ... }, () => fetchDados())
-    .subscribe();
-
-  return () => {
-    clearInterval(interval);
-    supabase.removeChannel(channel);
-  };
-}, [fetchDados]);
+return Math.round(carga.volumePrevisto / (carga.quantidadeVeiculos || 1));
 ```
 
-Nenhuma outra alteracao -- a logica de Realtime continua identica, o polling apenas garante que os dados se atualizem mesmo se o WebSocket falhar.
+Isso faz o modal mostrar "Volume previsto para este caminhão: 20" e dispara alerta quando o conferente digita qualquer valor diferente de 20 — mesmo que seja um valor parcialmente correto. O conferente não vê o total geral nem o quanto já foi recebido.
 
+## Comportamento correto
+
+- Carga: 60 volumes, 3 caminhões
+- Caminhão 1 confere 20 → alerta: "20 recebido de 60 total. Ainda faltam 40."
+- Caminhão 2 confere 20 → alerta: "Já recebido: 20. Você informou: 20. Total será: 40 de 60. Faltam 20."
+- Caminhão 3 confere 20 → sem alerta (total 60 = 60 previsto, entrega completa).
+
+## Alterações
+
+### 1. `src/pages/Docas.tsx` — linha 588-593
+Remover a divisão. Passar o volume total E o volume já conferido acumulado da carga:
+```tsx
+volumePrevisto={carga.volumePrevisto}
+volumeJaConferido={carga.volumeConferido || 0}
+```
+
+### 2. `src/components/docas/DocaModal.tsx`
+
+**Props**: Adicionar `volumeJaConferido?: number`.
+
+**Info box** (substituir texto "Volume previsto para este caminhão"):
+```
+Volume total previsto: 60
+Já recebido (outros caminhões): 20    ← mostrar só se > 0
+Restante a receber: 40
+```
+
+**Lógica de divergência**: Comparar `entrada + jaConferido` vs `totalPrevisto`:
+```typescript
+const totalComEste = parseInt(volume) + (volumeJaConferido ?? 0);
+if (totalComEste !== volumePrevisto) → mostrar alerta
+```
+
+**AlertDialog mensagem**:
+- "Volume informado: 20"
+- "Já recebido anteriormente: 20" (se > 0)
+- "Total que seria recebido: 40 de 60 previstos"
+- Descreve se é parcial (faltam X) ou excesso (+X)
+
+Nenhuma mudança de banco ou RPC. Apenas os 2 arquivos acima.
