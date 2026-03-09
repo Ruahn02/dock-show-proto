@@ -56,9 +56,12 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto
   };
 
   const handleConfirm = async () => {
-    if (mode === 'finalizar' && volumePrevisto !== undefined && volume && parseInt(volume) !== volumePrevisto) {
-      setShowDivergenciaAlert(true);
-      return;
+    if (mode === 'finalizar' && volumePrevisto !== undefined && volume) {
+      const totalComEste = parseInt(volume) + (volumeJaConferido ?? 0);
+      if (totalComEste !== volumePrevisto) {
+        setShowDivergenciaAlert(true);
+        return;
+      }
     }
     await executarConfirm();
   };
