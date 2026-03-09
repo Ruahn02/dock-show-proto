@@ -117,6 +117,7 @@ export default function AgendamentoPlanejamento() {
           fornecedorId: formFornecedorId,
           nfs: formNfs.split(',').map(nf => nf.trim()).filter(Boolean),
           volumePrevisto: parseInt(formVolume) || 0,
+          quantidadeVeiculos: formQuantidadeVeiculos ? parseInt(formQuantidadeVeiculos) : undefined,
           horarioPrevisto: formHorario,
         });
         toast.success('Agendamento criado!');
