@@ -57,6 +57,7 @@ export default function AgendamentoPlanejamento() {
   const [formFornecedorId, setFormFornecedorId] = useState('');
   const [formNfs, setFormNfs] = useState('');
   const [formVolume, setFormVolume] = useState('');
+  const [formQuantidadeVeiculos, setFormQuantidadeVeiculos] = useState('');
   const [formHorario, setFormHorario] = useState('08:00');
   const [openFornecedor, setOpenFornecedor] = useState(false);
   const [openCalendar, setOpenCalendar] = useState(false);
