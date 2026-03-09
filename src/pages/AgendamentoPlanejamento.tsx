@@ -297,6 +297,10 @@ export default function AgendamentoPlanejamento() {
                 <Label htmlFor="volume">Volume Previsto *</Label>
                 <Input id="volume" type="number" value={formVolume} onChange={(e) => setFormVolume(e.target.value)} placeholder="Quantidade de volumes" />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="quantidadeVeiculos">Quantidade de Veículos (Opcional)</Label>
+                <Input id="quantidadeVeiculos" type="number" min="1" value={formQuantidadeVeiculos} onChange={(e) => setFormQuantidadeVeiculos(e.target.value)} placeholder="Ex: 1" />
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
