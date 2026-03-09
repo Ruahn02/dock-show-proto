@@ -218,7 +218,10 @@ export default function AgendamentoPlanejamento() {
                       <TableCell>{d.nota_fiscal && d.nota_fiscal.length > 0 ? d.nota_fiscal.join(', ') : '-'}</TableCell>
                       <TableCell className="text-right">{d.volume_previsto ?? '-'}</TableCell>
                       <TableCell className="text-right">{d.volume_conferido ?? '-'}</TableCell>
-                      <TableCell>{d.tipo_veiculo ? (tipoCaminhaoLabels[d.tipo_veiculo] || d.tipo_veiculo) : '-'}</TableCell>
+                      <TableCell>
+                        {d.tipo_veiculo ? (tipoCaminhaoLabels[d.tipo_veiculo] || d.tipo_veiculo) : '-'}
+                        {d.quantidade_veiculos && d.quantidade_veiculos > 1 ? ` (${d.quantidade_veiculos})` : ''}
+                      </TableCell>
                       <TableCell>{d.divergencia || '-'}</TableCell>
                       <TableCell>
                         {(() => { const s = getDisplayStatus(d); return (
