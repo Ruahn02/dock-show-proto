@@ -33,7 +33,7 @@ interface FinalizacaoData {
   conferenteId?: string;
 }
 
-export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto }: DocaModalProps) {
+export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto, volumeJaConferido }: DocaModalProps) {
   const [volume, setVolume] = useState('');
   const [rua, setRua] = useState('');
   const [divergencia, setDivergencia] = useState('');
