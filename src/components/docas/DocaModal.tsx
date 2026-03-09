@@ -22,6 +22,7 @@ interface DocaModalProps {
   onConfirm: (data: FinalizacaoData) => void | Promise<void>;
   mode: 'entrar' | 'finalizar';
   volumePrevisto?: number;
+  volumeJaConferido?: number;
 }
 
 interface FinalizacaoData {
