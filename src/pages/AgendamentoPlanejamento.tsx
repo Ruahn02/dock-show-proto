@@ -57,6 +57,7 @@ export default function AgendamentoPlanejamento() {
   const [formFornecedorId, setFormFornecedorId] = useState('');
   const [formNfs, setFormNfs] = useState('');
   const [formVolume, setFormVolume] = useState('');
+  const [formQuantidadeVeiculos, setFormQuantidadeVeiculos] = useState('');
   const [formHorario, setFormHorario] = useState('08:00');
   const [openFornecedor, setOpenFornecedor] = useState(false);
   const [openCalendar, setOpenCalendar] = useState(false);
@@ -88,14 +89,14 @@ export default function AgendamentoPlanejamento() {
 
   const handleNovo = () => {
     setEditingCargaId(null); setFormData(selectedDate); setFormFornecedorId('');
-    setFormNfs(''); setFormVolume(''); setFormHorario('08:00'); setModalOpen(true);
+    setFormNfs(''); setFormVolume(''); setFormQuantidadeVeiculos(''); setFormHorario('08:00'); setModalOpen(true);
   };
 
   const handleEdit = (d: FluxoOperacional) => {
     setEditingCargaId(d.carga_id); setFormData(d.data_agendada ? parseISO(d.data_agendada) : new Date());
     setFormFornecedorId(d.fornecedor_id); setFormNfs(d.nota_fiscal?.join(', ') || '');
-    setFormVolume(String(d.volume_previsto || '')); setFormHorario(d.horario_previsto || '08:00');
-    setModalOpen(true);
+    setFormVolume(String(d.volume_previsto || '')); setFormQuantidadeVeiculos(String(d.quantidade_veiculos || ''));
+    setFormHorario(d.horario_previsto || '08:00'); setModalOpen(true);
   };
 
   const handleSave = async () => {
@@ -106,6 +107,7 @@ export default function AgendamentoPlanejamento() {
           data: format(formData, 'yyyy-MM-dd'),
           nfs: formNfs.split(',').map(nf => nf.trim()).filter(Boolean),
           volumePrevisto: parseInt(formVolume) || 0,
+          quantidadeVeiculos: formQuantidadeVeiculos ? parseInt(formQuantidadeVeiculos) : undefined,
           horarioPrevisto: formHorario,
         });
         toast.success('Agendamento atualizado!');
@@ -115,6 +117,7 @@ export default function AgendamentoPlanejamento() {
           fornecedorId: formFornecedorId,
           nfs: formNfs.split(',').map(nf => nf.trim()).filter(Boolean),
           volumePrevisto: parseInt(formVolume) || 0,
+          quantidadeVeiculos: formQuantidadeVeiculos ? parseInt(formQuantidadeVeiculos) : undefined,
           horarioPrevisto: formHorario,
         });
         toast.success('Agendamento criado!');
@@ -215,7 +218,10 @@ export default function AgendamentoPlanejamento() {
                       <TableCell>{d.nota_fiscal && d.nota_fiscal.length > 0 ? d.nota_fiscal.join(', ') : '-'}</TableCell>
                       <TableCell className="text-right">{d.volume_previsto ?? '-'}</TableCell>
                       <TableCell className="text-right">{d.volume_conferido ?? '-'}</TableCell>
-                      <TableCell>{d.tipo_veiculo ? (tipoCaminhaoLabels[d.tipo_veiculo] || d.tipo_veiculo) : '-'}</TableCell>
+                      <TableCell>
+                        {d.tipo_veiculo ? (tipoCaminhaoLabels[d.tipo_veiculo] || d.tipo_veiculo) : '-'}
+                        {d.quantidade_veiculos && d.quantidade_veiculos > 1 ? ` (${d.quantidade_veiculos})` : ''}
+                      </TableCell>
                       <TableCell>{d.divergencia || '-'}</TableCell>
                       <TableCell>
                         {(() => { const s = getDisplayStatus(d); return (
@@ -293,6 +299,10 @@ export default function AgendamentoPlanejamento() {
               <div className="space-y-2">
                 <Label htmlFor="volume">Volume Previsto *</Label>
                 <Input id="volume" type="number" value={formVolume} onChange={(e) => setFormVolume(e.target.value)} placeholder="Quantidade de volumes" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quantidadeVeiculos">Quantidade de Veículos (Opcional)</Label>
+                <Input id="quantidadeVeiculos" type="number" min="1" value={formQuantidadeVeiculos} onChange={(e) => setFormQuantidadeVeiculos(e.target.value)} placeholder="Ex: 1" />
               </div>
             </div>
             <DialogFooter>
