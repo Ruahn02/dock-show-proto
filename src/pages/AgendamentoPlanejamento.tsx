@@ -68,12 +68,26 @@ export default function AgendamentoPlanejamento() {
 
   const cargasFiltradas = useMemo(() => {
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    return dados.filter(d => d.data_agendada === dateStr);
+    const filtered = dados.filter(d => d.data_agendada === dateStr);
+    // Deduplicate by carga_id — the view returns one row per senha (truck)
+    const seen = new Set<string>();
+    return filtered.filter(d => {
+      if (!d.carga_id) return true;
+      if (seen.has(d.carga_id)) return false;
+      seen.add(d.carga_id);
+      return true;
+    });
   }, [dados, selectedDate]);
 
   const datasComCargas = useMemo(() => {
-    const unique = new Set(dados.map(d => d.data_agendada).filter(Boolean));
-    return Array.from(unique).map(d => parseISO(d!));
+    const seenCargas = new Set<string>();
+    const uniqueDates = new Set<string>();
+    dados.forEach(d => {
+      if (d.carga_id && seenCargas.has(d.carga_id)) return;
+      if (d.carga_id) seenCargas.add(d.carga_id);
+      if (d.data_agendada) uniqueDates.add(d.data_agendada);
+    });
+    return Array.from(uniqueDates).map(d => parseISO(d));
   }, [dados]);
 
   // Resumo do dia
