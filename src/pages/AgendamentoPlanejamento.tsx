@@ -80,8 +80,14 @@ export default function AgendamentoPlanejamento() {
   }, [dados, selectedDate]);
 
   const datasComCargas = useMemo(() => {
-    const unique = new Set(dados.map(d => d.data_agendada).filter(Boolean));
-    return Array.from(unique).map(d => parseISO(d!));
+    const seenCargas = new Set<string>();
+    const uniqueDates = new Set<string>();
+    dados.forEach(d => {
+      if (d.carga_id && seenCargas.has(d.carga_id)) return;
+      if (d.carga_id) seenCargas.add(d.carga_id);
+      if (d.data_agendada) uniqueDates.add(d.data_agendada);
+    });
+    return Array.from(uniqueDates).map(d => parseISO(d));
   }, [dados]);
 
   // Resumo do dia
