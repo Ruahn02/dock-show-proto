@@ -133,8 +133,12 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
         docaNumero,
       });
     }
-    atualizarCargaDB(cargaId, { status: 'aguardando_conferencia' });
-  }, [senhas, atualizarSenhaDB, atualizarCargaDB]);
+    // BUG 8 fix: only update to aguardando_conferencia if not already in a more advanced state
+    const cargaAtual = cargas.find(c => c.id === cargaId);
+    if (cargaAtual && (cargaAtual.status === 'aguardando_chegada' || cargaAtual.status === 'aguardando_conferencia')) {
+      atualizarCargaDB(cargaId, { status: 'aguardando_conferencia' });
+    }
+  }, [senhas, cargas, atualizarSenhaDB, atualizarCargaDB]);
 
   const recusarCarga = useCallback(async (cargaId: string | null, senhaId?: string) => {
     await supabase.rpc('rpc_atualizar_fluxo_carga', {
@@ -149,11 +153,16 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
   }, [atualizarCargaDB]);
 
   const getCargasDisponiveis = useCallback(() => {
-    return cargas.filter(c =>
-      c.status === 'aguardando_chegada' &&
-      c.chegou === true
-    );
-  }, [cargas]);
+    return cargas.filter(c => {
+      if (c.status !== 'aguardando_chegada' || !c.chegou) return false;
+      // BUG 6 fix: hide cargas that already have all senhas emitted
+      const limite = c.quantidadeVeiculos || 1;
+      const senhasEmitidas = senhas.filter(
+        s => s.cargaId === c.id && s.status !== 'recusado'
+      ).length;
+      return senhasEmitidas < limite;
+    });
+  }, [cargas, senhas]);
 
   const adicionarCarga = useCallback(async (data: AdicionarCargaData) => {
     await criarCargaDB({

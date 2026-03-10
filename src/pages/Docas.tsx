@@ -287,13 +287,18 @@ export default function Docas() {
         p_divergencia: data.divergencia || null,
       });
       
-      // Only add to Cross Docking if volume conferido >= volume previsto
-      if (carga && deveCriarCross) {
+      // BUG 2 fix: reuse pre-calculated totalVolume instead of recalculating with stale data
+      const totalVolume = (() => {
+        if (!carga) return 0;
         const senhasDaCarga = senhas.filter(s => s.cargaId === carga.id && s.status !== 'recusado');
-        const totalVolume = senhasDaCarga.reduce((sum, s) => {
+        return senhasDaCarga.reduce((sum, s) => {
           if (s.id === selectedDoca.senhaId) return sum + (data.volume || 0);
           return sum + (s.volumeConferido || 0);
         }, 0);
+      })();
+      
+      // Only add to Cross Docking if volume conferido >= volume previsto
+      if (carga && deveCriarCross) {
         
         try {
           await adicionarCross({
@@ -592,8 +597,13 @@ export default function Docas() {
           })()}
           volumeJaConferido={(() => {
             if (modalMode !== 'finalizar' || !selectedDoca) return undefined;
-            const carga = getCarga(selectedDoca.cargaId);
-            return carga?.volumeConferido || 0;
+            // BUG 1 fix: calculate from senhas (most reliable source) instead of stale carga state
+            const senhasDaCarga = senhas.filter(s => 
+              s.cargaId === selectedDoca.cargaId && 
+              s.id !== selectedDoca.senhaId && 
+              s.status === 'conferido'
+            );
+            return senhasDaCarga.reduce((sum, s) => sum + (s.volumeConferido || 0), 0);
           })()}
         />
 
