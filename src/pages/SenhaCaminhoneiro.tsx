@@ -68,12 +68,13 @@ export default function SenhaCaminhoneiro() {
            c.status !== 'conferido' && c.status !== 'recusado' && c.status !== 'no_show'
     );
 
-    // Check limit: count senhas already emitted for this carga
-    if (cargaDisponivel && cargaDisponivel.quantidadeVeiculos) {
+    // BUG 5 fix: default to 1 vehicle when quantidadeVeiculos is null
+    if (cargaDisponivel) {
+      const limite = cargaDisponivel.quantidadeVeiculos || 1;
       const senhasEmitidas = senhas.filter(
         s => s.cargaId === cargaDisponivel.id && s.status !== 'recusado'
       ).length;
-      if (senhasEmitidas >= cargaDisponivel.quantidadeVeiculos) {
+      if (senhasEmitidas >= limite) {
         toast.error('Limite de caminhões para esta entrega atingido.');
         return;
       }

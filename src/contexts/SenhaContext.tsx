@@ -153,11 +153,16 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
   }, [atualizarCargaDB]);
 
   const getCargasDisponiveis = useCallback(() => {
-    return cargas.filter(c =>
-      c.status === 'aguardando_chegada' &&
-      c.chegou === true
-    );
-  }, [cargas]);
+    return cargas.filter(c => {
+      if (c.status !== 'aguardando_chegada' || !c.chegou) return false;
+      // BUG 6 fix: hide cargas that already have all senhas emitted
+      const limite = c.quantidadeVeiculos || 1;
+      const senhasEmitidas = senhas.filter(
+        s => s.cargaId === c.id && s.status !== 'recusado'
+      ).length;
+      return senhasEmitidas < limite;
+    });
+  }, [cargas, senhas]);
 
   const adicionarCarga = useCallback(async (data: AdicionarCargaData) => {
     await criarCargaDB({
