@@ -244,33 +244,8 @@ export default function ControleSenhas() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <Card className="lg:col-span-1">
-            <CardHeader className="text-center">
-              <CardTitle className="text-lg">Gerar Senha</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center space-y-4">
-              <div className="bg-white p-4 rounded-lg">
-                <QRCodeSVG value={senhaUrl} size={180} level="H" includeMargin={true} />
-              </div>
-              <p className="text-sm text-muted-foreground text-center">Escaneie para gerar senha</p>
-
-              <div className="w-full border-t pt-4 mt-2">
-                <p className="text-xs text-muted-foreground text-center mb-3">Painel TV (público)</p>
-                <div className="bg-white p-3 rounded-lg flex justify-center">
-                  <QRCodeSVG value={painelUrl} size={120} level="H" includeMargin={true} />
-                </div>
-                <div className="flex items-center gap-2 mt-3">
-                  <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">/painel</code>
-                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(painelUrl); toast.success('Link copiado!'); }}>
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="lg:col-span-3">
+        <div className="grid grid-cols-1 gap-6">
+          <Card>
             <CardHeader>
               <CardTitle className="text-lg">Lista de Senhas</CardTitle>
             </CardHeader>
