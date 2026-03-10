@@ -133,8 +133,12 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
         docaNumero,
       });
     }
-    atualizarCargaDB(cargaId, { status: 'aguardando_conferencia' });
-  }, [senhas, atualizarSenhaDB, atualizarCargaDB]);
+    // BUG 8 fix: only update to aguardando_conferencia if not already in a more advanced state
+    const cargaAtual = cargas.find(c => c.id === cargaId);
+    if (cargaAtual && (cargaAtual.status === 'aguardando_chegada' || cargaAtual.status === 'aguardando_conferencia')) {
+      atualizarCargaDB(cargaId, { status: 'aguardando_conferencia' });
+    }
+  }, [senhas, cargas, atualizarSenhaDB, atualizarCargaDB]);
 
   const recusarCarga = useCallback(async (cargaId: string | null, senhaId?: string) => {
     await supabase.rpc('rpc_atualizar_fluxo_carga', {
