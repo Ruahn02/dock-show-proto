@@ -592,8 +592,13 @@ export default function Docas() {
           })()}
           volumeJaConferido={(() => {
             if (modalMode !== 'finalizar' || !selectedDoca) return undefined;
-            const carga = getCarga(selectedDoca.cargaId);
-            return carga?.volumeConferido || 0;
+            // BUG 1 fix: calculate from senhas (most reliable source) instead of stale carga state
+            const senhasDaCarga = senhas.filter(s => 
+              s.cargaId === selectedDoca.cargaId && 
+              s.id !== selectedDoca.senhaId && 
+              s.status === 'conferido'
+            );
+            return senhasDaCarga.reduce((sum, s) => sum + (s.volumeConferido || 0), 0);
           })()}
         />
 
