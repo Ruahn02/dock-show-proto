@@ -19,7 +19,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { DocaModal } from '@/components/docas/DocaModal';
+import { DocaModal, FinalizacaoData } from '@/components/docas/DocaModal';
 import { AssociarCargaModal } from '@/components/docas/AssociarCargaModal';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useSenha } from '@/contexts/SenhaContext';
