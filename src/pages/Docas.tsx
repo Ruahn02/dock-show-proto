@@ -311,6 +311,19 @@ export default function Docas() {
         }
       }
       
+      // Save structured divergências
+      if (data.divergencias && data.divergencias.length > 0 && selectedDoca.cargaId) {
+        try {
+          await salvarDivergencias(data.divergencias, {
+            carga_id: selectedDoca.cargaId,
+            senha_id: selectedDoca.senhaId,
+            origem: 'recebimento',
+          });
+        } catch (err) {
+          console.error('Erro ao salvar divergências:', err);
+        }
+      }
+
       await refetchDocas();
       const localMsg = isPatioConferencia ? 'Pátio' : `Doca ${selectedDoca.numero}`;
       toast.success(`Conferência finalizada - ${localMsg}`);
