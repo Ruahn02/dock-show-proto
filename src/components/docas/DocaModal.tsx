@@ -10,10 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Doca, StatusCarga } from '@/types';
+import { Doca, StatusCarga, DivergenciaItem } from '@/types';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
 import { AlertTriangle } from 'lucide-react';
+import { DivergenciasForm } from '@/components/divergencias/DivergenciasForm';
 
 interface DocaModalProps {
   open: boolean;
@@ -25,20 +25,22 @@ interface DocaModalProps {
   volumeJaConferido?: number;
 }
 
-interface FinalizacaoData {
+export interface FinalizacaoData {
   status: StatusCarga;
   volume?: number;
   rua?: string;
   divergencia?: string;
   conferenteId?: string;
+  divergencias?: DivergenciaItem[];
 }
 
 export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto, volumeJaConferido }: DocaModalProps) {
   const [volume, setVolume] = useState('');
   const [rua, setRua] = useState('');
-  const [divergencia, setDivergencia] = useState('');
   const [conferenteId, setConferenteId] = useState('');
   const [showDivergenciaAlert, setShowDivergenciaAlert] = useState(false);
+  const [temDivergencia, setTemDivergencia] = useState('nao');
+  const [divergenciaItems, setDivergenciaItems] = useState<DivergenciaItem[]>([]);
   const { conferentes } = useConferentesDB();
 
   useEffect(() => {
@@ -49,7 +51,11 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto
     if (mode === 'entrar') {
       await onConfirm({ status: 'em_conferencia', conferenteId, rua: rua || undefined });
     } else {
-      await onConfirm({ status: 'conferido', volume: volume ? parseInt(volume) : undefined, divergencia: divergencia || undefined });
+      await onConfirm({
+        status: 'conferido',
+        volume: volume ? parseInt(volume) : undefined,
+        divergencias: temDivergencia === 'sim' ? divergenciaItems.filter(d => d.produto_codigo && d.tipo_divergencia) : undefined,
+      });
     }
     resetForm();
     onClose();
@@ -71,7 +77,7 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto
     await executarConfirm();
   };
 
-  const resetForm = () => { setVolume(''); setRua(''); setDivergencia(''); setConferenteId(''); setShowDivergenciaAlert(false); };
+  const resetForm = () => { setVolume(''); setRua(''); setConferenteId(''); setShowDivergenciaAlert(false); setTemDivergencia('nao'); setDivergenciaItems([]); };
 
   const conferentesAtivos = conferentes.filter(c => c.ativo);
   const isValid = mode === 'entrar' ? conferenteId !== '' : volume !== '';
@@ -81,7 +87,7 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { resetForm(); onClose(); } }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl">
               {mode === 'entrar' 
@@ -124,10 +130,12 @@ export function DocaModal({ open, onClose, doca, onConfirm, mode, volumePrevisto
                   <Label htmlFor="volume">Volume Recebido *</Label>
                   <Input id="volume" type="number" value={volume} onChange={(e) => setVolume(e.target.value)} placeholder="Quantidade de volumes recebidos" />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="divergencia">Divergência (opcional)</Label>
-                  <Textarea id="divergencia" value={divergencia} onChange={(e) => setDivergencia(e.target.value)} placeholder="Descreva qualquer divergência encontrada" rows={3} />
-                </div>
+                <DivergenciasForm
+                  temDivergencia={temDivergencia}
+                  onTemDivergenciaChange={setTemDivergencia}
+                  items={divergenciaItems}
+                  onItemsChange={setDivergenciaItems}
+                />
               </>
             )}
           </div>
