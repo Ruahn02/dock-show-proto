@@ -19,7 +19,8 @@ import { useCross } from '@/contexts/CrossContext';
 import { useSenha } from '@/contexts/SenhaContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
-import type { CrossDocking as CrossDockingType, StatusCross } from '@/types';
+import { useDivergenciasDB } from '@/hooks/useDivergenciasDB';
+import type { CrossDocking as CrossDockingType, StatusCross, DivergenciaItem } from '@/types';
 import { toast } from 'sonner';
 import { ArrowRightLeft, Package, Archive, CalendarIcon, Filter } from 'lucide-react';
 import { format } from 'date-fns';
@@ -50,6 +51,7 @@ export default function CrossDocking() {
   const { cargas } = useSenha();
   const { fornecedores } = useFornecedoresDB();
   const { conferentes } = useConferentesDB();
+  const { getDivergenciasRecebimento, getDivergenciasCross, salvarDivergencias } = useDivergenciasDB();
 
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; type: 'armazenar' | 'cross'; crossId: string } | null>(null);
   const [montarModalOpen, setMontarModalOpen] = useState(false);
@@ -101,10 +103,8 @@ export default function CrossDocking() {
     if (!carga?.conferenteId) return '-';
     return conferentes.find(c => c.id === carga.conferenteId)?.nome || '-';
   };
-  const getDivergenciaRecebimento = (cargaId: string) => {
-    const carga = cargas.find(c => c.id === cargaId);
-    return carga?.divergencia || '-';
-  };
+  // getDivergenciaRecebimento now uses the structured hook
+  // getDivergenciaCross now uses the structured hook
 
   const formatarData = (data: string) => { try { return format(new Date(data), 'dd/MM/yy'); } catch { return data; } };
 
@@ -136,9 +136,23 @@ export default function CrossDocking() {
   };
 
   const handleFinalizarSeparacao = (cross: CrossDockingType) => { setSelectedCross(cross); setFinalizarModalOpen(true); };
-  const handleFinalizarConfirm = async (temDivergencia: boolean, observacao?: string) => {
+  const handleFinalizarConfirm = async (temDivergencia: boolean, observacao?: string, divergencias?: DivergenciaItem[]) => {
     if (!selectedCross) return;
     await finalizarSeparacao(selectedCross.id, temDivergencia, observacao);
+    
+    // Save structured divergências for cross
+    if (divergencias && divergencias.length > 0) {
+      try {
+        await salvarDivergencias(divergencias, {
+          carga_id: selectedCross.cargaId,
+          cross_id: selectedCross.id,
+          origem: 'cross',
+        });
+      } catch (err) {
+        console.error('Erro ao salvar divergências do cross:', err);
+      }
+    }
+    
     toast.success('Separação finalizada'); setSelectedCross(null);
   };
 
@@ -235,8 +249,8 @@ export default function CrossDocking() {
                       {isAdmin && <TableCell>{cross.nfs.join(', ') || '-'}</TableCell>}
                       <TableCell>{cross.rua || '-'}</TableCell>
                       {isAdmin && <TableCell>{getConferenteNome(cross.cargaId)}</TableCell>}
-                      {isAdmin && <TableCell>{getDivergenciaRecebimento(cross.cargaId)}</TableCell>}
-                      {isAdmin && <TableCell>{cross.observacao || '-'}</TableCell>}
+                      {isAdmin && <TableCell className="whitespace-pre-line break-words max-w-[200px]">{getDivergenciasRecebimento(cross.cargaId)}</TableCell>}
+                      {isAdmin && <TableCell className="whitespace-pre-line break-words max-w-[200px]">{getDivergenciasCross(cross.id)}</TableCell>}
                       {!isAdmin && <TableCell className="font-bold">{cross.numeroCross || '-'}</TableCell>}
                       {isAdmin && <TableCell>{separador?.nome || '-'}</TableCell>}
                       <TableCell className="text-right">{cross.volumeRecebido}</TableCell>

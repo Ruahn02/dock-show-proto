@@ -10,9 +10,9 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
+import { DivergenciasForm } from '@/components/divergencias/DivergenciasForm';
+import type { DivergenciaItem } from '@/types';
 
 interface IniciarSeparacaoModalProps {
   open: boolean;
@@ -63,7 +63,7 @@ export function IniciarSeparacaoModal({ open, onClose, onConfirm }: IniciarSepar
 interface FinalizarSeparacaoModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (temDivergencia: boolean, observacao?: string) => void;
+  onConfirm: (temDivergencia: boolean, observacao?: string, divergencias?: DivergenciaItem[]) => void;
   isAdmin?: boolean;
   volumeRecebido?: number;
   volumeConferidoCarga?: number;
@@ -71,16 +71,17 @@ interface FinalizarSeparacaoModalProps {
 
 export function FinalizarSeparacaoModal({ open, onClose, onConfirm, isAdmin = false, volumeRecebido, volumeConferidoCarga }: FinalizarSeparacaoModalProps) {
   const [temDivergencia, setTemDivergencia] = useState<string>('nao');
-  const [observacao, setObservacao] = useState('');
+  const [divergenciaItems, setDivergenciaItems] = useState<DivergenciaItem[]>([]);
   const [showDivergenciaAlert, setShowDivergenciaAlert] = useState(false);
 
   const divergencia = (volumeRecebido ?? 0) - (volumeConferidoCarga ?? 0);
   const hasDivergencia = volumeRecebido !== undefined && volumeConferidoCarga !== undefined && divergencia !== 0;
 
   const doFinalize = () => {
-    onConfirm(temDivergencia === 'sim', observacao.trim() || undefined);
+    const validItems = divergenciaItems.filter(d => d.produto_codigo && d.tipo_divergencia);
+    onConfirm(temDivergencia === 'sim', undefined, temDivergencia === 'sim' ? validItems : undefined);
     setTemDivergencia('nao');
-    setObservacao('');
+    setDivergenciaItems([]);
     setShowDivergenciaAlert(false);
     onClose();
   };
@@ -93,12 +94,12 @@ export function FinalizarSeparacaoModal({ open, onClose, onConfirm, isAdmin = fa
     doFinalize();
   };
 
-  const handleClose = () => { setTemDivergencia('nao'); setObservacao(''); setShowDivergenciaAlert(false); onClose(); };
+  const handleClose = () => { setTemDivergencia('nao'); setDivergenciaItems([]); setShowDivergenciaAlert(false); onClose(); };
 
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Finalizar Separação</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             {volumeRecebido !== undefined && volumeConferidoCarga !== undefined && (
@@ -119,27 +120,12 @@ export function FinalizarSeparacaoModal({ open, onClose, onConfirm, isAdmin = fa
                 )}
               </div>
             )}
-            {isAdmin && (
-              <>
-                <div className="space-y-3">
-                  <Label>Houve divergência?</Label>
-                  <RadioGroup value={temDivergencia} onValueChange={setTemDivergencia}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="sim" id="sim" />
-                      <Label htmlFor="sim" className="font-normal">Sim</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="nao" id="nao" />
-                      <Label htmlFor="nao" className="font-normal">Não</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="observacao">Observação (opcional)</Label>
-                  <Textarea id="observacao" value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Digite uma observação..." rows={3} />
-                </div>
-              </>
-            )}
+            <DivergenciasForm
+              temDivergencia={temDivergencia}
+              onTemDivergenciaChange={setTemDivergencia}
+              items={divergenciaItems}
+              onItemsChange={setDivergenciaItems}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={handleClose}>Cancelar</Button>

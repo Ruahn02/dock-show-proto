@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
+import { useDivergenciasDB } from '@/hooks/useDivergenciasDB';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +19,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { DocaModal } from '@/components/docas/DocaModal';
+import { DocaModal, FinalizacaoData } from '@/components/docas/DocaModal';
 import { AssociarCargaModal } from '@/components/docas/AssociarCargaModal';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useSenha } from '@/contexts/SenhaContext';
@@ -39,13 +40,7 @@ const statusStyles: Record<StatusDoca, string> = {
   uso_consumo: 'bg-gray-100 text-gray-600 border-gray-300',
 };
 
-interface FinalizacaoData {
-  status: StatusCarga;
-  volume?: number;
-  rua?: string;
-  divergencia?: string;
-  conferenteId?: string;
-}
+// FinalizacaoData is now imported from DocaModal
 
 export default function Docas() {
   const { isAdmin } = useProfile();
@@ -65,6 +60,7 @@ export default function Docas() {
   const { adicionarCross } = useCross();
   const { docas, atualizarDoca, criarDoca: criarDocaDB, refetch: refetchDocas } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
+  const { salvarDivergencias } = useDivergenciasDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [associarModalOpen, setAssociarModalOpen] = useState(false);
   const [selectedDoca, setSelectedDoca] = useState<Doca | null>(null);
@@ -315,6 +311,19 @@ export default function Docas() {
         }
       }
       
+      // Save structured divergências
+      if (data.divergencias && data.divergencias.length > 0 && selectedDoca.cargaId) {
+        try {
+          await salvarDivergencias(data.divergencias, {
+            carga_id: selectedDoca.cargaId,
+            senha_id: selectedDoca.senhaId,
+            origem: 'recebimento',
+          });
+        } catch (err) {
+          console.error('Erro ao salvar divergências:', err);
+        }
+      }
+
       await refetchDocas();
       const localMsg = isPatioConferencia ? 'Pátio' : `Doca ${selectedDoca.numero}`;
       toast.success(`Conferência finalizada - ${localMsg}`);
