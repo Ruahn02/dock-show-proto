@@ -1,5 +1,12 @@
 export type Perfil = 'administrador' | 'operacional' | 'comprador';
 
+export interface DivergenciaItem {
+  produto_codigo: string;
+  produto_descricao: string;
+  quantidade: number;
+  tipo_divergencia: string;
+}
+
 export type StatusDoca = 'livre' | 'ocupada' | 'em_conferencia' | 'conferido' | 'uso_consumo';
 
 export type StatusCarga = 'aguardando_chegada' | 'aguardando_conferencia' | 'em_conferencia' | 'conferido' | 'no_show' | 'recusado';
