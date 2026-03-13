@@ -60,6 +60,7 @@ export default function Docas() {
   const { adicionarCross } = useCross();
   const { docas, atualizarDoca, criarDoca: criarDocaDB, refetch: refetchDocas } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
+  const { salvarDivergencias } = useDivergenciasDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [associarModalOpen, setAssociarModalOpen] = useState(false);
   const [selectedDoca, setSelectedDoca] = useState<Doca | null>(null);
