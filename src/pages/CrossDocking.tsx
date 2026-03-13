@@ -136,9 +136,23 @@ export default function CrossDocking() {
   };
 
   const handleFinalizarSeparacao = (cross: CrossDockingType) => { setSelectedCross(cross); setFinalizarModalOpen(true); };
-  const handleFinalizarConfirm = async (temDivergencia: boolean, observacao?: string) => {
+  const handleFinalizarConfirm = async (temDivergencia: boolean, observacao?: string, divergencias?: DivergenciaItem[]) => {
     if (!selectedCross) return;
     await finalizarSeparacao(selectedCross.id, temDivergencia, observacao);
+    
+    // Save structured divergências for cross
+    if (divergencias && divergencias.length > 0) {
+      try {
+        await salvarDivergencias(divergencias, {
+          carga_id: selectedCross.cargaId,
+          cross_id: selectedCross.id,
+          origem: 'cross',
+        });
+      } catch (err) {
+        console.error('Erro ao salvar divergências do cross:', err);
+      }
+    }
+    
     toast.success('Separação finalizada'); setSelectedCross(null);
   };
 
