@@ -194,6 +194,67 @@ export type Database = {
           },
         ]
       }
+      divergencias: {
+        Row: {
+          carga_id: string
+          created_at: string
+          cross_id: string | null
+          id: string
+          origem: string
+          produto_codigo: string
+          produto_descricao: string
+          quantidade: number
+          senha_id: string | null
+          tipo_divergencia: string
+        }
+        Insert: {
+          carga_id: string
+          created_at?: string
+          cross_id?: string | null
+          id?: string
+          origem: string
+          produto_codigo: string
+          produto_descricao: string
+          quantidade: number
+          senha_id?: string | null
+          tipo_divergencia: string
+        }
+        Update: {
+          carga_id?: string
+          created_at?: string
+          cross_id?: string | null
+          id?: string
+          origem?: string
+          produto_codigo?: string
+          produto_descricao?: string
+          quantidade?: number
+          senha_id?: string | null
+          tipo_divergencia?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "divergencias_carga_id_fkey"
+            columns: ["carga_id"]
+            isOneToOne: false
+            referencedRelation: "cargas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "divergencias_cross_id_fkey"
+            columns: ["cross_id"]
+            isOneToOne: false
+            referencedRelation: "cross_docking"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "divergencias_senha_id_fkey"
+            columns: ["senha_id"]
+            isOneToOne: false
+            referencedRelation: "senhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       docas: {
         Row: {
           carga_id: string | null
