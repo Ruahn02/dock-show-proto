@@ -249,8 +249,8 @@ export default function CrossDocking() {
                       {isAdmin && <TableCell>{cross.nfs.join(', ') || '-'}</TableCell>}
                       <TableCell>{cross.rua || '-'}</TableCell>
                       {isAdmin && <TableCell>{getConferenteNome(cross.cargaId)}</TableCell>}
-                      {isAdmin && <TableCell>{getDivergenciaRecebimento(cross.cargaId)}</TableCell>}
-                      {isAdmin && <TableCell>{cross.observacao || '-'}</TableCell>}
+                      {isAdmin && <TableCell className="whitespace-pre-line break-words max-w-[200px]">{getDivergenciasRecebimento(cross.cargaId)}</TableCell>}
+                      {isAdmin && <TableCell className="whitespace-pre-line break-words max-w-[200px]">{getDivergenciasCross(cross.id)}</TableCell>}
                       {!isAdmin && <TableCell className="font-bold">{cross.numeroCross || '-'}</TableCell>}
                       {isAdmin && <TableCell>{separador?.nome || '-'}</TableCell>}
                       <TableCell className="text-right">{cross.volumeRecebido}</TableCell>
