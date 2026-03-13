@@ -103,10 +103,8 @@ export default function CrossDocking() {
     if (!carga?.conferenteId) return '-';
     return conferentes.find(c => c.id === carga.conferenteId)?.nome || '-';
   };
-  const getDivergenciaRecebimento = (cargaId: string) => {
-    const carga = cargas.find(c => c.id === cargaId);
-    return carga?.divergencia || '-';
-  };
+  // getDivergenciaRecebimento now uses the structured hook
+  // getDivergenciaCross now uses the structured hook
 
   const formatarData = (data: string) => { try { return format(new Date(data), 'dd/MM/yy'); } catch { return data; } };
 
