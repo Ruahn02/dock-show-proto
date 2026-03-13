@@ -51,6 +51,7 @@ export default function CrossDocking() {
   const { cargas } = useSenha();
   const { fornecedores } = useFornecedoresDB();
   const { conferentes } = useConferentesDB();
+  const { getDivergenciasRecebimento, getDivergenciasCross, salvarDivergencias } = useDivergenciasDB();
 
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; type: 'armazenar' | 'cross'; crossId: string } | null>(null);
   const [montarModalOpen, setMontarModalOpen] = useState(false);
