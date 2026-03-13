@@ -40,13 +40,7 @@ const statusStyles: Record<StatusDoca, string> = {
   uso_consumo: 'bg-gray-100 text-gray-600 border-gray-300',
 };
 
-interface FinalizacaoData {
-  status: StatusCarga;
-  volume?: number;
-  rua?: string;
-  divergencia?: string;
-  conferenteId?: string;
-}
+// FinalizacaoData is now imported from DocaModal
 
 export default function Docas() {
   const { isAdmin } = useProfile();
