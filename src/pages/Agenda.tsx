@@ -286,7 +286,8 @@ export default function Agenda() {
                 <TableHead className="text-right">Vol. Recebido</TableHead>
                 <TableHead>Conferente</TableHead>
                 <TableHead>Rua</TableHead>
-                <TableHead>Divergência</TableHead>
+                <TableHead>Div. Receb.</TableHead>
+                <TableHead>Div. Cross</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
