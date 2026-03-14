@@ -57,6 +57,8 @@ export default function Agenda() {
   const { atualizarFluxo } = useFluxoOperacional();
   const { fornecedores } = useFornecedoresDB();
   const { conferentes } = useConferentesDB();
+  const { getDivergenciasRecebimento, getDivergenciasCrossByCarga } = useDivergenciasDB();
+  const { adicionarCross, crossItems } = useCross();
   
   const [confirmNoShow, setConfirmNoShow] = useState(false);
   const [confirmRecusado, setConfirmRecusado] = useState(false);
