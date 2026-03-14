@@ -86,12 +86,19 @@ export default function Docas() {
   const docasLivres = docas.filter(d => d.status === 'livre');
   const cargasDisponiveis = getCargasDisponiveis();
 
-  // Senhas órfãs: aguardando doca sem carga vinculada
-  const senhasOrfas = senhas.filter(s => 
+  // Senhas aguardando doca (both with and without carga)
+  const senhasAguardandoDoca = senhas.filter(s => 
     s.localAtual === 'aguardando_doca' && 
     !s.liberada && 
-    !s.cargaId
+    s.status !== 'conferido' && 
+    s.status !== 'recusado'
   );
+
+  // Senhas órfãs: aguardando doca sem carga vinculada
+  const senhasOrfas = senhasAguardandoDoca.filter(s => !s.cargaId);
+  
+  // Senhas com carga que já têm senha emitida (not shown in cargasDisponiveis)
+  const senhasComCarga = senhasAguardandoDoca.filter(s => s.cargaId);
 
   const handleVincularCarga = (doca: Doca) => {
     setSelectedDoca(doca);

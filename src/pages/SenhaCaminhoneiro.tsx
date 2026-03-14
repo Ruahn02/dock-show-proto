@@ -233,7 +233,7 @@ export default function SenhaCaminhoneiro() {
                           <p className="text-sm text-slate-600">{getFornecedorNome(s.fornecedorId)}</p>
                           <p className="text-xs text-slate-400">Chegada: {s.horaChegada}</p>
                         </div>
-                        <div>{getStatusBadge(s.status)}</div>
+                        <div>{getStatusBadge(s.status, s.id)}</div>
                       </div>
                     </button>
                   );

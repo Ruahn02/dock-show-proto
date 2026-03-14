@@ -142,8 +142,15 @@ export default function Dashboard() {
 
   // Status chart
   const statusCargas = useMemo<StatusCargaChart[]>(() => {
-    const counts: Record<string, number> = {};
+    // Deduplicate by carga_id for status chart
+    const uniqueCargas = new Map<string, typeof cargasFiltradas[0]>();
     cargasFiltradas.forEach(c => {
+      if (c.carga_id && !uniqueCargas.has(c.carga_id)) {
+        uniqueCargas.set(c.carga_id, c);
+      }
+    });
+    const counts: Record<string, number> = {};
+    Array.from(uniqueCargas.values()).forEach(c => {
       if (c.status_carga) {
         counts[c.status_carga] = (counts[c.status_carga] || 0) + 1;
       }
