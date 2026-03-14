@@ -294,7 +294,7 @@ export default function Agenda() {
             </TableHeader>
             <TableBody>
               {cargasFiltradas.length === 0 ? (
-                <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma entrega agendada para esta data</TableCell></TableRow>
+                <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">Nenhuma entrega agendada para esta data</TableCell></TableRow>
               ) : (
                 cargasFiltradas.map((carga) => {
                   const volRecebido = getVolumeRecebido(carga);
