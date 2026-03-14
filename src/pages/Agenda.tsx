@@ -21,6 +21,8 @@ import { useSenha } from '@/contexts/SenhaContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
+import { useDivergenciasDB } from '@/hooks/useDivergenciasDB';
+import { useCross } from '@/contexts/CrossContext';
 import { statusCargaLabels } from '@/data/mockData';
 import { Carga, StatusCarga } from '@/types';
 import { toast } from 'sonner';
@@ -55,6 +57,8 @@ export default function Agenda() {
   const { atualizarFluxo } = useFluxoOperacional();
   const { fornecedores } = useFornecedoresDB();
   const { conferentes } = useConferentesDB();
+  const { getDivergenciasRecebimento, getDivergenciasCrossByCarga } = useDivergenciasDB();
+  const { adicionarCross, crossItems } = useCross();
   
   const [confirmNoShow, setConfirmNoShow] = useState(false);
   const [confirmRecusado, setConfirmRecusado] = useState(false);
@@ -136,6 +140,28 @@ export default function Agenda() {
     if (!cargaToUpdate) return;
     try {
       await finalizarEntrega(cargaToUpdate.id);
+      
+      // Create cross if it doesn't exist yet
+      const crossJaExiste = crossItems.some(c => c.cargaId === cargaToUpdate.id);
+      if (!crossJaExiste) {
+        const senhasDaCarga = senhas.filter(s => s.cargaId === cargaToUpdate.id && s.status === 'conferido');
+        const totalVolume = senhasDaCarga.reduce((sum, s) => sum + (s.volumeConferido || 0), 0);
+        if (totalVolume > 0) {
+          try {
+            await adicionarCross({
+              cargaId: cargaToUpdate.id,
+              fornecedorId: cargaToUpdate.fornecedorId,
+              nfs: cargaToUpdate.nfs || [],
+              data: cargaToUpdate.data,
+              rua: cargaToUpdate.rua || '',
+              volumeRecebido: totalVolume,
+            });
+          } catch (err: any) {
+            console.warn('Cross já registrado:', err?.message);
+          }
+        }
+      }
+      
       toast.success('Entrega finalizada com sucesso');
     } catch {
       toast.error('Erro ao finalizar entrega');
@@ -159,7 +185,8 @@ export default function Agenda() {
       'Vol. Recebido': volRecebido ?? '-',
       'Conferente': getConferenteNome(carga.conferenteId),
       'Rua': carga.rua || '-',
-      'Divergência': carga.divergencia || '-',
+      'Div. Receb.': getDivergenciasRecebimento(carga.id),
+      'Div. Cross': getDivergenciasCrossByCarga(carga.id),
       'Status': display.label,
     };
   };
@@ -175,7 +202,7 @@ export default function Agenda() {
       doc.text(`Fornecedor: ${getFornecedorNome(fornecedorFiltro)}`, 14, 23);
     }
 
-    const headers = ['Horário', 'Fornecedor', 'NF(s)', 'Cam.', 'Senhas', 'Vol. Prev.', 'Vol. Rec.', 'Conferente', 'Rua', 'Diverg.', 'Status'];
+    const headers = ['Horário', 'Fornecedor', 'NF(s)', 'Cam.', 'Senhas', 'Vol. Prev.', 'Vol. Rec.', 'Conferente', 'Rua', 'Div. Receb.', 'Div. Cross', 'Status'];
     const rows = cargasFiltradas.map(c => {
       const display = getDisplayStatus(c);
       const volRecebido = getVolumeRecebido(c);
@@ -189,7 +216,8 @@ export default function Agenda() {
         volRecebido != null ? String(volRecebido) : '-',
         getConferenteNome(c.conferenteId),
         c.rua || '-',
-        c.divergencia || '-',
+        getDivergenciasRecebimento(c.id),
+        getDivergenciasCrossByCarga(c.id),
         display.label,
       ];
     });
@@ -280,14 +308,15 @@ export default function Agenda() {
                 <TableHead className="text-right">Vol. Recebido</TableHead>
                 <TableHead>Conferente</TableHead>
                 <TableHead>Rua</TableHead>
-                <TableHead>Divergência</TableHead>
+                <TableHead>Div. Receb.</TableHead>
+                <TableHead>Div. Cross</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {cargasFiltradas.length === 0 ? (
-                <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma entrega agendada para esta data</TableCell></TableRow>
+                <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">Nenhuma entrega agendada para esta data</TableCell></TableRow>
               ) : (
                 cargasFiltradas.map((carga) => {
                   const volRecebido = getVolumeRecebido(carga);
@@ -302,7 +331,8 @@ export default function Agenda() {
                       <TableCell className="text-right font-semibold">{volRecebido ?? '-'}</TableCell>
                       <TableCell>{getConferenteNome(carga.conferenteId)}</TableCell>
                       <TableCell>{carga.rua || '-'}</TableCell>
-                      <TableCell className="text-sm">{carga.divergencia || '-'}</TableCell>
+                      <TableCell className="whitespace-pre-line break-words max-w-[200px] text-sm">{getDivergenciasRecebimento(carga.id)}</TableCell>
+                      <TableCell className="whitespace-pre-line break-words max-w-[200px] text-sm">{getDivergenciasCrossByCarga(carga.id)}</TableCell>
                       <TableCell>
                         {(() => {
                           const display = getDisplayStatus(carga);

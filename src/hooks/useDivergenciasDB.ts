@@ -90,5 +90,9 @@ export function useDivergenciasDB() {
     return formatDivergencias(divergencias.filter(d => d.cross_id === crossId && d.origem === 'cross'));
   }, [divergencias]);
 
-  return { divergencias, salvarDivergencias, getDivergenciasRecebimento, getDivergenciasCross, refetch: fetchDivergencias };
+  const getDivergenciasCrossByCarga = useCallback((cargaId: string) => {
+    return formatDivergencias(divergencias.filter(d => d.carga_id === cargaId && d.origem === 'cross'));
+  }, [divergencias]);
+
+  return { divergencias, salvarDivergencias, getDivergenciasRecebimento, getDivergenciasCross, getDivergenciasCrossByCarga, refetch: fetchDivergencias };
 }
