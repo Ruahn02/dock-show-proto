@@ -262,7 +262,7 @@ export default function Docas() {
       const conferenteAtual = selectedDoca.conferenteId || data.conferenteId;
       const ruaAtual = selectedDoca.rua || data.rua;
       
-      // Check if volume conferido >= volume previsto for cross docking creation
+      // Check if cross should be created — always create after finalization
       let deveCriarCross = false;
       if (carga) {
         const senhasDaCarga = senhas.filter(s => s.cargaId === carga.id && s.status !== 'recusado');
@@ -270,7 +270,7 @@ export default function Docas() {
           if (s.id === selectedDoca.senhaId) return sum + (data.volume || 0);
           return sum + (s.volumeConferido || 0);
         }, 0);
-        deveCriarCross = totalVolume >= carga.volumePrevisto;
+        deveCriarCross = true; // Always create cross on finalization
       }
       
       await atualizarFluxo({

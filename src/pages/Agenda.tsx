@@ -309,7 +309,8 @@ export default function Agenda() {
                       <TableCell className="text-right font-semibold">{volRecebido ?? '-'}</TableCell>
                       <TableCell>{getConferenteNome(carga.conferenteId)}</TableCell>
                       <TableCell>{carga.rua || '-'}</TableCell>
-                      <TableCell className="text-sm">{carga.divergencia || '-'}</TableCell>
+                      <TableCell className="whitespace-pre-line break-words max-w-[200px] text-sm">{getDivergenciasRecebimento(carga.id)}</TableCell>
+                      <TableCell className="whitespace-pre-line break-words max-w-[200px] text-sm">{getDivergenciasCrossByCarga(carga.id)}</TableCell>
                       <TableCell>
                         {(() => {
                           const display = getDisplayStatus(carga);
