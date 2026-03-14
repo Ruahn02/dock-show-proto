@@ -134,7 +134,7 @@ export default function SenhaCaminhoneiro() {
 
   const statusDisplay = getStatusDisplay();
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, senhaId?: string) => {
     switch (status) {
       case 'aguardando_doca': return <Badge className="bg-blue-500 text-white">Aguardando</Badge>;
       case 'em_doca': {
