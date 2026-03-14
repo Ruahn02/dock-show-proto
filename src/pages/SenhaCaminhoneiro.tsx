@@ -137,7 +137,10 @@ export default function SenhaCaminhoneiro() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'aguardando_doca': return <Badge className="bg-blue-500 text-white">Aguardando</Badge>;
-      case 'em_doca': return <Badge className="bg-yellow-500 text-white">Em Doca</Badge>;
+      case 'em_doca': {
+        const senha = senhasDoDispositivo.find(s => s.id === senhaId);
+        return <Badge className="bg-yellow-500 text-white">{senha?.docaNumero ? `Doca ${senha.docaNumero}` : 'Em Doca'}</Badge>;
+      }
       case 'conferido': return <Badge className="bg-green-600 text-white">Conferido</Badge>;
       case 'recusado': return <Badge className="bg-red-500 text-white">Recusado</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
