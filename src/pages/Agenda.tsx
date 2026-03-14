@@ -21,6 +21,8 @@ import { useSenha } from '@/contexts/SenhaContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
+import { useDivergenciasDB } from '@/hooks/useDivergenciasDB';
+import { useCross } from '@/contexts/CrossContext';
 import { statusCargaLabels } from '@/data/mockData';
 import { Carga, StatusCarga } from '@/types';
 import { toast } from 'sonner';
