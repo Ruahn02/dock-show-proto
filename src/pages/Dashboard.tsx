@@ -120,7 +120,14 @@ export default function Dashboard() {
 
   // Produtividade por conferente
   const produtividade = useMemo<ProdutividadeConferente[]>(() => {
-    const conferidas = cargasFiltradas.filter(c => c.status_carga === 'conferido' && c.conferente_id);
+    // Deduplicate by carga_id for productivity too
+    const uniqueCargas = new Map<string, typeof cargasFiltradas[0]>();
+    cargasFiltradas.forEach(c => {
+      if (c.carga_id && !uniqueCargas.has(c.carga_id)) {
+        uniqueCargas.set(c.carga_id, c);
+      }
+    });
+    const conferidas = Array.from(uniqueCargas.values()).filter(c => c.status_carga === 'conferido' && c.conferente_id);
     const grouped: Record<string, number> = {};
     conferidas.forEach(c => {
       if (c.conferente_id) {
