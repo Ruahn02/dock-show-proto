@@ -180,7 +180,7 @@ export default function Agenda() {
       doc.text(`Fornecedor: ${getFornecedorNome(fornecedorFiltro)}`, 14, 23);
     }
 
-    const headers = ['Horário', 'Fornecedor', 'NF(s)', 'Cam.', 'Senhas', 'Vol. Prev.', 'Vol. Rec.', 'Conferente', 'Rua', 'Diverg.', 'Status'];
+    const headers = ['Horário', 'Fornecedor', 'NF(s)', 'Cam.', 'Senhas', 'Vol. Prev.', 'Vol. Rec.', 'Conferente', 'Rua', 'Div. Receb.', 'Div. Cross', 'Status'];
     const rows = cargasFiltradas.map(c => {
       const display = getDisplayStatus(c);
       const volRecebido = getVolumeRecebido(c);
@@ -194,7 +194,8 @@ export default function Agenda() {
         volRecebido != null ? String(volRecebido) : '-',
         getConferenteNome(c.conferenteId),
         c.rua || '-',
-        c.divergencia || '-',
+        getDivergenciasRecebimento(c.id),
+        getDivergenciasCrossByCarga(c.id),
         display.label,
       ];
     });
