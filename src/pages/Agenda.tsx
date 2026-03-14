@@ -140,6 +140,28 @@ export default function Agenda() {
     if (!cargaToUpdate) return;
     try {
       await finalizarEntrega(cargaToUpdate.id);
+      
+      // Create cross if it doesn't exist yet
+      const crossJaExiste = crossItems.some(c => c.cargaId === cargaToUpdate.id);
+      if (!crossJaExiste) {
+        const senhasDaCarga = senhas.filter(s => s.cargaId === cargaToUpdate.id && s.status === 'conferido');
+        const totalVolume = senhasDaCarga.reduce((sum, s) => sum + (s.volumeConferido || 0), 0);
+        if (totalVolume > 0) {
+          try {
+            await adicionarCross({
+              cargaId: cargaToUpdate.id,
+              fornecedorId: cargaToUpdate.fornecedorId,
+              nfs: cargaToUpdate.nfs || [],
+              data: cargaToUpdate.data,
+              rua: cargaToUpdate.rua || '',
+              volumeRecebido: totalVolume,
+            });
+          } catch (err: any) {
+            console.warn('Cross já registrado:', err?.message);
+          }
+        }
+      }
+      
       toast.success('Entrega finalizada com sucesso');
     } catch {
       toast.error('Erro ao finalizar entrega');
