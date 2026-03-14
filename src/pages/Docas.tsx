@@ -630,7 +630,7 @@ export default function Docas() {
           cargas={cargasDisponiveis}
           fornecedores={fornecedores}
           onConfirm={handleAssociarCarga}
-          senhasOrfas={senhasOrfas}
+          senhasOrfas={[...senhasComCarga, ...senhasOrfas]}
           onConfirmSenha={handleAssociarSenha}
         />
 
