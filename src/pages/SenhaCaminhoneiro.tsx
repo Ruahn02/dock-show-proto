@@ -123,7 +123,7 @@ export default function SenhaCaminhoneiro() {
     if (!senhaGerada) return null;
     switch (senhaGerada.status) {
       case 'aguardando_doca': return { text: 'AGUARDANDO DOCA', bgColor: 'bg-blue-500', textColor: 'text-white' };
-      case 'em_doca': return { text: senhaGerada.docaNumero ? `DIRIJA-SE PARA A DOCA ${senhaGerada.docaNumero}` : 'EM DOCA', bgColor: 'bg-yellow-500', textColor: 'text-white' };
+      case 'em_doca': return null; // Dock info shown in the dedicated block below
       case 'aguardando_conferencia': return { text: 'AGUARDANDO CONFERÊNCIA', bgColor: 'bg-yellow-500', textColor: 'text-white' };
       case 'em_conferencia': return { text: 'EM CONFERÊNCIA', bgColor: 'bg-green-500', textColor: 'text-white' };
       case 'conferido': return { text: 'CONFERIDO', bgColor: 'bg-green-600', textColor: 'text-white' };
@@ -134,10 +134,13 @@ export default function SenhaCaminhoneiro() {
 
   const statusDisplay = getStatusDisplay();
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, senhaId?: string) => {
     switch (status) {
       case 'aguardando_doca': return <Badge className="bg-blue-500 text-white">Aguardando</Badge>;
-      case 'em_doca': return <Badge className="bg-yellow-500 text-white">Em Doca</Badge>;
+      case 'em_doca': {
+        const senha = senhasDoDispositivo.find(s => s.id === senhaId);
+        return <Badge className="bg-yellow-500 text-white">{senha?.docaNumero ? `Doca ${senha.docaNumero}` : 'Em Doca'}</Badge>;
+      }
       case 'conferido': return <Badge className="bg-green-600 text-white">Conferido</Badge>;
       case 'recusado': return <Badge className="bg-red-500 text-white">Recusado</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
@@ -230,7 +233,7 @@ export default function SenhaCaminhoneiro() {
                           <p className="text-sm text-slate-600">{getFornecedorNome(s.fornecedorId)}</p>
                           <p className="text-xs text-slate-400">Chegada: {s.horaChegada}</p>
                         </div>
-                        <div>{getStatusBadge(s.status)}</div>
+                        <div>{getStatusBadge(s.status, s.id)}</div>
                       </div>
                     </button>
                   );

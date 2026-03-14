@@ -95,12 +95,20 @@ export default function Dashboard() {
 
   // Indicadores
   const indicadores = useMemo<DashboardPorPeriodo>(() => {
-    const conferidas = cargasFiltradas.filter(c => c.status_carga === 'conferido');
+    // Deduplicate by carga_id to avoid counting volumes multiple times (one row per senha in vw_carga_operacional)
+    const uniqueCargas = new Map<string, typeof cargasFiltradas[0]>();
+    cargasFiltradas.forEach(c => {
+      if (c.carga_id && !uniqueCargas.has(c.carga_id)) {
+        uniqueCargas.set(c.carga_id, c);
+      }
+    });
+    const cargasUnicas = Array.from(uniqueCargas.values());
+    const conferidas = cargasUnicas.filter(c => c.status_carga === 'conferido');
     return {
       totalVolumes: conferidas.reduce((sum, c) => sum + (c.volume_conferido || 0), 0),
       cargasConferidas: conferidas.length,
-      cargasNoShow: cargasFiltradas.filter(c => c.status_carga === 'no_show').length,
-      cargasRecusadas: cargasFiltradas.filter(c => c.status_carga === 'recusado').length,
+      cargasNoShow: cargasUnicas.filter(c => c.status_carga === 'no_show').length,
+      cargasRecusadas: cargasUnicas.filter(c => c.status_carga === 'recusado').length,
       docasLivres: docas.filter(d => d.status === 'livre').length,
       docasOcupadas: docas.filter(d => d.status === 'ocupada').length,
       docasEmConferencia: docas.filter(d => d.status === 'em_conferencia').length,
@@ -112,7 +120,14 @@ export default function Dashboard() {
 
   // Produtividade por conferente
   const produtividade = useMemo<ProdutividadeConferente[]>(() => {
-    const conferidas = cargasFiltradas.filter(c => c.status_carga === 'conferido' && c.conferente_id);
+    // Deduplicate by carga_id for productivity too
+    const uniqueCargas = new Map<string, typeof cargasFiltradas[0]>();
+    cargasFiltradas.forEach(c => {
+      if (c.carga_id && !uniqueCargas.has(c.carga_id)) {
+        uniqueCargas.set(c.carga_id, c);
+      }
+    });
+    const conferidas = Array.from(uniqueCargas.values()).filter(c => c.status_carga === 'conferido' && c.conferente_id);
     const grouped: Record<string, number> = {};
     conferidas.forEach(c => {
       if (c.conferente_id) {
@@ -127,8 +142,15 @@ export default function Dashboard() {
 
   // Status chart
   const statusCargas = useMemo<StatusCargaChart[]>(() => {
-    const counts: Record<string, number> = {};
+    // Deduplicate by carga_id for status chart
+    const uniqueCargas = new Map<string, typeof cargasFiltradas[0]>();
     cargasFiltradas.forEach(c => {
+      if (c.carga_id && !uniqueCargas.has(c.carga_id)) {
+        uniqueCargas.set(c.carga_id, c);
+      }
+    });
+    const counts: Record<string, number> = {};
+    Array.from(uniqueCargas.values()).forEach(c => {
       if (c.status_carga) {
         counts[c.status_carga] = (counts[c.status_carga] || 0) + 1;
       }
