@@ -123,7 +123,7 @@ export default function SenhaCaminhoneiro() {
     if (!senhaGerada) return null;
     switch (senhaGerada.status) {
       case 'aguardando_doca': return { text: 'AGUARDANDO DOCA', bgColor: 'bg-blue-500', textColor: 'text-white' };
-      case 'em_doca': return { text: senhaGerada.docaNumero ? `DIRIJA-SE PARA A DOCA ${senhaGerada.docaNumero}` : 'EM DOCA', bgColor: 'bg-yellow-500', textColor: 'text-white' };
+      case 'em_doca': return null; // Dock info shown in the dedicated block below
       case 'aguardando_conferencia': return { text: 'AGUARDANDO CONFERÊNCIA', bgColor: 'bg-yellow-500', textColor: 'text-white' };
       case 'em_conferencia': return { text: 'EM CONFERÊNCIA', bgColor: 'bg-green-500', textColor: 'text-white' };
       case 'conferido': return { text: 'CONFERIDO', bgColor: 'bg-green-600', textColor: 'text-white' };
