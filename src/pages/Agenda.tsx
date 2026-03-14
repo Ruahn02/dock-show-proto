@@ -163,7 +163,8 @@ export default function Agenda() {
       'Vol. Recebido': volRecebido ?? '-',
       'Conferente': getConferenteNome(carga.conferenteId),
       'Rua': carga.rua || '-',
-      'Divergência': carga.divergencia || '-',
+      'Div. Receb.': getDivergenciasRecebimento(carga.id),
+      'Div. Cross': getDivergenciasCrossByCarga(carga.id),
       'Status': display.label,
     };
   };
