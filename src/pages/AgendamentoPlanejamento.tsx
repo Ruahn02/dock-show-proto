@@ -71,11 +71,20 @@ export default function AgendamentoPlanejamento() {
     const filtered = dados.filter(d => d.data_agendada === dateStr);
     // Deduplicate by carga_id — the view returns one row per senha (truck)
     const seen = new Set<string>();
-    return filtered.filter(d => {
+    const deduped = filtered.filter(d => {
       if (!d.carga_id) return true;
       if (seen.has(d.carga_id)) return false;
       seen.add(d.carga_id);
       return true;
+    });
+    // Sort by horario_previsto (earliest first, nulls last), then by fornecedor_nome alphabetically
+    return deduped.sort((a, b) => {
+      const ha = a.horario_previsto || '';
+      const hb = b.horario_previsto || '';
+      if (!ha && hb) return 1;
+      if (ha && !hb) return -1;
+      if (ha !== hb) return ha.localeCompare(hb);
+      return (a.fornecedor_nome || '').localeCompare(b.fornecedor_nome || '');
     });
   }, [dados, selectedDate]);
 

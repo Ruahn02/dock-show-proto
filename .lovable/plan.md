@@ -1,42 +1,42 @@
 
 
-# Plano: Correção de Filtro de Senhas e Ordenação do Agendamento
+# Polling de 15 segundos em todos os hooks de dados
 
-## Correção 1 — Tela de Solicitação de Senhas (`SenhaCaminhoneiro.tsx`)
+Adicionar `setInterval` de 15 segundos em todos os hooks que fazem fetch de dados do Supabase, mantendo o Realtime existente como camada principal.
 
-**Problema atual:** A lista de fornecedores disponíveis (linha 56-58) mostra qualquer fornecedor que tenha carga no dia, sem considerar se o limite de senhas foi atingido ou se a carga já foi finalizada. Além disso, o bloqueio de limite (linha 72-80) usa `quantidadeVeiculos || 1`, ou seja, cargas sem quantidade definida ficam travadas em 1.
+## Hooks que serao alterados
 
-**Correção:**
-- Alterar `fornecedoresAgendados` para filtrar apenas cargas que ainda aceitam senhas:
-  - Excluir cargas com status `conferido`, `recusado`, `no_show`
-  - Para cargas **com** `quantidadeVeiculos` definido: excluir se senhas emitidas >= limite
-  - Para cargas **sem** `quantidadeVeiculos`: manter disponível (ilimitado até finalização manual)
-- Alterar o bloqueio em `handleGerarSenha` (linha 73): quando `quantidadeVeiculos` for `null`/`undefined`, não aplicar limite (permitir senhas ilimitadas)
-- Manter o bloqueio apenas quando `quantidadeVeiculos` > 0
-
-**Arquivo:** `src/pages/SenhaCaminhoneiro.tsx`
-
----
-
-## Correção 2 — Ordenação no Agendamento (`AgendamentoPlanejamento.tsx`)
-
-**Problema atual:** `cargasFiltradas` (linha 69-80) filtra por data e deduplica, mas não ordena. As cargas aparecem na ordem de retorno da view.
-
-**Correção:**
-- Adicionar `.sort()` após o filtro, ordenando por:
-  1. `horario_previsto` ascendente (mais cedo primeiro; nulos ao final)
-  2. `fornecedor_nome` alfabético para empate de horário
-
-**Arquivo:** `src/pages/AgendamentoPlanejamento.tsx`
-
----
-
-## Resumo de alterações
-
-| Arquivo | Alteração |
+| Hook | Arquivo |
 |---|---|
-| `src/pages/SenhaCaminhoneiro.tsx` | Filtrar fornecedores por disponibilidade real; permitir senhas ilimitadas quando `quantidadeVeiculos` é nulo |
-| `src/pages/AgendamentoPlanejamento.tsx` | Ordenar cargas por horário previsto e depois por nome do fornecedor |
+| `useFluxoOperacional` | `src/hooks/useFluxoOperacional.ts` |
+| `useCargasDB` | `src/hooks/useCargasDB.ts` |
+| `useSenhasDB` | `src/hooks/useSenhasDB.ts` |
+| `useDocasDB` | `src/hooks/useDocasDB.ts` |
+| `useCrossDB` | `src/hooks/useCrossDB.ts` |
+| `useConferentesDB` | `src/hooks/useConferentesDB.ts` |
+| `useFornecedoresDB` | `src/hooks/useFornecedoresDB.ts` |
+| `useSolicitacoesDB` | `src/hooks/useSolicitacoesDB.ts` |
 
-Nenhuma alteração em tabelas, RPCs, triggers ou lógica de docas.
+## O que muda em cada hook
+
+Dentro do `useEffect` que ja faz o `fetchDados()` inicial e configura o Realtime, adicionar um `setInterval` de 15 segundos e limpa-lo no cleanup:
+
+```typescript
+useEffect(() => {
+  fetchDados();
+  const interval = setInterval(fetchDados, 15000);
+
+  const channel = supabase
+    .channel('...')
+    .on('postgres_changes', { ... }, () => fetchDados())
+    .subscribe();
+
+  return () => {
+    clearInterval(interval);
+    supabase.removeChannel(channel);
+  };
+}, [fetchDados]);
+```
+
+Nenhuma outra alteracao -- a logica de Realtime continua identica, o polling apenas garante que os dados se atualizem mesmo se o WebSocket falhar.
 
