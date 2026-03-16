@@ -139,9 +139,11 @@ export default function Docas() {
 
   const handleAssociarSenha = (senhaId: string) => {
     if (!selectedDoca) return;
+    const senha = senhas.find(s => s.id === senhaId);
     atualizarDoca(selectedDoca.id, { 
       status: 'ocupada', 
       senhaId,
+      cargaId: senha?.cargaId,
     });
     vincularSenhaADoca(senhaId, selectedDoca.numero);
     toast.success(`Senha vinculada à Doca ${selectedDoca.numero}`);
