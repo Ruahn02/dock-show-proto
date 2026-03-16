@@ -283,12 +283,18 @@ export default function SenhaCaminhoneiro() {
             <CardContent className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="fornecedor">Fornecedor *</Label>
+                <Input
+                  placeholder="Buscar fornecedor..."
+                  value={filtroFornecedor}
+                  onChange={(e) => setFiltroFornecedor(e.target.value)}
+                  className="h-12 text-base"
+                />
                 <Select value={fornecedorId} onValueChange={setFornecedorId}>
                   <SelectTrigger id="fornecedor" className="h-14 text-base">
                     <SelectValue placeholder="Selecione o fornecedor..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {fornecedoresAgendados.map((f) => (
+                    {fornecedoresFiltrados.map((f) => (
                       <SelectItem key={f.id} value={f.id} className="text-base py-3">
                         {f.nome}
                       </SelectItem>
