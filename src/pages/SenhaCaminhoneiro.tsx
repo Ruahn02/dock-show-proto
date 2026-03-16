@@ -53,9 +53,22 @@ export default function SenhaCaminhoneiro() {
 
   const senhaGerada = senhaGeradaId ? getSenhaById(senhaGeradaId) : null;
 
-  const fornecedoresAgendados = fornecedores.filter(f =>
-    f.ativo && cargas.some(c => c.fornecedorId === f.id && c.data === dataHoje)
-  );
+  const fornecedoresAgendados = fornecedores.filter(f => {
+    if (!f.ativo) return false;
+    return cargas.some(c => {
+      if (c.fornecedorId !== f.id || c.data !== dataHoje) return false;
+      // Exclude finalized cargas
+      if (c.status === 'conferido' || c.status === 'recusado' || c.status === 'no_show') return false;
+      // If quantidadeVeiculos is defined, check if limit reached
+      if (c.quantidadeVeiculos != null && c.quantidadeVeiculos > 0) {
+        const senhasEmitidas = senhas.filter(
+          s => s.cargaId === c.id && s.status !== 'recusado'
+        ).length;
+        if (senhasEmitidas >= c.quantidadeVeiculos) return false;
+      }
+      return true;
+    });
+  });
 
   const handleGerarSenha = async () => {
     if (!fornecedorId) { toast.error('Selecione um fornecedor'); return; }
