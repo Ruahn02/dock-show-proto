@@ -44,6 +44,7 @@ export default function SenhaCaminhoneiro() {
   const [fornecedorId, setFornecedorId] = useState('');
   const [nomeMotorista, setNomeMotorista] = useState('');
   const [tipoCaminhao, setTipoCaminhao] = useState<TipoCaminhao | ''>('');
+  const [filtroFornecedor, setFiltroFornecedor] = useState('');
 
   useEffect(() => {
     if (view === 'formulario' && senhasDoDispositivo.length > 0 && !senhaGeradaId) {
