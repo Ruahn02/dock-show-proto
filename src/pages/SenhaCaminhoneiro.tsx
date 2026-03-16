@@ -58,9 +58,7 @@ export default function SenhaCaminhoneiro() {
     if (!f.ativo) return false;
     return cargas.some(c => {
       if (c.fornecedorId !== f.id || c.data !== dataHoje) return false;
-      // Exclude finalized cargas
       if (c.status === 'conferido' || c.status === 'recusado' || c.status === 'no_show') return false;
-      // If quantidadeVeiculos is defined, check if limit reached
       if (c.quantidadeVeiculos != null && c.quantidadeVeiculos > 0) {
         const senhasEmitidas = senhas.filter(
           s => s.cargaId === c.id && s.status !== 'recusado'
@@ -70,6 +68,10 @@ export default function SenhaCaminhoneiro() {
       return true;
     });
   });
+
+  const fornecedoresFiltrados = fornecedoresAgendados.filter(f =>
+    !filtroFornecedor || f.nome.toLowerCase().includes(filtroFornecedor.toLowerCase())
+  );
 
   const handleGerarSenha = async () => {
     if (!fornecedorId) { toast.error('Selecione um fornecedor'); return; }
