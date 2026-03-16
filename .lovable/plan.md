@@ -1,30 +1,42 @@
 
 
-# Plano: Cadastro em massa de fornecedores + Filtro na tela de senha
+# Polling de 15 segundos em todos os hooks de dados
 
-## 1. Cadastro em massa de fornecedores
+Adicionar `setInterval` de 15 segundos em todos os hooks que fazem fetch de dados do Supabase, mantendo o Realtime existente como camada principal.
 
-Inserir todos os ~300 fornecedores da lista via migração SQL, ignorando os que já existem (comparação por nome, case-insensitive).
+## Hooks que serao alterados
 
-**Abordagem:** Uma única migração SQL com `INSERT INTO fornecedores (nome, ativo) VALUES (...) ON CONFLICT` — mas como não há constraint unique em `nome`, usarei `WHERE NOT EXISTS (SELECT 1 FROM fornecedores WHERE LOWER(nome) = LOWER(...))` para cada fornecedor.
-
-**Arquivo:** Migração SQL (via ferramenta de migração)
-
-## 2. Filtro de fornecedor na tela de solicitar senha
-
-**Problema:** Com ~300 fornecedores, o Select dropdown fica impraticável. O motorista precisa rolar muito para encontrar o fornecedor.
-
-**Solução:** Adicionar um campo de busca (`Input`) acima do `Select` na view `formulario` de `SenhaCaminhoneiro.tsx`. O texto digitado filtra os `fornecedoresAgendados` exibidos no dropdown. Ao limpar o filtro, todos voltam a aparecer.
-
-**Arquivo:** `src/pages/SenhaCaminhoneiro.tsx`
-- Adicionar estado `filtroFornecedor`
-- Filtrar `fornecedoresAgendados` pelo texto digitado antes de renderizar os `SelectItem`
-- Input com placeholder "Buscar fornecedor..." acima do Select
-
-## Resumo
-
-| Ação | Tipo |
+| Hook | Arquivo |
 |---|---|
-| Inserir ~300 fornecedores (ignorando existentes) | Migração SQL |
-| Adicionar campo de busca de fornecedor na tela de senha | `SenhaCaminhoneiro.tsx` |
+| `useFluxoOperacional` | `src/hooks/useFluxoOperacional.ts` |
+| `useCargasDB` | `src/hooks/useCargasDB.ts` |
+| `useSenhasDB` | `src/hooks/useSenhasDB.ts` |
+| `useDocasDB` | `src/hooks/useDocasDB.ts` |
+| `useCrossDB` | `src/hooks/useCrossDB.ts` |
+| `useConferentesDB` | `src/hooks/useConferentesDB.ts` |
+| `useFornecedoresDB` | `src/hooks/useFornecedoresDB.ts` |
+| `useSolicitacoesDB` | `src/hooks/useSolicitacoesDB.ts` |
+
+## O que muda em cada hook
+
+Dentro do `useEffect` que ja faz o `fetchDados()` inicial e configura o Realtime, adicionar um `setInterval` de 15 segundos e limpa-lo no cleanup:
+
+```typescript
+useEffect(() => {
+  fetchDados();
+  const interval = setInterval(fetchDados, 15000);
+
+  const channel = supabase
+    .channel('...')
+    .on('postgres_changes', { ... }, () => fetchDados())
+    .subscribe();
+
+  return () => {
+    clearInterval(interval);
+    supabase.removeChannel(channel);
+  };
+}, [fetchDados]);
+```
+
+Nenhuma outra alteracao -- a logica de Realtime continua identica, o polling apenas garante que os dados se atualizem mesmo se o WebSocket falhar.
 
