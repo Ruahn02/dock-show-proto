@@ -9,7 +9,7 @@ export interface DivergenciaItem {
 
 export type StatusDoca = 'livre' | 'ocupada' | 'em_conferencia' | 'conferido' | 'uso_consumo';
 
-export type StatusCarga = 'aguardando_chegada' | 'aguardando_conferencia' | 'em_conferencia' | 'conferido' | 'no_show' | 'recusado';
+export type StatusCarga = 'aguardando_chegada' | 'aguardando_conferencia' | 'em_conferencia' | 'conferido' | 'no_show' | 'recusado' | 'atrasado';
 
 // Status da senha do caminhoneiro
 export type StatusSenha = 

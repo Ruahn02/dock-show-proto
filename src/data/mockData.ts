@@ -58,6 +58,7 @@ export const statusCargaLabels: Record<string, string> = {
   conferido: 'Conferido',
   no_show: 'No-show',
   recusado: 'Recusado',
+  atrasado: 'Atrasado',
 };
 
 export const statusDocaLabels: Record<string, string> = {

@@ -158,5 +158,20 @@ export function useCargasDB() {
     throw error;
   }, []);
 
-  return { cargas, setCargas, loading, criarCarga, atualizarCarga, refetch: fetchCargas };
+  const excluirCarga = useCallback(async (id: string) => {
+    // Excluir senhas vinculadas primeiro
+    await supabase.from('senhas').delete().eq('carga_id', id);
+    // Liberar docas vinculadas
+    await supabase.from('docas').update({ status: 'livre', carga_id: null, senha_id: null, conferente_id: null, volume_conferido: null, rua: null }).eq('carga_id', id);
+    // Excluir divergências vinculadas
+    await supabase.from('divergencias').delete().eq('carga_id', id);
+    // Excluir cross vinculados
+    await supabase.from('cross_docking').delete().eq('carga_id', id);
+    // Excluir a carga
+    const { error } = await supabase.from('cargas').delete().eq('id', id);
+    if (error) throw error;
+    setCargas(prev => prev.filter(c => c.id !== id));
+  }, []);
+
+  return { cargas, setCargas, loading, criarCarga, atualizarCarga, excluirCarga, refetch: fetchCargas };
 }
