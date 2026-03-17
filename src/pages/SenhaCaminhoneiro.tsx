@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -9,16 +10,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useSenha } from '@/contexts/SenhaContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { tipoCaminhaoLabels } from '@/data/mockData';
 import { TipoCaminhao } from '@/types';
-import { Truck, RefreshCw, ArrowLeft, List, PlusCircle } from 'lucide-react';
+import { Truck, ArrowLeft, List, PlusCircle, Check, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { getDeviceSenhas, saveDeviceSenha } from '@/lib/deviceStorage';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 type View = 'menu' | 'formulario' | 'minhasSenhas' | 'acompanhamento';
 
@@ -44,7 +47,8 @@ export default function SenhaCaminhoneiro() {
   const [fornecedorId, setFornecedorId] = useState('');
   const [nomeMotorista, setNomeMotorista] = useState('');
   const [tipoCaminhao, setTipoCaminhao] = useState<TipoCaminhao | ''>('');
-  const [filtroFornecedor, setFiltroFornecedor] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [fornecedorOpen, setFornecedorOpen] = useState(false);
 
   useEffect(() => {
     if (view === 'formulario' && senhasDoDispositivo.length > 0 && !senhaGeradaId) {
@@ -58,7 +62,7 @@ export default function SenhaCaminhoneiro() {
     if (!f.ativo) return false;
     return cargas.some(c => {
       if (c.fornecedorId !== f.id || c.data !== dataHoje) return false;
-      if (c.status === 'conferido' || c.status === 'recusado' || c.status === 'no_show') return false;
+      if (['conferido', 'recusado', 'no_show', 'atrasado'].includes(c.status)) return false;
       if (c.quantidadeVeiculos != null && c.quantidadeVeiculos > 0) {
         const senhasEmitidas = senhas.filter(
           s => s.cargaId === c.id && s.status !== 'recusado'
@@ -69,22 +73,19 @@ export default function SenhaCaminhoneiro() {
     });
   });
 
-  const fornecedoresFiltrados = fornecedoresAgendados.filter(f =>
-    !filtroFornecedor || f.nome.toLowerCase().includes(filtroFornecedor.toLowerCase())
-  );
+  const fornecedorSelecionadoNome = fornecedores.find(f => f.id === fornecedorId)?.nome || '';
 
   const handleGerarSenha = async () => {
     if (!fornecedorId) { toast.error('Selecione um fornecedor'); return; }
     if (!nomeMotorista.trim()) { toast.error('Informe o nome do motorista'); return; }
     if (!tipoCaminhao) { toast.error('Selecione o tipo de veículo'); return; }
+    if (isProcessing) return;
 
-    // Find available carga for this fornecedor today
     const cargaDisponivel = cargas.find(
       c => c.fornecedorId === fornecedorId && c.data === dataHoje &&
-           c.status !== 'conferido' && c.status !== 'recusado' && c.status !== 'no_show'
+           !['conferido', 'recusado', 'no_show', 'atrasado'].includes(c.status)
     );
 
-    // Only enforce limit when quantidadeVeiculos is explicitly set
     if (cargaDisponivel && cargaDisponivel.quantidadeVeiculos != null && cargaDisponivel.quantidadeVeiculos > 0) {
       const senhasEmitidas = senhas.filter(
         s => s.cargaId === cargaDisponivel.id && s.status !== 'recusado'
@@ -95,6 +96,7 @@ export default function SenhaCaminhoneiro() {
       }
     }
 
+    setIsProcessing(true);
     try {
       const senha = await gerarSenha({
         fornecedorId,
@@ -105,7 +107,6 @@ export default function SenhaCaminhoneiro() {
 
       saveDeviceSenha(senha.id);
 
-      // Mark carga as arrived
       if (cargaDisponivel && !cargaDisponivel.chegou) {
         await atualizarCarga(cargaDisponivel.id, { chegou: true });
       }
@@ -115,6 +116,8 @@ export default function SenhaCaminhoneiro() {
       toast.success('Senha gerada com sucesso!');
     } catch {
       toast.error('Erro ao gerar senha');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -138,7 +141,7 @@ export default function SenhaCaminhoneiro() {
     if (!senhaGerada) return null;
     switch (senhaGerada.status) {
       case 'aguardando_doca': return { text: 'AGUARDANDO DOCA', bgColor: 'bg-blue-500', textColor: 'text-white' };
-      case 'em_doca': return null; // Dock info shown in the dedicated block below
+      case 'em_doca': return null;
       case 'aguardando_conferencia': return { text: 'AGUARDANDO CONFERÊNCIA', bgColor: 'bg-yellow-500', textColor: 'text-white' };
       case 'em_conferencia': return { text: 'EM CONFERÊNCIA', bgColor: 'bg-green-500', textColor: 'text-white' };
       case 'conferido': return { text: 'CONFERIDO', bgColor: 'bg-green-600', textColor: 'text-white' };
@@ -282,25 +285,44 @@ export default function SenhaCaminhoneiro() {
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="fornecedor">Fornecedor *</Label>
-                <Input
-                  placeholder="Buscar fornecedor..."
-                  value={filtroFornecedor}
-                  onChange={(e) => setFiltroFornecedor(e.target.value)}
-                  className="h-12 text-base"
-                />
-                <Select value={fornecedorId} onValueChange={setFornecedorId}>
-                  <SelectTrigger id="fornecedor" className="h-14 text-base">
-                    <SelectValue placeholder="Selecione o fornecedor..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fornecedoresFiltrados.map((f) => (
-                      <SelectItem key={f.id} value={f.id} className="text-base py-3">
-                        {f.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Fornecedor *</Label>
+                <Popover open={fornecedorOpen} onOpenChange={setFornecedorOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={fornecedorOpen}
+                      className="w-full h-14 justify-between text-base font-normal"
+                    >
+                      {fornecedorId ? fornecedorSelecionadoNome : "Selecione o fornecedor..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar fornecedor..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum fornecedor encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {fornecedoresAgendados.map((f) => (
+                            <CommandItem
+                              key={f.id}
+                              value={f.nome}
+                              onSelect={() => {
+                                setFornecedorId(f.id);
+                                setFornecedorOpen(false);
+                              }}
+                              className="text-base py-3"
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", fornecedorId === f.id ? "opacity-100" : "opacity-0")} />
+                              {f.nome}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
@@ -333,9 +355,9 @@ export default function SenhaCaminhoneiro() {
               <Button
                 onClick={handleGerarSenha}
                 className="w-full h-14 text-lg font-semibold"
-                disabled={!fornecedorId || !nomeMotorista.trim() || !tipoCaminhao || fornecedoresAgendados.length === 0}
+                disabled={!fornecedorId || !nomeMotorista.trim() || !tipoCaminhao || fornecedoresAgendados.length === 0 || isProcessing}
               >
-                GERAR SENHA
+                {isProcessing ? 'GERANDO...' : 'GERAR SENHA'}
               </Button>
             </CardContent>
           </Card>

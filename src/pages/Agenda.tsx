@@ -26,7 +26,7 @@ import { useCross } from '@/contexts/CrossContext';
 import { statusCargaLabels } from '@/data/mockData';
 import { Carga, StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { CalendarCheck, CalendarIcon, Download, FileSpreadsheet, MoreHorizontal, CheckCircle } from 'lucide-react';
+import { CalendarCheck, CalendarIcon, Download, FileSpreadsheet, MoreHorizontal, CheckCircle, Clock, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -42,6 +42,7 @@ const statusStyles: Record<string, string> = {
   conferido: 'bg-green-100 text-green-800 border-green-300',
   no_show: 'bg-gray-100 text-gray-800 border-gray-300',
   recusado: 'bg-red-100 text-red-800 border-red-300',
+  atrasado: 'bg-orange-100 text-orange-800 border-orange-300',
 };
 
 const getDisplayStatus = (carga: Carga): { label: string; styleKey: string } => {
@@ -52,7 +53,7 @@ const getDisplayStatus = (carga: Carga): { label: string; styleKey: string } => 
 };
 
 export default function Agenda() {
-  const { cargas, senhas, atualizarCarga, recusarCarga, finalizarEntrega } = useSenha();
+  const { cargas, senhas, atualizarCarga, recusarCarga, finalizarEntrega, excluirCarga } = useSenha();
   const { isAdmin } = useProfile();
   const { atualizarFluxo } = useFluxoOperacional();
   const { fornecedores } = useFornecedoresDB();
@@ -63,7 +64,10 @@ export default function Agenda() {
   const [confirmNoShow, setConfirmNoShow] = useState(false);
   const [confirmRecusado, setConfirmRecusado] = useState(false);
   const [confirmFinalizar, setConfirmFinalizar] = useState(false);
+  const [confirmAtrasado, setConfirmAtrasado] = useState(false);
+  const [confirmExcluir, setConfirmExcluir] = useState(false);
   const [cargaToUpdate, setCargaToUpdate] = useState<Carga | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const [dataSelecionada, setDataSelecionada] = useState<Date>(new Date());
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -75,6 +79,7 @@ export default function Agenda() {
 
   const getFornecedorColor = (carga: Carga) => {
     if (carga.status === 'recusado' || carga.status === 'no_show') return 'text-red-600';
+    if (carga.status === 'atrasado') return 'text-orange-600';
     if (carga.chegou) return 'text-green-600 font-semibold';
     return '';
   };
@@ -104,6 +109,10 @@ export default function Agenda() {
     return senhas.filter(s => s.cargaId === cargaId && s.status !== 'conferido' && s.status !== 'recusado').length;
   };
 
+  const canChangeStatus = (carga: Carga) => carga.status === 'aguardando_chegada' || carga.status === 'aguardando_conferencia' || carga.status === 'em_conferencia' || carga.status === 'atrasado';
+
+  const canExcluir = (carga: Carga) => carga.status !== 'conferido';
+
   const cargasDeHoje = useMemo(() => cargas.filter(c => c.data === hojeStr), [cargas, hojeStr]);
 
   const fornecedoresDoDia = useMemo(() => {
@@ -119,25 +128,64 @@ export default function Agenda() {
   const openNoShowConfirm = (carga: Carga) => { setCargaToUpdate(carga); setConfirmNoShow(true); };
   const openRecusadoConfirm = (carga: Carga) => { setCargaToUpdate(carga); setConfirmRecusado(true); };
   const openFinalizarConfirm = (carga: Carga) => { setCargaToUpdate(carga); setConfirmFinalizar(true); };
+  const openAtrasadoConfirm = (carga: Carga) => { setCargaToUpdate(carga); setConfirmAtrasado(true); };
+  const openExcluirConfirm = (carga: Carga) => { setCargaToUpdate(carga); setConfirmExcluir(true); };
 
   const handleNoShow = async () => {
-    if (!cargaToUpdate) return;
-    await atualizarFluxo({ p_carga_id: cargaToUpdate.id, p_novo_status: 'no_show' });
-    toast.success(`Carga marcada como No-show`);
-    setConfirmNoShow(false);
-    setCargaToUpdate(null);
+    if (!cargaToUpdate || isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await atualizarFluxo({ p_carga_id: cargaToUpdate.id, p_novo_status: 'no_show' });
+      toast.success(`Carga marcada como No-show`);
+    } catch { toast.error('Erro ao atualizar'); } finally {
+      setIsProcessing(false);
+      setConfirmNoShow(false);
+      setCargaToUpdate(null);
+    }
   };
 
   const handleRecusado = async () => {
-    if (!cargaToUpdate) return;
-    await atualizarFluxo({ p_carga_id: cargaToUpdate.id, p_novo_status: 'recusado' });
-    toast.success(`Carga marcada como Recusado`);
-    setConfirmRecusado(false);
-    setCargaToUpdate(null);
+    if (!cargaToUpdate || isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await atualizarFluxo({ p_carga_id: cargaToUpdate.id, p_novo_status: 'recusado' });
+      toast.success(`Carga marcada como Recusado`);
+    } catch { toast.error('Erro ao atualizar'); } finally {
+      setIsProcessing(false);
+      setConfirmRecusado(false);
+      setCargaToUpdate(null);
+    }
+  };
+
+  const handleAtrasado = async () => {
+    if (!cargaToUpdate || isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await atualizarCarga(cargaToUpdate.id, { status: 'atrasado' as any });
+      toast.success('Carga marcada como Atrasado');
+    } catch { toast.error('Erro ao atualizar'); } finally {
+      setIsProcessing(false);
+      setConfirmAtrasado(false);
+      setCargaToUpdate(null);
+    }
+  };
+
+  const handleExcluir = async () => {
+    if (!cargaToUpdate || isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await excluirCarga(cargaToUpdate.id);
+      toast.success('Entrega excluída com sucesso');
+    } catch { toast.error('Erro ao excluir'); } finally {
+      setIsProcessing(false);
+      setConfirmExcluir(false);
+      setCargaToUpdate(null);
+    }
   };
 
   const handleFinalizar = async () => {
-    if (!cargaToUpdate) return;
+    if (!cargaToUpdate || isProcessing) return;
+    setIsProcessing(true);
     try {
       await finalizarEntrega(cargaToUpdate.id);
       
@@ -165,12 +213,12 @@ export default function Agenda() {
       toast.success('Entrega finalizada com sucesso');
     } catch {
       toast.error('Erro ao finalizar entrega');
+    } finally {
+      setIsProcessing(false);
+      setConfirmFinalizar(false);
+      setCargaToUpdate(null);
     }
-    setConfirmFinalizar(false);
-    setCargaToUpdate(null);
   };
-
-  const canChangeStatus = (carga: Carga) => carga.status === 'aguardando_chegada' || carga.status === 'aguardando_conferencia' || carga.status === 'em_conferencia';
 
   const mapCargaParaLinha = (carga: Carga) => {
     const display = getDisplayStatus(carga);
@@ -342,7 +390,7 @@ export default function Agenda() {
                         })()}
                       </TableCell>
                       <TableCell className="text-right">
-                         {(canChangeStatus(carga) || canFinalizarEntrega(carga)) && (
+                         {(canChangeStatus(carga) || canFinalizarEntrega(carga) || canExcluir(carga)) && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="sm" className="gap-1">Ações<MoreHorizontal className="h-4 w-4" /></Button>
@@ -356,9 +404,19 @@ export default function Agenda() {
                                 )}
                                 {canChangeStatus(carga) && (
                                   <>
+                                    <DropdownMenuItem onClick={() => openAtrasadoConfirm(carga)} className="text-orange-600">
+                                      <Clock className="h-4 w-4 mr-2" />
+                                      Marcar como Atrasado
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => openNoShowConfirm(carga)}>Marcar como No-show</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => openRecusadoConfirm(carga)} className="text-red-600">Marcar como Recusado</DropdownMenuItem>
                                   </>
+                                )}
+                                {canExcluir(carga) && (
+                                  <DropdownMenuItem onClick={() => openExcluirConfirm(carga)} className="text-red-600">
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Excluir Entrega
+                                  </DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -382,8 +440,8 @@ export default function Agenda() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleNoShow}>Confirmar</AlertDialogAction>
+              <AlertDialogCancel disabled={isProcessing}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleNoShow} disabled={isProcessing}>{isProcessing ? 'Processando...' : 'Confirmar'}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -398,8 +456,45 @@ export default function Agenda() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleRecusado} className="bg-red-600 hover:bg-red-700">Confirmar</AlertDialogAction>
+              <AlertDialogCancel disabled={isProcessing}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleRecusado} disabled={isProcessing} className="bg-red-600 hover:bg-red-700">{isProcessing ? 'Processando...' : 'Confirmar'}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={confirmAtrasado} onOpenChange={setConfirmAtrasado}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar ação</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja marcar esta carga como <strong>Atrasado</strong>?
+                {cargaToUpdate && (<span className="block mt-2 text-foreground">Fornecedor: {getFornecedorNome(cargaToUpdate.fornecedorId)}</span>)}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isProcessing}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleAtrasado} disabled={isProcessing} className="bg-orange-600 hover:bg-orange-700">{isProcessing ? 'Processando...' : 'Confirmar'}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={confirmExcluir} onOpenChange={setConfirmExcluir}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Entrega</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja <strong>excluir</strong> esta entrega? Esta ação não pode ser desfeita.
+                {cargaToUpdate && (<span className="block mt-2 text-foreground">Fornecedor: {getFornecedorNome(cargaToUpdate.fornecedorId)}</span>)}
+                {cargaToUpdate && getSenhasEmitidas(cargaToUpdate.id) > 0 && (
+                  <span className="block mt-1 text-amber-600">
+                    Atenção: {getSenhasEmitidas(cargaToUpdate.id)} senha(s) vinculada(s) também serão removidas.
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isProcessing}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleExcluir} disabled={isProcessing} className="bg-red-600 hover:bg-red-700">{isProcessing ? 'Excluindo...' : 'Excluir'}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -426,8 +521,8 @@ export default function Agenda() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleFinalizar} className="bg-green-600 hover:bg-green-700">Finalizar Entrega</AlertDialogAction>
+              <AlertDialogCancel disabled={isProcessing}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleFinalizar} disabled={isProcessing} className="bg-green-600 hover:bg-green-700">{isProcessing ? 'Finalizando...' : 'Finalizar Entrega'}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

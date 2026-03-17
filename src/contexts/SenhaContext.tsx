@@ -44,13 +44,14 @@ interface SenhaContextType {
   getCargasDisponiveis: () => Carga[];
   adicionarCarga: (data: AdicionarCargaData) => Promise<void>;
   finalizarEntrega: (cargaId: string) => Promise<void>;
+  excluirCarga: (cargaId: string) => Promise<void>;
 }
 
 const SenhaContext = createContext<SenhaContextType | undefined>(undefined);
 
 export function SenhaProvider({ children }: { children: ReactNode }) {
   const { senhas, criarSenha: criarSenhaDB, atualizarSenha: atualizarSenhaDB } = useSenhasDB();
-  const { cargas, criarCarga: criarCargaDB, atualizarCarga: atualizarCargaDB } = useCargasDB();
+  const { cargas, criarCarga: criarCargaDB, atualizarCarga: atualizarCargaDB, excluirCarga: excluirCargaDB } = useCargasDB();
 
   const gerarSenha = useCallback(async (data: GerarSenhaData): Promise<Senha> => {
     const nova = await criarSenhaDB({
@@ -209,6 +210,7 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
       getCargasDisponiveis,
       adicionarCarga,
       finalizarEntrega,
+      excluirCarga: excluirCargaDB,
     }}>
       {children}
     </SenhaContext.Provider>
