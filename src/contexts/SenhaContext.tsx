@@ -44,6 +44,7 @@ interface SenhaContextType {
   getCargasDisponiveis: () => Carga[];
   adicionarCarga: (data: AdicionarCargaData) => Promise<void>;
   finalizarEntrega: (cargaId: string) => Promise<void>;
+  excluirCarga: (cargaId: string) => Promise<void>;
 }
 
 const SenhaContext = createContext<SenhaContextType | undefined>(undefined);
