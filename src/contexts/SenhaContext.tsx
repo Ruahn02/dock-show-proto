@@ -210,6 +210,7 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
       getCargasDisponiveis,
       adicionarCarga,
       finalizarEntrega,
+      excluirCarga: excluirCargaDB,
     }}>
       {children}
     </SenhaContext.Provider>
