@@ -51,7 +51,7 @@ const SenhaContext = createContext<SenhaContextType | undefined>(undefined);
 
 export function SenhaProvider({ children }: { children: ReactNode }) {
   const { senhas, criarSenha: criarSenhaDB, atualizarSenha: atualizarSenhaDB } = useSenhasDB();
-  const { cargas, criarCarga: criarCargaDB, atualizarCarga: atualizarCargaDB } = useCargasDB();
+  const { cargas, criarCarga: criarCargaDB, atualizarCarga: atualizarCargaDB, excluirCarga: excluirCargaDB } = useCargasDB();
 
   const gerarSenha = useCallback(async (data: GerarSenhaData): Promise<Senha> => {
     const nova = await criarSenhaDB({
