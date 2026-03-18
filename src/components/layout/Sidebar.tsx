@@ -10,7 +10,8 @@ import {
   Users,
   Ticket,
   ArrowRightLeft,
-  QrCode
+  QrCode,
+  Archive
 } from 'lucide-react';
 
 const menuItems = [
