@@ -21,7 +21,8 @@ import { Label } from '@/components/ui/label';
 import { useFluxoOperacional, FluxoOperacional } from '@/hooks/useFluxoOperacional';
 import { useCargasDB } from '@/hooks/useCargasDB';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
-import { statusCargaLabels, tipoCaminhaoLabels } from '@/data/mockData';
+import { statusCargaLabels } from '@/data/mockData';
+import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { StatusCarga } from '@/types';
 import { toast } from 'sonner';
 import { Plus, CalendarPlus, CalendarIcon, Check, ChevronsUpDown, X, Edit, Package, Truck, BarChart3, ClipboardCheck } from 'lucide-react';
@@ -50,6 +51,7 @@ export default function AgendamentoPlanejamento() {
   const { dados, atualizarFluxo } = useFluxoOperacional();
   const { criarCarga, atualizarCarga } = useCargasDB();
   const { fornecedores } = useFornecedoresDB();
+  const { getLabelByNome } = useTiposVeiculoDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
@@ -242,7 +244,7 @@ export default function AgendamentoPlanejamento() {
                       <TableCell className="text-right">{d.volume_previsto ?? '-'}</TableCell>
                       <TableCell className="text-right">{d.volume_conferido ?? '-'}</TableCell>
                       <TableCell>
-                        {d.tipo_veiculo ? (tipoCaminhaoLabels[d.tipo_veiculo] || d.tipo_veiculo) : '-'}
+                        {d.tipo_veiculo ? getLabelByNome(d.tipo_veiculo) : '-'}
                         {d.quantidade_veiculos && d.quantidade_veiculos > 1 ? ` (${d.quantidade_veiculos})` : ''}
                       </TableCell>
                       <TableCell>{d.divergencia || '-'}</TableCell>

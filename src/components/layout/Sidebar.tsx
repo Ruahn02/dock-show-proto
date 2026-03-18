@@ -10,7 +10,8 @@ import {
   Users,
   Ticket,
   ArrowRightLeft,
-  QrCode
+  QrCode,
+  Archive
 } from 'lucide-react';
 
 const menuItems = [
@@ -20,6 +21,7 @@ const menuItems = [
   { to: '/agenda', label: 'Agenda', icon: CalendarCheck, adminOnly: true },
   { to: '/docas', label: 'Docas', icon: Container, adminOnly: false },
   { to: '/cross', label: 'Cross Docking', icon: ArrowRightLeft, adminOnly: false },
+  { to: '/armazenamento', label: 'Armazenamento', icon: Archive, adminOnly: true },
   { to: '/senhas', label: 'Controle de Senhas', icon: Ticket, adminOnly: true },
   { to: '/fornecedores', label: 'Fornecedores', icon: Building2, adminOnly: true },
   { to: '/funcionarios', label: 'Funcionários', icon: Users, adminOnly: true },

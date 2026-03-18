@@ -24,7 +24,8 @@ import { AssociarCargaModal } from '@/components/docas/AssociarCargaModal';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useSenha } from '@/contexts/SenhaContext';
 import { useCross } from '@/contexts/CrossContext';
-import { statusDocaLabels, tipoCaminhaoLabels } from '@/data/mockData';
+import { statusDocaLabels } from '@/data/mockData';
+import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { useDocasDB } from '@/hooks/useDocasDB';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { Doca, StatusDoca, StatusCarga, Senha } from '@/types';
@@ -44,6 +45,7 @@ const statusStyles: Record<StatusDoca, string> = {
 
 export default function Docas() {
   const { isAdmin } = useProfile();
+  const { getLabelByNome } = useTiposVeiculoDB();
   const { 
     senhas, 
     cargas, 
@@ -509,7 +511,7 @@ export default function Docas() {
                         <TableCell className="text-sm">{cargaDaSenha?.nfs?.join(', ') || '-'}</TableCell>
                         <TableCell className="text-right">{cargaDaSenha?.volumePrevisto || '-'}</TableCell>
                         <TableCell>{senha.nomeMotorista}</TableCell>
-                        <TableCell>{tipoCaminhaoLabels[senha.tipoCaminhao]}</TableCell>
+                        <TableCell>{getLabelByNome(senha.tipoCaminhao)}</TableCell>
                         <TableCell>{cargaDaSenha?.rua || senha.rua || '-'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={

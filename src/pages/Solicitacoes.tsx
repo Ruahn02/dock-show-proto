@@ -19,7 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useSolicitacao } from '@/contexts/SolicitacaoContext';
 import { useSenha } from '@/contexts/SenhaContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
-import { tipoCaminhaoLabels, statusSolicitacaoLabels } from '@/data/mockData';
+import { statusSolicitacaoLabels } from '@/data/mockData';
+import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, AlertTriangle } from 'lucide-react';
 import { SolicitacaoEntrega, StatusSolicitacao } from '@/types';
@@ -40,6 +41,7 @@ export default function Solicitacoes() {
   const { solicitacoes, aprovarSolicitacao, aprovarSolicitacaoUnificada, recusarSolicitacao, getSolicitacoesPendentes } = useSolicitacao();
   const { cargas } = useSenha();
   const { fornecedores } = useFornecedoresDB();
+  const { getLabelByNome } = useTiposVeiculoDB();
   const [aprovarModalOpen, setAprovarModalOpen] = useState(false);
   const [recusarDialogOpen, setRecusarDialogOpen] = useState(false);
   const [selectedSolicitacao, setSelectedSolicitacao] = useState<SolicitacaoEntrega | null>(null);
@@ -180,7 +182,7 @@ export default function Solicitacoes() {
                   <TableRow key={sol.id}>
                     <TableCell className="font-medium">{getFornecedorNome(sol.fornecedorId)}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{sol.emailContato}</TableCell>
-                    <TableCell>{tipoCaminhaoLabels[sol.tipoCaminhao]}</TableCell>
+                    <TableCell>{getLabelByNome(sol.tipoCaminhao)}</TableCell>
                     <TableCell className="text-center">{sol.quantidadeVeiculos}</TableCell>
                     <TableCell className="text-right">{sol.volumePrevisto}</TableCell>
                     <TableCell>{sol.notaFiscal || '-'}</TableCell>
@@ -243,7 +245,7 @@ export default function Solicitacoes() {
               <div className="space-y-4 py-4">
                 <div className="bg-muted p-3 rounded-lg space-y-1">
                   <p className="font-medium">{getFornecedorNome(selectedSolicitacao.fornecedorId)}</p>
-                  <p className="text-sm text-muted-foreground">Volume: {selectedSolicitacao.volumePrevisto} | Tipo: {tipoCaminhaoLabels[selectedSolicitacao.tipoCaminhao]}</p>
+                  <p className="text-sm text-muted-foreground">Volume: {selectedSolicitacao.volumePrevisto} | Tipo: {getLabelByNome(selectedSolicitacao.tipoCaminhao)}</p>
                   <p className="text-sm text-muted-foreground">E-mail: {selectedSolicitacao.emailContato}</p>
                   {selectedSolicitacao.observacoes && <p className="text-sm text-muted-foreground">Obs: {selectedSolicitacao.observacoes}</p>}
                 </div>

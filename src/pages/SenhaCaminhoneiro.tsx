@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useSenha } from '@/contexts/SenhaContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
-import { tipoCaminhaoLabels } from '@/data/mockData';
+import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { TipoCaminhao } from '@/types';
 import { Truck, ArrowLeft, List, PlusCircle, Check, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ type View = 'menu' | 'formulario' | 'minhasSenhas' | 'acompanhamento';
 export default function SenhaCaminhoneiro() {
   const { gerarSenha, getSenhaById, cargas, senhas, atualizarCarga } = useSenha();
   const { fornecedores } = useFornecedoresDB();
+  const { tipos: tiposVeiculo, getLabelByNome } = useTiposVeiculoDB();
 
   const dataHoje = format(new Date(), 'yyyy-MM-dd');
 
@@ -343,9 +344,9 @@ export default function SenhaCaminhoneiro() {
                     <SelectValue placeholder="Selecione o tipo..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(tipoCaminhaoLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value} className="text-base py-3">
-                        {label}
+                    {tiposVeiculo.map((tipo) => (
+                      <SelectItem key={tipo.nome} value={tipo.nome} className="text-base py-3">
+                        {getLabelByNome(tipo.nome)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -394,7 +395,7 @@ export default function SenhaCaminhoneiro() {
               </div>
               <div className="text-center space-y-1">
                 <p className="text-slate-600 text-sm">Veículo</p>
-                <p className="font-medium">{tipoCaminhaoLabels[senhaGerada.tipoCaminhao]}</p>
+                <p className="font-medium">{getLabelByNome(senhaGerada.tipoCaminhao)}</p>
               </div>
               <div className="text-center">
                 <p className="text-slate-600 text-sm">Sua Senha</p>

@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useSolicitacao } from '@/contexts/SolicitacaoContext';
-import { tipoCaminhaoLabels } from '@/data/mockData';
+import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { TipoCaminhao } from '@/types';
 import { toast } from 'sonner';
 import { PackageCheck, CheckCircle2, Check, ChevronsUpDown } from 'lucide-react';
@@ -29,6 +29,7 @@ export default function SolicitacaoEntrega() {
   const [enviado, setEnviado] = useState(false);
   const { fornecedores } = useFornecedoresDB();
   const { criarSolicitacao } = useSolicitacao();
+  const { tipos: tiposVeiculo, getLabelByNome } = useTiposVeiculoDB();
 
   const fornecedoresAtivos = useMemo(() => 
     fornecedores.filter(f => f.ativo), 
@@ -157,8 +158,8 @@ export default function SolicitacaoEntrega() {
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(tipoCaminhaoLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  {tiposVeiculo.map((tipo) => (
+                    <SelectItem key={tipo.nome} value={tipo.nome}>{getLabelByNome(tipo.nome)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

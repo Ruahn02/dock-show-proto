@@ -9,7 +9,8 @@ import {
 } from '@/components/ui/table';
 import { useFluxoOperacional, FluxoOperacional } from '@/hooks/useFluxoOperacional';
 import { useProfile } from '@/contexts/ProfileContext';
-import { statusCargaLabels, tipoCaminhaoLabels } from '@/data/mockData';
+import { statusCargaLabels } from '@/data/mockData';
+import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { CalendarPlus, Package, Truck, BarChart3, ClipboardCheck, LogOut } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -35,6 +36,7 @@ export default function AgendamentoComprador() {
   const { dados } = useFluxoOperacional();
   const { logout } = useProfile();
   const navigate = useNavigate();
+  const { getLabelByNome } = useTiposVeiculoDB();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const cargasFiltradas = useMemo(() => {
@@ -163,7 +165,7 @@ export default function AgendamentoComprador() {
                         <TableCell>{d.nota_fiscal && d.nota_fiscal.length > 0 ? d.nota_fiscal.join(', ') : '-'}</TableCell>
                         <TableCell className="text-right">{d.volume_previsto ?? '-'}</TableCell>
                         <TableCell className="text-right">{d.volume_conferido ?? '-'}</TableCell>
-                        <TableCell>{d.tipo_veiculo ? (tipoCaminhaoLabels[d.tipo_veiculo] || d.tipo_veiculo) : '-'}</TableCell>
+                        <TableCell>{d.tipo_veiculo ? getLabelByNome(d.tipo_veiculo) : '-'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={statusStyles[s.key] || ''}>{s.label}</Badge>
                         </TableCell>

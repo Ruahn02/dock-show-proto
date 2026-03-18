@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { QRCodeSVG } from 'qrcode.react';
 import { useSenha } from '@/contexts/SenhaContext';
 import { useFluxoOperacional } from '@/hooks/useFluxoOperacional';
-import { tipoCaminhaoLabels, statusSenhaLabels, localSenhaLabels } from '@/data/mockData';
+import { statusSenhaLabels, localSenhaLabels } from '@/data/mockData';
+import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { useDocasDB } from '@/hooks/useDocasDB';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { Ticket, Link, MapPin, Unlock, RotateCcw, Monitor, Copy, XCircle } from 'lucide-react';
@@ -31,6 +32,7 @@ export default function ControleSenhas() {
   const { atualizarFluxo } = useFluxoOperacional();
   const { docas, atualizarDoca } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
+  const { getLabelByNome } = useTiposVeiculoDB();
   
   const [vincularModalOpen, setVincularModalOpen] = useState(false);
   const [patioConfirmOpen, setPatioConfirmOpen] = useState(false);
@@ -303,7 +305,7 @@ export default function ControleSenhas() {
                         <TableCell className="font-medium">{getFornecedorNome(senha.fornecedorId)}</TableCell>
                         <TableCell>{senha.nomeMotorista}</TableCell>
                         <TableCell>{senha.horaChegada}</TableCell>
-                        <TableCell>{tipoCaminhaoLabels[senha.tipoCaminhao]}</TableCell>
+                        <TableCell>{getLabelByNome(senha.tipoCaminhao)}</TableCell>
                         <TableCell>
                           <Badge variant="secondary" className={getStatusBadgeClass(senha.status)}>
                             {statusSenhaLabels[senha.status]}
