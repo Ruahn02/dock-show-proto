@@ -45,6 +45,7 @@ const statusStyles: Record<StatusDoca, string> = {
 
 export default function Docas() {
   const { isAdmin } = useProfile();
+  const { getLabelByNome } = useTiposVeiculoDB();
   const { 
     senhas, 
     cargas, 
