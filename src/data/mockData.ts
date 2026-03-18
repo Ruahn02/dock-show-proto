@@ -69,12 +69,7 @@ export const statusDocaLabels: Record<string, string> = {
   uso_consumo: 'Uso e Consumo',
 };
 
-export const tipoCaminhaoLabels: Record<string, string> = {
-  truck: 'Truck',
-  carreta: 'Carreta',
-  bi_truck: 'Bi-Truck',
-  van: 'Van',
-};
+// tipoCaminhaoLabels removido — agora carregado dinamicamente via useTiposVeiculoDB
 
 export const statusSolicitacaoLabels: Record<string, string> = {
   pendente: 'Pendente',

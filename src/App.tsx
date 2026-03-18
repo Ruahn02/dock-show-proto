@@ -93,6 +93,11 @@ const App = () => (
                       <Acessos />
                     </ProtectedRoute>
                   } />
+                  <Route path="/armazenamento" element={
+                    <ProtectedRoute adminOnly>
+                      <Armazenamento />
+                    </ProtectedRoute>
+                  } />
 
                   {/* Rotas protegidas (qualquer perfil autenticado) */}
                   <Route path="/docas" element={

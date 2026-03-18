@@ -136,7 +136,7 @@ export interface CrossDocking {
 // Solicitacao de Entrega Types
 export type StatusSolicitacao = 'pendente' | 'aprovada' | 'recusada';
 
-export type TipoCaminhao = 'truck' | 'carreta' | 'bi_truck' | 'van';
+export type TipoCaminhao = string;
 
 export interface SolicitacaoEntrega {
   id: string;
