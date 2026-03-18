@@ -344,9 +344,9 @@ export default function SenhaCaminhoneiro() {
                     <SelectValue placeholder="Selecione o tipo..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(tipoCaminhaoLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value} className="text-base py-3">
-                        {label}
+                    {tiposVeiculo.map((tipo) => (
+                      <SelectItem key={tipo.nome} value={tipo.nome} className="text-base py-3">
+                        {getLabelByNome(tipo.nome)}
                       </SelectItem>
                     ))}
                   </SelectContent>
