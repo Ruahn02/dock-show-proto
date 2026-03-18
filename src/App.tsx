@@ -19,6 +19,7 @@ import ControleSenhas from "./pages/ControleSenhas";
 import Fornecedores from "./pages/Fornecedores";
 import Funcionarios from "./pages/Funcionarios";
 import Acessos from "./pages/Acessos";
+import Armazenamento from "./pages/Armazenamento";
 import SenhaCaminhoneiro from "./pages/SenhaCaminhoneiro";
 import PainelSenhas from "./pages/PainelSenhas";
 import SolicitacaoEntrega from "./pages/SolicitacaoEntrega";
