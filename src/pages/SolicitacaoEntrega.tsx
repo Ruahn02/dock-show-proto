@@ -29,6 +29,7 @@ export default function SolicitacaoEntrega() {
   const [enviado, setEnviado] = useState(false);
   const { fornecedores } = useFornecedoresDB();
   const { criarSolicitacao } = useSolicitacao();
+  const { tipos: tiposVeiculo, getLabelByNome } = useTiposVeiculoDB();
 
   const fornecedoresAtivos = useMemo(() => 
     fornecedores.filter(f => f.ativo), 
