@@ -51,6 +51,7 @@ export default function AgendamentoPlanejamento() {
   const { dados, atualizarFluxo } = useFluxoOperacional();
   const { criarCarga, atualizarCarga } = useCargasDB();
   const { fornecedores } = useFornecedoresDB();
+  const { getLabelByNome } = useTiposVeiculoDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
