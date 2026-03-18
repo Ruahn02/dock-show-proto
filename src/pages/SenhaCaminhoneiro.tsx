@@ -28,6 +28,7 @@ type View = 'menu' | 'formulario' | 'minhasSenhas' | 'acompanhamento';
 export default function SenhaCaminhoneiro() {
   const { gerarSenha, getSenhaById, cargas, senhas, atualizarCarga } = useSenha();
   const { fornecedores } = useFornecedoresDB();
+  const { tipos: tiposVeiculo, getLabelByNome } = useTiposVeiculoDB();
 
   const dataHoje = format(new Date(), 'yyyy-MM-dd');
 
