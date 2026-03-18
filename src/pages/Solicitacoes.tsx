@@ -182,7 +182,7 @@ export default function Solicitacoes() {
                   <TableRow key={sol.id}>
                     <TableCell className="font-medium">{getFornecedorNome(sol.fornecedorId)}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{sol.emailContato}</TableCell>
-                    <TableCell>{tipoCaminhaoLabels[sol.tipoCaminhao]}</TableCell>
+                    <TableCell>{getLabelByNome(sol.tipoCaminhao)}</TableCell>
                     <TableCell className="text-center">{sol.quantidadeVeiculos}</TableCell>
                     <TableCell className="text-right">{sol.volumePrevisto}</TableCell>
                     <TableCell>{sol.notaFiscal || '-'}</TableCell>
