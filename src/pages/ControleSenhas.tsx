@@ -32,6 +32,7 @@ export default function ControleSenhas() {
   const { atualizarFluxo } = useFluxoOperacional();
   const { docas, atualizarDoca } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
+  const { getLabelByNome } = useTiposVeiculoDB();
   
   const [vincularModalOpen, setVincularModalOpen] = useState(false);
   const [patioConfirmOpen, setPatioConfirmOpen] = useState(false);
