@@ -36,6 +36,7 @@ export default function AgendamentoComprador() {
   const { dados } = useFluxoOperacional();
   const { logout } = useProfile();
   const navigate = useNavigate();
+  const { getLabelByNome } = useTiposVeiculoDB();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const cargasFiltradas = useMemo(() => {
