@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useSolicitacao } from '@/contexts/SolicitacaoContext';
-import { tipoCaminhaoLabels } from '@/data/mockData';
+import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { TipoCaminhao } from '@/types';
 import { toast } from 'sonner';
 import { PackageCheck, CheckCircle2, Check, ChevronsUpDown } from 'lucide-react';

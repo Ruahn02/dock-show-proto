@@ -19,7 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useSolicitacao } from '@/contexts/SolicitacaoContext';
 import { useSenha } from '@/contexts/SenhaContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
-import { tipoCaminhaoLabels, statusSolicitacaoLabels } from '@/data/mockData';
+import { statusSolicitacaoLabels } from '@/data/mockData';
+import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, AlertTriangle } from 'lucide-react';
 import { SolicitacaoEntrega, StatusSolicitacao } from '@/types';

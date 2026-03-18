@@ -9,7 +9,8 @@ import {
 } from '@/components/ui/table';
 import { useFluxoOperacional, FluxoOperacional } from '@/hooks/useFluxoOperacional';
 import { useProfile } from '@/contexts/ProfileContext';
-import { statusCargaLabels, tipoCaminhaoLabels } from '@/data/mockData';
+import { statusCargaLabels } from '@/data/mockData';
+import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { CalendarPlus, Package, Truck, BarChart3, ClipboardCheck, LogOut } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
