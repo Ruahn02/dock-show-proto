@@ -41,6 +41,7 @@ export default function Solicitacoes() {
   const { solicitacoes, aprovarSolicitacao, aprovarSolicitacaoUnificada, recusarSolicitacao, getSolicitacoesPendentes } = useSolicitacao();
   const { cargas } = useSenha();
   const { fornecedores } = useFornecedoresDB();
+  const { getLabelByNome } = useTiposVeiculoDB();
   const [aprovarModalOpen, setAprovarModalOpen] = useState(false);
   const [recusarDialogOpen, setRecusarDialogOpen] = useState(false);
   const [selectedSolicitacao, setSelectedSolicitacao] = useState<SolicitacaoEntrega | null>(null);
