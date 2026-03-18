@@ -245,7 +245,7 @@ export default function Solicitacoes() {
               <div className="space-y-4 py-4">
                 <div className="bg-muted p-3 rounded-lg space-y-1">
                   <p className="font-medium">{getFornecedorNome(selectedSolicitacao.fornecedorId)}</p>
-                  <p className="text-sm text-muted-foreground">Volume: {selectedSolicitacao.volumePrevisto} | Tipo: {tipoCaminhaoLabels[selectedSolicitacao.tipoCaminhao]}</p>
+                  <p className="text-sm text-muted-foreground">Volume: {selectedSolicitacao.volumePrevisto} | Tipo: {getLabelByNome(selectedSolicitacao.tipoCaminhao)}</p>
                   <p className="text-sm text-muted-foreground">E-mail: {selectedSolicitacao.emailContato}</p>
                   {selectedSolicitacao.observacoes && <p className="text-sm text-muted-foreground">Obs: {selectedSolicitacao.observacoes}</p>}
                 </div>

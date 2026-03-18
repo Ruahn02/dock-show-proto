@@ -395,7 +395,7 @@ export default function SenhaCaminhoneiro() {
               </div>
               <div className="text-center space-y-1">
                 <p className="text-slate-600 text-sm">Veículo</p>
-                <p className="font-medium">{tipoCaminhaoLabels[senhaGerada.tipoCaminhao]}</p>
+                <p className="font-medium">{getLabelByNome(senhaGerada.tipoCaminhao)}</p>
               </div>
               <div className="text-center">
                 <p className="text-slate-600 text-sm">Sua Senha</p>

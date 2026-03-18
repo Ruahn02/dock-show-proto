@@ -244,7 +244,7 @@ export default function AgendamentoPlanejamento() {
                       <TableCell className="text-right">{d.volume_previsto ?? '-'}</TableCell>
                       <TableCell className="text-right">{d.volume_conferido ?? '-'}</TableCell>
                       <TableCell>
-                        {d.tipo_veiculo ? (tipoCaminhaoLabels[d.tipo_veiculo] || d.tipo_veiculo) : '-'}
+                        {d.tipo_veiculo ? getLabelByNome(d.tipo_veiculo) : '-'}
                         {d.quantidade_veiculos && d.quantidade_veiculos > 1 ? ` (${d.quantidade_veiculos})` : ''}
                       </TableCell>
                       <TableCell>{d.divergencia || '-'}</TableCell>

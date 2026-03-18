@@ -158,8 +158,8 @@ export default function SolicitacaoEntrega() {
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(tipoCaminhaoLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  {tiposVeiculo.map((tipo) => (
+                    <SelectItem key={tipo.nome} value={tipo.nome}>{getLabelByNome(tipo.nome)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

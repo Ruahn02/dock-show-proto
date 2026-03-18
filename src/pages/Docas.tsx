@@ -511,7 +511,7 @@ export default function Docas() {
                         <TableCell className="text-sm">{cargaDaSenha?.nfs?.join(', ') || '-'}</TableCell>
                         <TableCell className="text-right">{cargaDaSenha?.volumePrevisto || '-'}</TableCell>
                         <TableCell>{senha.nomeMotorista}</TableCell>
-                        <TableCell>{tipoCaminhaoLabels[senha.tipoCaminhao]}</TableCell>
+                        <TableCell>{getLabelByNome(senha.tipoCaminhao)}</TableCell>
                         <TableCell>{cargaDaSenha?.rua || senha.rua || '-'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={

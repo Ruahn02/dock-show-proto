@@ -305,7 +305,7 @@ export default function ControleSenhas() {
                         <TableCell className="font-medium">{getFornecedorNome(senha.fornecedorId)}</TableCell>
                         <TableCell>{senha.nomeMotorista}</TableCell>
                         <TableCell>{senha.horaChegada}</TableCell>
-                        <TableCell>{tipoCaminhaoLabels[senha.tipoCaminhao]}</TableCell>
+                        <TableCell>{getLabelByNome(senha.tipoCaminhao)}</TableCell>
                         <TableCell>
                           <Badge variant="secondary" className={getStatusBadgeClass(senha.status)}>
                             {statusSenhaLabels[senha.status]}
