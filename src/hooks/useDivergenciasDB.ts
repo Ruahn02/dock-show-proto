@@ -33,20 +33,25 @@ function formatDivergencias(rows: DivergenciaRow[]): string {
 
 export function useDivergenciasDB() {
   const [divergencias, setDivergencias] = useState<DivergenciaRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchDivergencias = useCallback(async () => {
-    const { data, error } = await supabase
+    const { data, error: err } = await supabase
       .from('divergencias')
       .select('*')
       .order('created_at', { ascending: true });
-    if (!error && data) {
+    if (err) {
+      console.error('[useDivergenciasDB] fetch error:', err);
+      setError('Falha ao carregar divergências');
+    } else if (data) {
       setDivergencias(data as unknown as DivergenciaRow[]);
+      setError(null);
     }
   }, []);
 
   useEffect(() => {
     fetchDivergencias();
-    const interval = setInterval(fetchDivergencias, 15000);
+    const interval = setInterval(fetchDivergencias, 30000);
 
     const channel = supabase
       .channel('divergencias-realtime')
@@ -94,5 +99,5 @@ export function useDivergenciasDB() {
     return formatDivergencias(divergencias.filter(d => d.carga_id === cargaId && d.origem === 'cross'));
   }, [divergencias]);
 
-  return { divergencias, salvarDivergencias, getDivergenciasRecebimento, getDivergenciasCross, getDivergenciasCrossByCarga, refetch: fetchDivergencias };
+  return { divergencias, error, salvarDivergencias, getDivergenciasRecebimento, getDivergenciasCross, getDivergenciasCrossByCarga, refetch: fetchDivergencias };
 }

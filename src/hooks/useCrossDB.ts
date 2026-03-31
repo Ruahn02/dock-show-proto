@@ -39,18 +39,23 @@ function mapToDB(data: Partial<CrossDocking>): any {
 export function useCrossDB() {
   const [crossItems, setCrossItems] = useState<CrossDocking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchCross = useCallback(async () => {
-    const { data, error } = await fetchAllRows('cross_docking', '*', [{ column: 'created_at', ascending: false }]);
-    if (!error && data) {
+    const { data, error: err } = await fetchAllRows('cross_docking', '*', [{ column: 'created_at', ascending: false }]);
+    if (err) {
+      console.error('[useCrossDB] fetch error:', err);
+      setError('Falha ao carregar cross docking');
+    } else if (data) {
       setCrossItems(data.map(mapFromDB));
+      setError(null);
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchCross();
-    const interval = setInterval(fetchCross, 15000);
+    const interval = setInterval(fetchCross, 30000);
 
     const channel = supabase
       .channel('cross-docking-realtime')
@@ -120,5 +125,5 @@ export function useCrossDB() {
     if (error) throw error;
   }, []);
 
-  return { crossItems, loading, criarCross, atualizarCross, deletarCross, refetch: fetchCross };
+  return { crossItems, loading, error, criarCross, atualizarCross, deletarCross, refetch: fetchCross };
 }

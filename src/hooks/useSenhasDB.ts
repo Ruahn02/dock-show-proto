@@ -42,18 +42,23 @@ function mapSenhaToDB(data: Partial<Senha>): any {
 export function useSenhasDB() {
   const [senhas, setSenhas] = useState<Senha[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchSenhas = useCallback(async () => {
-    const { data, error } = await fetchAllRows('senhas', '*', [{ column: 'numero' }]);
-    if (!error && data) {
+    const { data, error: err } = await fetchAllRows('senhas', '*', [{ column: 'numero' }]);
+    if (err) {
+      console.error('[useSenhasDB] fetch error:', err);
+      setError('Falha ao carregar senhas');
+    } else if (data) {
       setSenhas(data.map(mapSenhaFromDB));
+      setError(null);
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchSenhas();
-    const interval = setInterval(fetchSenhas, 15000);
+    const interval = setInterval(fetchSenhas, 30000);
 
     const channel = supabase
       .channel('senhas-realtime')
@@ -112,5 +117,5 @@ export function useSenhasDB() {
     throw error;
   }, []);
 
-  return { senhas, setSenhas, loading, criarSenha, atualizarSenha, refetch: fetchSenhas };
+  return { senhas, setSenhas, loading, error, criarSenha, atualizarSenha, refetch: fetchSenhas };
 }

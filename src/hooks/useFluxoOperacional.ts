@@ -51,18 +51,23 @@ interface AtualizarFluxoParams {
 export function useFluxoOperacional() {
   const [dados, setDados] = useState<FluxoOperacional[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchDados = useCallback(async () => {
-    const { data, error } = await fetchAllRows('vw_carga_operacional', '*');
-    if (!error && data) {
+    const { data, error: err } = await fetchAllRows('vw_carga_operacional', '*');
+    if (err) {
+      console.error('[useFluxoOperacional] fetch error:', err);
+      setError('Falha ao carregar dados operacionais');
+    } else if (data) {
       setDados(data as unknown as FluxoOperacional[]);
+      setError(null);
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchDados();
-    const interval = setInterval(fetchDados, 15000);
+    const interval = setInterval(fetchDados, 30000);
 
     const channel = supabase
       .channel('fluxo-operacional')
@@ -93,9 +98,8 @@ export function useFluxoOperacional() {
       throw error;
     }
 
-    // Re-fetch after RPC
     await fetchDados();
   }, [fetchDados]);
 
-  return { dados, loading, atualizarFluxo, refetch: fetchDados };
+  return { dados, loading, error, atualizarFluxo, refetch: fetchDados };
 }

@@ -42,18 +42,23 @@ function mapToDB(data: Partial<SolicitacaoEntrega>): any {
 export function useSolicitacoesDB() {
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoEntrega[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchSolicitacoes = useCallback(async () => {
-    const { data, error } = await fetchAllRows('solicitacoes', '*', [{ column: 'created_at', ascending: false }]);
-    if (!error && data) {
+    const { data, error: err } = await fetchAllRows('solicitacoes', '*', [{ column: 'created_at', ascending: false }]);
+    if (err) {
+      console.error('[useSolicitacoesDB] fetch error:', err);
+      setError('Falha ao carregar solicitações');
+    } else if (data) {
       setSolicitacoes(data.map(mapFromDB));
+      setError(null);
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchSolicitacoes();
-    const interval = setInterval(fetchSolicitacoes, 15000);
+    const interval = setInterval(fetchSolicitacoes, 30000);
 
     const channel = supabase
       .channel('solicitacoes-realtime')
@@ -108,5 +113,5 @@ export function useSolicitacoesDB() {
     throw error;
   }, []);
 
-  return { solicitacoes, loading, criarSolicitacao, atualizarSolicitacao, refetch: fetchSolicitacoes };
+  return { solicitacoes, loading, error, criarSolicitacao, atualizarSolicitacao, refetch: fetchSolicitacoes };
 }

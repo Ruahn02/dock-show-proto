@@ -47,21 +47,26 @@ function mapCargaToDB(data: Partial<Carga>): any {
 export function useCargasDB() {
   const [cargas, setCargas] = useState<Carga[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchCargas = useCallback(async () => {
-    const { data, error } = await fetchAllRows('cargas', '*', [
+    const { data, error: err } = await fetchAllRows('cargas', '*', [
       { column: 'data' },
       { column: 'horario_previsto' },
     ]);
-    if (!error && data) {
+    if (err) {
+      console.error('[useCargasDB] fetch error:', err);
+      setError('Falha ao carregar cargas');
+    } else if (data) {
       setCargas(data.map(mapCargaFromDB));
+      setError(null);
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchCargas();
-    const interval = setInterval(fetchCargas, 15000);
+    const interval = setInterval(fetchCargas, 30000);
 
     const channel = supabase
       .channel('cargas-realtime')
@@ -86,7 +91,6 @@ export function useCargasDB() {
     quantidadeVeiculos?: number;
     solicitacaoId?: string;
   }) => {
-    // Verificar se já existe carga do mesmo fornecedor na mesma data com status aguardando_chegada
     const { data: existente } = await supabase
       .from('cargas')
       .select('*')
@@ -98,7 +102,6 @@ export function useCargasDB() {
       .maybeSingle();
 
     if (existente) {
-      // Unificar: somar volumes e veículos, concatenar NFs
       const nfsAtualizadas = [...(existente.nfs || []), ...dados.nfs];
       const { data: atualizada, error } = await supabase
         .from('cargas')
@@ -118,7 +121,6 @@ export function useCargasDB() {
       throw error;
     }
 
-    // Se não existir, criar nova carga normalmente
     const { data, error } = await supabase
       .from('cargas')
       .insert({
@@ -159,19 +161,14 @@ export function useCargasDB() {
   }, []);
 
   const excluirCarga = useCallback(async (id: string) => {
-    // Excluir senhas vinculadas primeiro
     await supabase.from('senhas').delete().eq('carga_id', id);
-    // Liberar docas vinculadas
     await supabase.from('docas').update({ status: 'livre', carga_id: null, senha_id: null, conferente_id: null, volume_conferido: null, rua: null }).eq('carga_id', id);
-    // Excluir divergências vinculadas
     await supabase.from('divergencias').delete().eq('carga_id', id);
-    // Excluir cross vinculados
     await supabase.from('cross_docking').delete().eq('carga_id', id);
-    // Excluir a carga
     const { error } = await supabase.from('cargas').delete().eq('id', id);
     if (error) throw error;
     setCargas(prev => prev.filter(c => c.id !== id));
   }, []);
 
-  return { cargas, setCargas, loading, criarCarga, atualizarCarga, excluirCarga, refetch: fetchCargas };
+  return { cargas, setCargas, loading, error, criarCarga, atualizarCarga, excluirCarga, refetch: fetchCargas };
 }
