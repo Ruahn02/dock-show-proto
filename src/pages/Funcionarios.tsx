@@ -12,12 +12,14 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
 import { Conferente } from '@/types';
 import { toast } from 'sonner';
-import { Plus, Edit, Users } from 'lucide-react';
+import { Plus, Edit, Users, Loader2 } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
+import { getErrorMessage } from '@/lib/supabaseRetry';
 
 export default function Funcionarios() {
   const { isAdmin } = useProfile();
   const navigate = useNavigate();
-  const { conferentes, criarConferente, atualizarConferente } = useConferentesDB();
+  const { conferentes, loading, error, criarConferente, atualizarConferente, refetch } = useConferentesDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedConferente, setSelectedConferente] = useState<Conferente | null>(null);
 
