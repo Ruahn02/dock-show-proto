@@ -47,7 +47,7 @@ export default function Fornecedores() {
         await criarFornecedor(data);
         toast.success('Fornecedor criado!');
       }
-    } catch { toast.error('Erro ao salvar'); }
+    } catch (err: any) { toast.error(getErrorMessage(err)); }
   };
 
   const handleToggleAtivo = async (f: Fornecedor) => {
