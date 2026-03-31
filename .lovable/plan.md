@@ -1,81 +1,89 @@
+Diagnóstico confirmado (sim, validei no Supabase e no app):
 
-# Debug completo — causa raiz e plano de correção
+1) Banco NÃO está zerado
+- `fornecedores`: 359 registros
+- `cargas`: 210 registros
+- RLS está ativa e com políticas de SELECT/INSERT/UPDATE/DELETE para `anon` nas tabelas operacionais
 
-## Causa raiz identificada (não é RLS)
-Após inspecionar código + logs de rede + consultas no banco:
+2) O problema principal é conectividade REST + rajada de requisições
+- Logs de rede: múltiplos `503` e `NetworkError` em `GET /rest/v1/*`
+- Também falha em escrita: ex. `POST /rest/v1/conferentes` com `NetworkError`
+- Quando o POST falha assim, o registro realmente não entra no banco (por isso “não aparece no sistema e nem no Supabase”)
 
-1. **O app está solicitando dados sim** (várias chamadas `GET /rest/v1/...`).
-2. **As respostas estão falhando com `503` e `connection timeout`** (`upstream connect error`), então os arrays ficam vazios.
-3. **Os hooks silenciam o erro**: padrão atual só faz `setDados(...)` quando sucesso e sempre faz `setLoading(false)` sem expor erro; resultado visual = “sem dados” sem diagnóstico.
-4. **Há fan-out de requisições**: múltiplos hooks e contexts consultando as mesmas tabelas + polling de 15s em cada hook aumentam pressão e pioram instabilidade.
-5. **RLS não bloqueia leitura**: políticas `anon_select_*` existem; consultas diretas mostram dados (`fornecedores`, `cargas`, `senhas`, `vw_carga_operacional` com registros).
+3) O app hoje mascara a falha como “lista vazia”
+- Páginas como `Fornecedores` e `Funcionarios` não exibem `loading/error` do hook
+- Resultado visual: parece “zerado”, mas na prática é erro de conexão
 
-## O que será corrigido
+Plano de correção (causa raiz, sem mexer regra de negócio):
 
-### 1) Camada de fetch (base única de robustez)
-**Arquivo:** `src/lib/supabasePagination.ts`
+1. Endurecer camada de leitura (anti-colapso)
+- Arquivo: `src/lib/supabasePagination.ts`
+- Adicionar:
+  - limite global de concorrência (evitar várias tabelas batendo ao mesmo tempo)
+  - cooldown curto por tabela após sequência de 503/timeout
+  - retry com backoff + jitter
+  - classificação de erro transitório vs erro funcional
 
-- Adicionar **retry com backoff** para erro transitório (503/network timeout).
-- Adicionar **deduplicação de chamadas simultâneas** por chave (tabela+select+order+range), evitando rajada duplicada.
-- Padronizar retorno de erro com contexto (tabela, tentativa, mensagem).
-- Adicionar logs de debug temporários controlados por flag (sem poluir produção).
+2. Retry também para escrita (criar/editar/excluir)
+- Novo util: `src/lib/supabaseRetry.ts`
+- Aplicar nas mutações de hooks:
+  - `useFornecedoresDB.ts`
+  - `useConferentesDB.ts`
+  - `useCargasDB.ts`
+  - `useSenhasDB.ts`
+  - `useSolicitacoesDB.ts`
+  - `useCrossDB.ts`
+  - `useDocasDB.ts`
+  - `useDivergenciasDB.ts`
+- Objetivo: POST/PUT/DELETE não falhar no primeiro pico de instabilidade
 
-### 2) Hooks (crítico) — parar erro silencioso
-**Arquivos:**
+3. Reduzir fan-out (thundering herd)
+- Hooks acima: trocar polling fixo de 30s por estratégia híbrida:
+  - Realtime como primário
+  - polling de fallback mais espaçado (ex. 120s) só quando canal não estiver estável
+  - pequeno atraso randômico no fetch inicial para não disparar tudo em bloco
+
+4. Corrigir UX de “tudo zerado”
+- Usar `ConnectionError` já criado em páginas-chave:
+  - `src/pages/Funcionarios.tsx`
+  - `src/pages/Fornecedores.tsx`
+  - `src/pages/Agenda.tsx`
+  - `src/pages/Docas.tsx`
+  - `src/pages/Dashboard.tsx`
+  - `src/pages/Solicitacoes.tsx`
+- Fluxo visual correto:
+  - carregando → erro de conexão (com “Tentar novamente”) → dados
+  - sem confundir erro de rede com lista vazia
+
+5. Mensagens de erro mais claras ao usuário
+- Em `catch` de criação (fornecedor/funcionário/etc), exibir causa real quando for rede/timeout
+- Evitar toast genérico “Erro ao salvar” sem contexto
+
+6. Validação final (E2E)
+- Testar:
+  - abrir `/funcionarios` e `/fornecedores` com reconexão
+  - criar novo fornecedor e confirmar no banco
+  - recarregar página e validar persistência
+  - simular instabilidade e confirmar fallback/retry + tela de erro amigável
+
+Arquivos-alvo do ajuste:
+- `src/lib/supabasePagination.ts`
+- `src/lib/supabaseRetry.ts` (novo)
+- `src/hooks/useFornecedoresDB.ts`
+- `src/hooks/useConferentesDB.ts`
 - `src/hooks/useCargasDB.ts`
 - `src/hooks/useSenhasDB.ts`
-- `src/hooks/useFornecedoresDB.ts`
 - `src/hooks/useSolicitacoesDB.ts`
 - `src/hooks/useCrossDB.ts`
 - `src/hooks/useDocasDB.ts`
-- `src/hooks/useConferentesDB.ts`
-- `src/hooks/useFluxoOperacional.ts`
 - `src/hooks/useDivergenciasDB.ts`
-- `src/hooks/useTiposVeiculoDB.ts`
-
-**Ajustes padrão em todos:**
-- Incluir estado `error` (ex.: `string | null`).
-- Em falha: `console.error` estruturado + `setError(...)`.
-- Em sucesso: limpar `error` e atualizar estado.
-- Evitar “falso vazio”: diferenciar “sem dados reais” de “falha de carregamento”.
-- Reduzir polling agressivo (15s) para estratégia mais estável:
-  - priorizar realtime,
-  - polling de fallback menos frequente (ou apenas quando necessário).
-
-### 3) Reduzir fan-out de leitura entre telas/contexts
-**Arquivos principais:** `src/App.tsx`, `src/contexts/*`, páginas que instanciam hooks repetidos
-
-- Evitar múltiplas instâncias consultando o mesmo recurso em paralelo sem necessidade.
-- Consolidar leitura compartilhada onde já existe provider/context.
-- Manter regras de negócio intactas; ajuste apenas de carregamento/consumo de dados.
-
-### 4) Exibição de erro e recuperação na UI
-**Páginas prioritárias:**
+- `src/pages/Funcionarios.tsx`
 - `src/pages/Fornecedores.tsx`
 - `src/pages/Agenda.tsx`
 - `src/pages/Docas.tsx`
 - `src/pages/Dashboard.tsx`
 - `src/pages/Solicitacoes.tsx`
-- `src/pages/SenhaCaminhoneiro.tsx`
 
-- Mostrar estado explícito:
-  - `loading`,
-  - `erro de conexão`,
-  - `sem registros`.
-- Adicionar ação de **“Tentar novamente”** chamando `refetch`.
-- Garantir que, ao voltar a conectividade, os dados reapareçam automaticamente.
-
-### 5) Verificações pedidas (checklist fechado)
-1. **Conexão Supabase:** URL/KEY e client OK.
-2. **Hooks:** queries corretas; sem erro silencioso; sem sobrescrita por mock.
-3. **RLS:** SELECT permitido para anon nas tabelas usadas.
-4. **Estrutura do banco:** tabelas/colunas batem com código; view operacional retorna dados.
-5. **Páginas/componentes:** consumo de estado será corrigido para tratar erro vs vazio.
-6. **Console:** erros de fetch/Supabase serão logados com contexto para diagnóstico real.
-
-### 6) Entrega após implementação
-Vou te devolver:
-- **Causa raiz final** (com evidências).
-- **Lista exata de arquivos alterados**.
-- **Código final dos hooks corrigidos** (com tratamento de erro/retry).
-- **Validação de pronto para teste** com roteiro E2E (carregamento normal + queda/retorno de conexão).
+Observação importante:
+- Não há indício de problema de schema/RLS impedindo leitura/escrita neste caso.
+- A correção é de resiliência de rede + redução de rajada + tratamento correto de erro na UI.
