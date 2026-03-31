@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { withRetry } from '@/lib/supabaseRetry';
 import type { DivergenciaItem } from '@/types';
 
 export interface DivergenciaRow {
@@ -34,12 +35,14 @@ function formatDivergencias(rows: DivergenciaRow[]): string {
 export function useDivergenciasDB() {
   const [divergencias, setDivergencias] = useState<DivergenciaRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchDivergencias = useCallback(async () => {
     const { data, error: err } = await supabase
       .from('divergencias')
       .select('*')
       .order('created_at', { ascending: true });
+    if (!mountedRef.current) return;
     if (err) {
       console.error('[useDivergenciasDB] fetch error:', err);
       setError('Falha ao carregar divergências');
@@ -50,8 +53,9 @@ export function useDivergenciasDB() {
   }, []);
 
   useEffect(() => {
-    fetchDivergencias();
-    const interval = setInterval(fetchDivergencias, 30000);
+    mountedRef.current = true;
+    const initDelay = setTimeout(fetchDivergencias, Math.random() * 2000);
+    const interval = setInterval(fetchDivergencias, 120000);
 
     const channel = supabase
       .channel('divergencias-realtime')
@@ -59,6 +63,8 @@ export function useDivergenciasDB() {
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
+      clearTimeout(initDelay);
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
@@ -79,7 +85,7 @@ export function useDivergenciasDB() {
       quantidade: item.quantidade,
       tipo_divergencia: item.tipo_divergencia,
     }));
-    const { error } = await supabase.from('divergencias').insert(rows);
+    const { error } = await withRetry(() => supabase.from('divergencias').insert(rows));
     if (error) {
       console.error('Erro ao salvar divergências:', error);
       throw error;

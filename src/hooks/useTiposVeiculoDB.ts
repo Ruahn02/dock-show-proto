@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface TipoVeiculo {
@@ -12,6 +12,7 @@ export function useTiposVeiculoDB() {
   const [tipos, setTipos] = useState<TipoVeiculo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchTipos = useCallback(async () => {
     const { data, error: err } = await supabase
@@ -19,6 +20,7 @@ export function useTiposVeiculoDB() {
       .select('*')
       .eq('ativo', true)
       .order('ordem', { ascending: true });
+    if (!mountedRef.current) return;
     if (err) {
       console.error('[useTiposVeiculoDB] fetch error:', err);
       setError('Falha ao carregar tipos de veículo');
@@ -30,7 +32,12 @@ export function useTiposVeiculoDB() {
   }, []);
 
   useEffect(() => {
-    fetchTipos();
+    mountedRef.current = true;
+    const initDelay = setTimeout(fetchTipos, Math.random() * 2000);
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(initDelay);
+    };
   }, [fetchTipos]);
 
   const getLabelByNome = useCallback((nome: string): string => {

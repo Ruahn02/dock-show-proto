@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
+import { withRetry } from '@/lib/supabaseRetry';
 import { Conferente } from '@/types';
 
 function mapFromDB(row: any): Conferente {
@@ -11,9 +12,11 @@ export function useConferentesDB() {
   const [conferentes, setConferentes] = useState<Conferente[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchConferentes = useCallback(async () => {
     const { data, error: err } = await fetchAllRows('conferentes', '*', [{ column: 'nome' }]);
+    if (!mountedRef.current) return;
     if (err) {
       console.error('[useConferentesDB] fetch error:', err);
       setError('Falha ao carregar conferentes');
@@ -25,8 +28,9 @@ export function useConferentesDB() {
   }, []);
 
   useEffect(() => {
-    fetchConferentes();
-    const interval = setInterval(fetchConferentes, 30000);
+    mountedRef.current = true;
+    const initDelay = setTimeout(fetchConferentes, Math.random() * 2000);
+    const interval = setInterval(fetchConferentes, 120000);
 
     const channel = supabase
       .channel('conferentes-realtime')
@@ -36,17 +40,17 @@ export function useConferentesDB() {
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
+      clearTimeout(initDelay);
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchConferentes]);
 
   const criarConferente = useCallback(async (dados: Partial<Conferente>) => {
-    const { data, error } = await supabase
-      .from('conferentes')
-      .insert({ nome: dados.nome!, ativo: dados.ativo ?? true })
-      .select()
-      .single();
+    const { data, error } = await withRetry(() =>
+      supabase.from('conferentes').insert({ nome: dados.nome!, ativo: dados.ativo ?? true }).select().single()
+    );
     if (!error && data) {
       const novo = mapFromDB(data);
       setConferentes(prev => [...prev, novo].sort((a, b) => a.nome.localeCompare(b.nome)));
@@ -60,12 +64,9 @@ export function useConferentesDB() {
     if (dados.nome !== undefined) updateData.nome = dados.nome;
     if (dados.ativo !== undefined) updateData.ativo = dados.ativo;
 
-    const { data, error } = await supabase
-      .from('conferentes')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    const { data, error } = await withRetry(() =>
+      supabase.from('conferentes').update(updateData).eq('id', id).select().single()
+    );
     if (!error && data) {
       const atualizado = mapFromDB(data);
       setConferentes(prev => prev.map(c => c.id === id ? atualizado : c));
