@@ -13,12 +13,14 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { Fornecedor } from '@/types';
 import { toast } from 'sonner';
-import { Plus, Edit, Building2, Search } from 'lucide-react';
+import { Plus, Edit, Building2, Search, Loader2 } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
+import { getErrorMessage } from '@/lib/supabaseRetry';
 
 export default function Fornecedores() {
   const { isAdmin } = useProfile();
   const navigate = useNavigate();
-  const { fornecedores, criarFornecedor, atualizarFornecedor } = useFornecedoresDB();
+  const { fornecedores, loading, error, criarFornecedor, atualizarFornecedor, refetch } = useFornecedoresDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedFornecedor, setSelectedFornecedor] = useState<Fornecedor | null>(null);
   const [filtroNome, setFiltroNome] = useState('');
