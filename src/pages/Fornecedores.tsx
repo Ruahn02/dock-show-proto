@@ -54,7 +54,7 @@ export default function Fornecedores() {
     try {
       await atualizarFornecedor(f.id, { ativo: !f.ativo });
       toast.success(`Fornecedor ${f.ativo ? 'desativado' : 'ativado'}!`);
-    } catch { toast.error('Erro ao atualizar'); }
+    } catch (err: any) { toast.error(getErrorMessage(err)); }
   };
 
   return (
