@@ -10,18 +10,23 @@ function mapFromDB(row: any): Conferente {
 export function useConferentesDB() {
   const [conferentes, setConferentes] = useState<Conferente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchConferentes = useCallback(async () => {
-    const { data, error } = await fetchAllRows('conferentes', '*', [{ column: 'nome' }]);
-    if (!error && data) {
+    const { data, error: err } = await fetchAllRows('conferentes', '*', [{ column: 'nome' }]);
+    if (err) {
+      console.error('[useConferentesDB] fetch error:', err);
+      setError('Falha ao carregar conferentes');
+    } else if (data) {
       setConferentes(data.map(mapFromDB));
+      setError(null);
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchConferentes();
-    const interval = setInterval(fetchConferentes, 15000);
+    const interval = setInterval(fetchConferentes, 30000);
 
     const channel = supabase
       .channel('conferentes-realtime')
@@ -69,5 +74,5 @@ export function useConferentesDB() {
     throw error;
   }, []);
 
-  return { conferentes, loading, criarConferente, atualizarConferente, refetch: fetchConferentes };
+  return { conferentes, loading, error, criarConferente, atualizarConferente, refetch: fetchConferentes };
 }

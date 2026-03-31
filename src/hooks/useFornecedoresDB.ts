@@ -15,18 +15,23 @@ function mapFromDB(row: any): Fornecedor {
 export function useFornecedoresDB() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchFornecedores = useCallback(async () => {
-    const { data, error } = await fetchAllRows('fornecedores', '*', [{ column: 'nome' }]);
-    if (!error && data) {
+    const { data, error: err } = await fetchAllRows('fornecedores', '*', [{ column: 'nome' }]);
+    if (err) {
+      console.error('[useFornecedoresDB] fetch error:', err);
+      setError('Falha ao carregar fornecedores');
+    } else if (data) {
       setFornecedores(data.map(mapFromDB));
+      setError(null);
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchFornecedores();
-    const interval = setInterval(fetchFornecedores, 15000);
+    const interval = setInterval(fetchFornecedores, 30000);
 
     const channel = supabase
       .channel('fornecedores-realtime')
@@ -75,5 +80,5 @@ export function useFornecedoresDB() {
     throw error;
   }, []);
 
-  return { fornecedores, loading, criarFornecedor, atualizarFornecedor, refetch: fetchFornecedores };
+  return { fornecedores, loading, error, criarFornecedor, atualizarFornecedor, refetch: fetchFornecedores };
 }

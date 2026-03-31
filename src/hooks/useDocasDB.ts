@@ -31,18 +31,23 @@ function mapToDB(data: Partial<Doca>): any {
 export function useDocasDB() {
   const [docas, setDocas] = useState<Doca[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchDocas = useCallback(async () => {
-    const { data, error } = await fetchAllRows('docas', '*', [{ column: 'numero' }]);
-    if (!error && data) {
+    const { data, error: err } = await fetchAllRows('docas', '*', [{ column: 'numero' }]);
+    if (err) {
+      console.error('[useDocasDB] fetch error:', err);
+      setError('Falha ao carregar docas');
+    } else if (data) {
       setDocas(data.map(mapFromDB));
+      setError(null);
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchDocas();
-    const interval = setInterval(fetchDocas, 15000);
+    const interval = setInterval(fetchDocas, 30000);
 
     const channel = supabase
       .channel('docas-realtime')
@@ -86,5 +91,5 @@ export function useDocasDB() {
     throw error;
   }, []);
 
-  return { docas, loading, atualizarDoca, criarDoca, refetch: fetchDocas };
+  return { docas, loading, error, atualizarDoca, criarDoca, refetch: fetchDocas };
 }
