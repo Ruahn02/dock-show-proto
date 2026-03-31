@@ -48,7 +48,7 @@ export default function Funcionarios() {
     try {
       await atualizarConferente(c.id, { ativo: !c.ativo });
       toast.success(`Funcionário ${c.ativo ? 'desativado' : 'ativado'}!`);
-    } catch { toast.error('Erro ao atualizar'); }
+    } catch (err: any) { toast.error(getErrorMessage(err)); }
   };
 
   return (
