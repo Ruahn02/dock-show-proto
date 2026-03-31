@@ -41,7 +41,7 @@ export default function Funcionarios() {
         await criarConferente(data);
         toast.success('Funcionário criado!');
       }
-    } catch { toast.error('Erro ao salvar'); }
+    } catch (err: any) { toast.error(getErrorMessage(err)); }
   };
 
   const handleToggleAtivo = async (c: Conferente) => {
