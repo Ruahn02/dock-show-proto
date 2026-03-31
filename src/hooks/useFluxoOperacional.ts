@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
+import { withRetry } from '@/lib/supabaseRetry';
 
 export interface FluxoOperacional {
   carga_id: string | null;
@@ -52,9 +53,11 @@ export function useFluxoOperacional() {
   const [dados, setDados] = useState<FluxoOperacional[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchDados = useCallback(async () => {
     const { data, error: err } = await fetchAllRows('vw_carga_operacional', '*');
+    if (!mountedRef.current) return;
     if (err) {
       console.error('[useFluxoOperacional] fetch error:', err);
       setError('Falha ao carregar dados operacionais');
@@ -66,8 +69,9 @@ export function useFluxoOperacional() {
   }, []);
 
   useEffect(() => {
-    fetchDados();
-    const interval = setInterval(fetchDados, 30000);
+    mountedRef.current = true;
+    const initDelay = setTimeout(fetchDados, Math.random() * 2000);
+    const interval = setInterval(fetchDados, 120000);
 
     const channel = supabase
       .channel('fluxo-operacional')
@@ -77,21 +81,25 @@ export function useFluxoOperacional() {
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
+      clearTimeout(initDelay);
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchDados]);
 
   const atualizarFluxo = useCallback(async (params: AtualizarFluxoParams) => {
-    const { error } = await supabase.rpc('rpc_atualizar_fluxo_carga', {
-      p_carga_id: params.p_carga_id || null,
-      p_senha_id: params.p_senha_id || null,
-      p_novo_status: params.p_novo_status,
-      p_conferente_id: params.p_conferente_id || null,
-      p_rua: params.p_rua || null,
-      p_volume_conferido: params.p_volume_conferido ?? null,
-      p_divergencia: params.p_divergencia || null,
-    });
+    const { error } = await withRetry(() =>
+      supabase.rpc('rpc_atualizar_fluxo_carga', {
+        p_carga_id: params.p_carga_id || null,
+        p_senha_id: params.p_senha_id || null,
+        p_novo_status: params.p_novo_status,
+        p_conferente_id: params.p_conferente_id || null,
+        p_rua: params.p_rua || null,
+        p_volume_conferido: params.p_volume_conferido ?? null,
+        p_divergencia: params.p_divergencia || null,
+      })
+    );
 
     if (error) {
       console.error('Erro ao atualizar fluxo:', error);

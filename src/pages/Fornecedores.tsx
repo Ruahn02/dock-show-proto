@@ -13,12 +13,14 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { Fornecedor } from '@/types';
 import { toast } from 'sonner';
-import { Plus, Edit, Building2, Search } from 'lucide-react';
+import { Plus, Edit, Building2, Search, Loader2 } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
+import { getErrorMessage } from '@/lib/supabaseRetry';
 
 export default function Fornecedores() {
   const { isAdmin } = useProfile();
   const navigate = useNavigate();
-  const { fornecedores, criarFornecedor, atualizarFornecedor } = useFornecedoresDB();
+  const { fornecedores, loading, error, criarFornecedor, atualizarFornecedor, refetch } = useFornecedoresDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedFornecedor, setSelectedFornecedor] = useState<Fornecedor | null>(null);
   const [filtroNome, setFiltroNome] = useState('');
@@ -45,14 +47,14 @@ export default function Fornecedores() {
         await criarFornecedor(data);
         toast.success('Fornecedor criado!');
       }
-    } catch { toast.error('Erro ao salvar'); }
+    } catch (err: any) { toast.error(getErrorMessage(err)); }
   };
 
   const handleToggleAtivo = async (f: Fornecedor) => {
     try {
       await atualizarFornecedor(f.id, { ativo: !f.ativo });
       toast.success(`Fornecedor ${f.ativo ? 'desativado' : 'ativado'}!`);
-    } catch { toast.error('Erro ao atualizar'); }
+    } catch (err: any) { toast.error(getErrorMessage(err)); }
   };
 
   return (
@@ -82,6 +84,13 @@ export default function Fornecedores() {
           />
         </div>
 
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <ConnectionError message={error} onRetry={refetch} />
+        ) : (
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
@@ -113,6 +122,7 @@ export default function Fornecedores() {
             </TableBody>
           </Table>
         </div>
+        )}
 
         <FornecedorModal
           open={modalOpen}

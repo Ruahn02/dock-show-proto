@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
+import { withRetry } from '@/lib/supabaseRetry';
 import { Carga, StatusCarga, TipoCaminhao } from '@/types';
 
 export function mapCargaFromDB(row: any): Carga {
@@ -48,12 +49,14 @@ export function useCargasDB() {
   const [cargas, setCargas] = useState<Carga[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchCargas = useCallback(async () => {
     const { data, error: err } = await fetchAllRows('cargas', '*', [
       { column: 'data' },
       { column: 'horario_previsto' },
     ]);
+    if (!mountedRef.current) return;
     if (err) {
       console.error('[useCargasDB] fetch error:', err);
       setError('Falha ao carregar cargas');
@@ -65,8 +68,9 @@ export function useCargasDB() {
   }, []);
 
   useEffect(() => {
-    fetchCargas();
-    const interval = setInterval(fetchCargas, 30000);
+    mountedRef.current = true;
+    const initDelay = setTimeout(fetchCargas, Math.random() * 2000);
+    const interval = setInterval(fetchCargas, 120000);
 
     const channel = supabase
       .channel('cargas-realtime')
@@ -76,6 +80,8 @@ export function useCargasDB() {
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
+      clearTimeout(initDelay);
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
@@ -91,28 +97,25 @@ export function useCargasDB() {
     quantidadeVeiculos?: number;
     solicitacaoId?: string;
   }) => {
-    const { data: existente } = await supabase
-      .from('cargas')
-      .select('*')
-      .eq('fornecedor_id', dados.fornecedorId)
-      .eq('data', dados.data)
-      .eq('status', 'aguardando_chegada')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    const { data: existente } = await withRetry(() =>
+      supabase.from('cargas').select('*')
+        .eq('fornecedor_id', dados.fornecedorId)
+        .eq('data', dados.data)
+        .eq('status', 'aguardando_chegada')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+    );
 
     if (existente) {
       const nfsAtualizadas = [...(existente.nfs || []), ...dados.nfs];
-      const { data: atualizada, error } = await supabase
-        .from('cargas')
-        .update({
+      const { data: atualizada, error } = await withRetry(() =>
+        supabase.from('cargas').update({
           volume_previsto: existente.volume_previsto + dados.volumePrevisto,
           quantidade_veiculos: (existente.quantidade_veiculos || 1) + (dados.quantidadeVeiculos || 1),
           nfs: nfsAtualizadas,
-        })
-        .eq('id', existente.id)
-        .select()
-        .single();
+        }).eq('id', existente.id).select().single()
+      );
       if (!error && atualizada) {
         const unificada = mapCargaFromDB(atualizada);
         setCargas(prev => prev.map(c => c.id === existente.id ? unificada : c));
@@ -121,9 +124,8 @@ export function useCargasDB() {
       throw error;
     }
 
-    const { data, error } = await supabase
-      .from('cargas')
-      .insert({
+    const { data, error } = await withRetry(() =>
+      supabase.from('cargas').insert({
         data: dados.data,
         fornecedor_id: dados.fornecedorId,
         nfs: dados.nfs,
@@ -134,9 +136,8 @@ export function useCargasDB() {
         solicitacao_id: dados.solicitacaoId ?? null,
         status: 'aguardando_chegada',
         chegou: false,
-      })
-      .select()
-      .single();
+      }).select().single()
+    );
     if (!error && data) {
       const nova = mapCargaFromDB(data);
       setCargas(prev => [...prev, nova]);
@@ -146,12 +147,9 @@ export function useCargasDB() {
   }, []);
 
   const atualizarCarga = useCallback(async (id: string, dados: Partial<Carga>) => {
-    const { data, error } = await supabase
-      .from('cargas')
-      .update(mapCargaToDB(dados))
-      .eq('id', id)
-      .select()
-      .single();
+    const { data, error } = await withRetry(() =>
+      supabase.from('cargas').update(mapCargaToDB(dados)).eq('id', id).select().single()
+    );
     if (!error && data) {
       const atualizada = mapCargaFromDB(data);
       setCargas(prev => prev.map(c => c.id === id ? atualizada : c));
@@ -161,11 +159,11 @@ export function useCargasDB() {
   }, []);
 
   const excluirCarga = useCallback(async (id: string) => {
-    await supabase.from('senhas').delete().eq('carga_id', id);
-    await supabase.from('docas').update({ status: 'livre', carga_id: null, senha_id: null, conferente_id: null, volume_conferido: null, rua: null }).eq('carga_id', id);
-    await supabase.from('divergencias').delete().eq('carga_id', id);
-    await supabase.from('cross_docking').delete().eq('carga_id', id);
-    const { error } = await supabase.from('cargas').delete().eq('id', id);
+    await withRetry(() => supabase.from('senhas').delete().eq('carga_id', id));
+    await withRetry(() => supabase.from('docas').update({ status: 'livre', carga_id: null, senha_id: null, conferente_id: null, volume_conferido: null, rua: null }).eq('carga_id', id));
+    await withRetry(() => supabase.from('divergencias').delete().eq('carga_id', id));
+    await withRetry(() => supabase.from('cross_docking').delete().eq('carga_id', id));
+    const { error } = await withRetry(() => supabase.from('cargas').delete().eq('id', id));
     if (error) throw error;
     setCargas(prev => prev.filter(c => c.id !== id));
   }, []);

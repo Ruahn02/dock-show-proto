@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
+import { withRetry } from '@/lib/supabaseRetry';
 import { CrossDocking, StatusCross } from '@/types';
 
 function mapFromDB(row: any): CrossDocking {
@@ -40,9 +41,11 @@ export function useCrossDB() {
   const [crossItems, setCrossItems] = useState<CrossDocking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchCross = useCallback(async () => {
     const { data, error: err } = await fetchAllRows('cross_docking', '*', [{ column: 'created_at', ascending: false }]);
+    if (!mountedRef.current) return;
     if (err) {
       console.error('[useCrossDB] fetch error:', err);
       setError('Falha ao carregar cross docking');
@@ -54,8 +57,9 @@ export function useCrossDB() {
   }, []);
 
   useEffect(() => {
-    fetchCross();
-    const interval = setInterval(fetchCross, 30000);
+    mountedRef.current = true;
+    const initDelay = setTimeout(fetchCross, Math.random() * 2000);
+    const interval = setInterval(fetchCross, 120000);
 
     const channel = supabase
       .channel('cross-docking-realtime')
@@ -65,6 +69,8 @@ export function useCrossDB() {
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
+      clearTimeout(initDelay);
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
@@ -78,9 +84,8 @@ export function useCrossDB() {
     rua: string;
     volumeRecebido: number;
   }) => {
-    const { data, error } = await supabase
-      .from('cross_docking')
-      .insert({
+    const { data, error } = await withRetry(() =>
+      supabase.from('cross_docking').insert({
         carga_id: dados.cargaId,
         fornecedor_id: dados.fornecedorId,
         nfs: dados.nfs,
@@ -88,9 +93,8 @@ export function useCrossDB() {
         rua: dados.rua,
         volume_recebido: dados.volumeRecebido,
         status: 'aguardando_decisao',
-      })
-      .select()
-      .single();
+      }).select().single()
+    );
     if (!error && data) {
       const novo = mapFromDB(data);
       setCrossItems(prev => [novo, ...prev]);
@@ -100,12 +104,9 @@ export function useCrossDB() {
   }, []);
 
   const atualizarCross = useCallback(async (id: string, dados: Partial<CrossDocking>) => {
-    const { data, error } = await supabase
-      .from('cross_docking')
-      .update(mapToDB(dados))
-      .eq('id', id)
-      .select()
-      .single();
+    const { data, error } = await withRetry(() =>
+      supabase.from('cross_docking').update(mapToDB(dados)).eq('id', id).select().single()
+    );
     if (!error && data) {
       const atualizado = mapFromDB(data);
       setCrossItems(prev => prev.map(c => c.id === id ? atualizado : c));
@@ -115,10 +116,9 @@ export function useCrossDB() {
   }, []);
 
   const deletarCross = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from('cross_docking')
-      .delete()
-      .eq('id', id);
+    const { error } = await withRetry(() =>
+      supabase.from('cross_docking').delete().eq('id', id)
+    );
     if (!error) {
       setCrossItems(prev => prev.filter(c => c.id !== id));
     }

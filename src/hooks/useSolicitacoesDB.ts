@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
+import { withRetry } from '@/lib/supabaseRetry';
 import { SolicitacaoEntrega, StatusSolicitacao, TipoCaminhao } from '@/types';
 
 function mapFromDB(row: any): SolicitacaoEntrega {
@@ -43,9 +44,11 @@ export function useSolicitacoesDB() {
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoEntrega[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchSolicitacoes = useCallback(async () => {
     const { data, error: err } = await fetchAllRows('solicitacoes', '*', [{ column: 'created_at', ascending: false }]);
+    if (!mountedRef.current) return;
     if (err) {
       console.error('[useSolicitacoesDB] fetch error:', err);
       setError('Falha ao carregar solicitações');
@@ -57,8 +60,9 @@ export function useSolicitacoesDB() {
   }, []);
 
   useEffect(() => {
-    fetchSolicitacoes();
-    const interval = setInterval(fetchSolicitacoes, 30000);
+    mountedRef.current = true;
+    const initDelay = setTimeout(fetchSolicitacoes, Math.random() * 2000);
+    const interval = setInterval(fetchSolicitacoes, 120000);
 
     const channel = supabase
       .channel('solicitacoes-realtime')
@@ -68,15 +72,16 @@ export function useSolicitacoesDB() {
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
+      clearTimeout(initDelay);
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchSolicitacoes]);
 
   const criarSolicitacao = useCallback(async (dados: Omit<SolicitacaoEntrega, 'id' | 'status' | 'dataSolicitacao'>) => {
-    const { data, error } = await supabase
-      .from('solicitacoes')
-      .insert({
+    const { data, error } = await withRetry(() =>
+      supabase.from('solicitacoes').insert({
         fornecedor_id: dados.fornecedorId,
         tipo_caminhao: dados.tipoCaminhao,
         quantidade_veiculos: dados.quantidadeVeiculos,
@@ -87,9 +92,8 @@ export function useSolicitacoesDB() {
         numero_pedido: dados.numeroPedido ?? null,
         comprador: dados.comprador ?? null,
         status: 'pendente',
-      })
-      .select()
-      .single();
+      }).select().single()
+    );
     if (!error && data) {
       const nova = mapFromDB(data);
       setSolicitacoes(prev => [nova, ...prev]);
@@ -99,12 +103,9 @@ export function useSolicitacoesDB() {
   }, []);
 
   const atualizarSolicitacao = useCallback(async (id: string, dados: Partial<SolicitacaoEntrega>) => {
-    const { data, error } = await supabase
-      .from('solicitacoes')
-      .update(mapToDB(dados))
-      .eq('id', id)
-      .select()
-      .single();
+    const { data, error } = await withRetry(() =>
+      supabase.from('solicitacoes').update(mapToDB(dados)).eq('id', id).select().single()
+    );
     if (!error && data) {
       const atualizada = mapFromDB(data);
       setSolicitacoes(prev => prev.map(s => s.id === id ? atualizada : s));

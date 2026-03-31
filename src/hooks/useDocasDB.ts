@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
+import { withRetry } from '@/lib/supabaseRetry';
 import { Doca, StatusDoca } from '@/types';
 
 function mapFromDB(row: any): Doca {
@@ -32,9 +33,11 @@ export function useDocasDB() {
   const [docas, setDocas] = useState<Doca[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchDocas = useCallback(async () => {
     const { data, error: err } = await fetchAllRows('docas', '*', [{ column: 'numero' }]);
+    if (!mountedRef.current) return;
     if (err) {
       console.error('[useDocasDB] fetch error:', err);
       setError('Falha ao carregar docas');
@@ -46,8 +49,9 @@ export function useDocasDB() {
   }, []);
 
   useEffect(() => {
-    fetchDocas();
-    const interval = setInterval(fetchDocas, 30000);
+    mountedRef.current = true;
+    const initDelay = setTimeout(fetchDocas, Math.random() * 2000);
+    const interval = setInterval(fetchDocas, 120000);
 
     const channel = supabase
       .channel('docas-realtime')
@@ -57,18 +61,17 @@ export function useDocasDB() {
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
+      clearTimeout(initDelay);
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchDocas]);
 
   const atualizarDoca = useCallback(async (id: string, dados: Partial<Doca>) => {
-    const { data, error } = await supabase
-      .from('docas')
-      .update(mapToDB(dados))
-      .eq('id', id)
-      .select()
-      .single();
+    const { data, error } = await withRetry(() =>
+      supabase.from('docas').update(mapToDB(dados)).eq('id', id).select().single()
+    );
     if (!error && data) {
       const atualizada = mapFromDB(data);
       setDocas(prev => prev.map(d => d.id === id ? atualizada : d));
@@ -78,11 +81,9 @@ export function useDocasDB() {
   }, []);
 
   const criarDoca = useCallback(async (numero: number) => {
-    const { data, error } = await supabase
-      .from('docas')
-      .insert({ numero, status: 'livre' })
-      .select()
-      .single();
+    const { data, error } = await withRetry(() =>
+      supabase.from('docas').insert({ numero, status: 'livre' }).select().single()
+    );
     if (!error && data) {
       const nova = mapFromDB(data);
       setDocas(prev => [...prev, nova].sort((a, b) => a.numero - b.numero));

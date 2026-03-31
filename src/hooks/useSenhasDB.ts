@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
+import { withRetry } from '@/lib/supabaseRetry';
 import { Senha, StatusSenha, LocalSenha, TipoCaminhao } from '@/types';
 
 export function mapSenhaFromDB(row: any): Senha {
@@ -43,9 +44,11 @@ export function useSenhasDB() {
   const [senhas, setSenhas] = useState<Senha[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchSenhas = useCallback(async () => {
     const { data, error: err } = await fetchAllRows('senhas', '*', [{ column: 'numero' }]);
+    if (!mountedRef.current) return;
     if (err) {
       console.error('[useSenhasDB] fetch error:', err);
       setError('Falha ao carregar senhas');
@@ -57,8 +60,9 @@ export function useSenhasDB() {
   }, []);
 
   useEffect(() => {
-    fetchSenhas();
-    const interval = setInterval(fetchSenhas, 30000);
+    mountedRef.current = true;
+    const initDelay = setTimeout(fetchSenhas, Math.random() * 2000);
+    const interval = setInterval(fetchSenhas, 120000);
 
     const channel = supabase
       .channel('senhas-realtime')
@@ -68,6 +72,8 @@ export function useSenhasDB() {
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
+      clearTimeout(initDelay);
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
@@ -80,9 +86,8 @@ export function useSenhasDB() {
     horaChegada: string;
     cargaId?: string;
   }) => {
-    const { data, error } = await supabase
-      .from('senhas')
-      .insert({
+    const { data, error } = await withRetry(() =>
+      supabase.from('senhas').insert({
         fornecedor_id: dados.fornecedorId,
         nome_motorista: dados.nomeMotorista,
         tipo_caminhao: dados.tipoCaminhao,
@@ -91,9 +96,8 @@ export function useSenhasDB() {
         status: 'aguardando_doca',
         local_atual: 'aguardando_doca',
         liberada: false,
-      })
-      .select()
-      .single();
+      }).select().single()
+    );
     if (!error && data) {
       const nova = mapSenhaFromDB(data);
       setSenhas(prev => [...prev, nova]);
@@ -103,12 +107,9 @@ export function useSenhasDB() {
   }, []);
 
   const atualizarSenha = useCallback(async (id: string, dados: Partial<Senha>) => {
-    const { data, error } = await supabase
-      .from('senhas')
-      .update(mapSenhaToDB(dados))
-      .eq('id', id)
-      .select()
-      .single();
+    const { data, error } = await withRetry(() =>
+      supabase.from('senhas').update(mapSenhaToDB(dados)).eq('id', id).select().single()
+    );
     if (!error && data) {
       const atualizada = mapSenhaFromDB(data);
       setSenhas(prev => prev.map(s => s.id === id ? atualizada : s));

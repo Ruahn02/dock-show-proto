@@ -13,6 +13,27 @@ const DEBUG = false;
 // Deduplication: in-flight requests by key
 const inFlight = new Map<string, Promise<{ data: any[]; error: any }>>();
 
+// Global concurrency limiter — max 3 simultaneous Supabase REST calls
+let activeRequests = 0;
+const MAX_CONCURRENT = 3;
+const waitQueue: Array<() => void> = [];
+
+async function acquireSlot(): Promise<void> {
+  if (activeRequests < MAX_CONCURRENT) {
+    activeRequests++;
+    return;
+  }
+  return new Promise(resolve => waitQueue.push(() => { activeRequests++; resolve(); }));
+}
+
+function releaseSlot() {
+  activeRequests--;
+  if (waitQueue.length > 0 && activeRequests < MAX_CONCURRENT) {
+    const next = waitQueue.shift();
+    next?.();
+  }
+}
+
 function makeKey(table: string, select: string, orderBy: OrderConfig[]): string {
   return `${table}|${select}|${JSON.stringify(orderBy)}`;
 }
@@ -26,7 +47,7 @@ function isTransientError(error: any): boolean {
     msg.includes('connection timeout') ||
     msg.includes('networkerror') ||
     msg.includes('failed to fetch') ||
-    msg.includes('fetch') && msg.includes('error')
+    (msg.includes('fetch') && msg.includes('error'))
   );
 }
 
@@ -36,8 +57,9 @@ async function delay(ms: number) {
 
 /**
  * Fetches all rows from a Supabase table using paginated requests.
- * Includes retry with exponential backoff for transient errors (503, timeout).
+ * Includes retry with exponential backoff + jitter for transient errors.
  * Deduplicates concurrent identical requests.
+ * Uses global concurrency limiter to avoid request storms.
  */
 export async function fetchAllRows<T = any>(
   table: TableOrView,
@@ -79,10 +101,14 @@ async function fetchAllRowsInternal<T>(
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       if (attempt > 0) {
-        const backoff = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
-        if (DEBUG) console.log(`[fetchAllRows] retry ${attempt}/${MAX_RETRIES} for ${table}, waiting ${backoff}ms`);
+        const jitter = Math.random() * 500;
+        const backoff = Math.min(1000 * Math.pow(2, attempt - 1) + jitter, 10000);
+        if (DEBUG) console.log(`[fetchAllRows] retry ${attempt}/${MAX_RETRIES} for ${table}, waiting ${Math.round(backoff)}ms`);
         await delay(backoff);
       }
+
+      // Wait for concurrency slot
+      await acquireSlot();
 
       try {
         let query = (supabase.from as any)(table).select(select);
@@ -121,6 +147,8 @@ async function fetchAllRowsInternal<T>(
         }
         console.error(`[fetchAllRows] ${table} exception after ${attempt + 1} attempts:`, fetchError);
         return { data: allRows, error: { message: fetchError?.message || String(fetchError), _table: table, _attempts: attempt + 1 } };
+      } finally {
+        releaseSlot();
       }
     }
 

@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
+import { withRetry } from '@/lib/supabaseRetry';
 import { Fornecedor } from '@/types';
 
 function mapFromDB(row: any): Fornecedor {
@@ -16,9 +17,11 @@ export function useFornecedoresDB() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchFornecedores = useCallback(async () => {
     const { data, error: err } = await fetchAllRows('fornecedores', '*', [{ column: 'nome' }]);
+    if (!mountedRef.current) return;
     if (err) {
       console.error('[useFornecedoresDB] fetch error:', err);
       setError('Falha ao carregar fornecedores');
@@ -30,8 +33,10 @@ export function useFornecedoresDB() {
   }, []);
 
   useEffect(() => {
-    fetchFornecedores();
-    const interval = setInterval(fetchFornecedores, 30000);
+    mountedRef.current = true;
+    // Stagger initial fetch with random delay (0-2s)
+    const initDelay = setTimeout(fetchFornecedores, Math.random() * 2000);
+    const interval = setInterval(fetchFornecedores, 120000);
 
     const channel = supabase
       .channel('fornecedores-realtime')
@@ -41,17 +46,19 @@ export function useFornecedoresDB() {
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
+      clearTimeout(initDelay);
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchFornecedores]);
 
   const criarFornecedor = useCallback(async (dados: Partial<Fornecedor>) => {
-    const { data, error } = await supabase
-      .from('fornecedores')
-      .insert({ nome: dados.nome!, ativo: dados.ativo ?? true, email: dados.email ?? null })
-      .select()
-      .single();
+    const { data, error } = await withRetry(() =>
+      supabase.from('fornecedores')
+        .insert({ nome: dados.nome!, ativo: dados.ativo ?? true, email: dados.email ?? null })
+        .select().single()
+    );
     if (!error && data) {
       const novo = mapFromDB(data);
       setFornecedores(prev => [...prev, novo].sort((a, b) => a.nome.localeCompare(b.nome)));
@@ -66,12 +73,9 @@ export function useFornecedoresDB() {
     if (dados.ativo !== undefined) updateData.ativo = dados.ativo;
     if (dados.email !== undefined) updateData.email = dados.email;
 
-    const { data, error } = await supabase
-      .from('fornecedores')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    const { data, error } = await withRetry(() =>
+      supabase.from('fornecedores').update(updateData).eq('id', id).select().single()
+    );
     if (!error && data) {
       const atualizado = mapFromDB(data);
       setFornecedores(prev => prev.map(f => f.id === id ? atualizado : f));

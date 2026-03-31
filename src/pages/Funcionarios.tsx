@@ -12,12 +12,14 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
 import { Conferente } from '@/types';
 import { toast } from 'sonner';
-import { Plus, Edit, Users } from 'lucide-react';
+import { Plus, Edit, Users, Loader2 } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
+import { getErrorMessage } from '@/lib/supabaseRetry';
 
 export default function Funcionarios() {
   const { isAdmin } = useProfile();
   const navigate = useNavigate();
-  const { conferentes, criarConferente, atualizarConferente } = useConferentesDB();
+  const { conferentes, loading, error, criarConferente, atualizarConferente, refetch } = useConferentesDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedConferente, setSelectedConferente] = useState<Conferente | null>(null);
 
@@ -39,14 +41,14 @@ export default function Funcionarios() {
         await criarConferente(data);
         toast.success('Funcionário criado!');
       }
-    } catch { toast.error('Erro ao salvar'); }
+    } catch (err: any) { toast.error(getErrorMessage(err)); }
   };
 
   const handleToggleAtivo = async (c: Conferente) => {
     try {
       await atualizarConferente(c.id, { ativo: !c.ativo });
       toast.success(`Funcionário ${c.ativo ? 'desativado' : 'ativado'}!`);
-    } catch { toast.error('Erro ao atualizar'); }
+    } catch (err: any) { toast.error(getErrorMessage(err)); }
   };
 
   return (
@@ -66,6 +68,13 @@ export default function Funcionarios() {
           </Button>
         </div>
 
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <ConnectionError message={error} onRetry={refetch} />
+        ) : (
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
@@ -97,6 +106,7 @@ export default function Funcionarios() {
             </TableBody>
           </Table>
         </div>
+        )}
 
         <ConferenteModal
           open={modalOpen}
