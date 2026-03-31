@@ -106,6 +106,7 @@ export default function Funcionarios() {
             </TableBody>
           </Table>
         </div>
+        )}
 
         <ConferenteModal
           open={modalOpen}
