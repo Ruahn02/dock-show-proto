@@ -22,13 +22,14 @@ async function delay(ms: number) {
 
 /**
  * Wraps an async Supabase operation with retry logic.
+ * The operation function must return the Supabase query builder (thenable).
  * Usage:
  *   const { data, error } = await withRetry(() =>
  *     supabase.from('table').insert({...}).select().single()
  *   );
  */
-export async function withRetry<T>(
-  operation: () => Promise<{ data: T; error: any }>,
+export async function withRetry<T = any>(
+  operation: () => PromiseLike<{ data: T; error: any }>,
   maxRetries: number = 3,
 ): Promise<{ data: T; error: any }> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -54,7 +55,6 @@ export async function withRetry<T>(
     }
   }
   
-  // Should not reach here, but just in case
   return { data: null as any, error: { message: 'Max retries exceeded' } };
 }
 
