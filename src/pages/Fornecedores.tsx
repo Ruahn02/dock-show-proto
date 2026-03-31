@@ -122,6 +122,7 @@ export default function Fornecedores() {
             </TableBody>
           </Table>
         </div>
+        )}
 
         <FornecedorModal
           open={modalOpen}
