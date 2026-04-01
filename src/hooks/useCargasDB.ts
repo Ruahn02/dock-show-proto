@@ -9,7 +9,7 @@ export function mapCargaFromDB(row: any): Carga {
     id: row.id,
     data: row.data,
     fornecedorId: row.fornecedor_id,
-    nfs: row.nfs || [],
+    nfs: row.nfs ?? [],
     volumePrevisto: row.volume_previsto,
     volumeConferido: row.volume_conferido ?? undefined,
     status: row.status as StatusCarga,

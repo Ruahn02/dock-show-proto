@@ -26,7 +26,7 @@ export default function Fornecedores() {
   const [filtroNome, setFiltroNome] = useState('');
 
   const fornecedoresFiltrados = fornecedores.filter(f =>
-    f.nome.toLowerCase().includes(filtroNome.toLowerCase())
+    (f.nome ?? '').toLowerCase().includes(filtroNome.toLowerCase())
   );
 
   useEffect(() => {

@@ -522,7 +522,7 @@ export default function Docas() {
                           {String(senha.numero).padStart(4, '0')}
                         </TableCell>
                         <TableCell>{getFornecedor(senha.fornecedorId)?.nome || '-'}</TableCell>
-                        <TableCell className="text-sm">{cargaDaSenha?.nfs?.join(', ') || '-'}</TableCell>
+                        <TableCell className="text-sm">{(cargaDaSenha?.nfs ?? []).join(', ') || '-'}</TableCell>
                         <TableCell className="text-right">{cargaDaSenha?.volumePrevisto || '-'}</TableCell>
                         <TableCell>{senha.nomeMotorista}</TableCell>
                         <TableCell>{getLabelByNome(senha.tipoCaminhao)}</TableCell>
