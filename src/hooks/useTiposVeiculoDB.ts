@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { enqueue } from '@/lib/supabaseQueue';
-
 
 export interface TipoVeiculo {
   id: string;
@@ -17,23 +15,27 @@ export function useTiposVeiculoDB() {
   const mountedRef = useRef(true);
 
   const fetchTipos = useCallback(async () => {
-    const { data, error: err } = await enqueue(async () =>
-      await supabase
+    try {
+      const { data, error: err } = await supabase
         .from('tipos_veiculo')
         .select('*')
         .eq('ativo', true)
-        .order('ordem', { ascending: true }),
-      'tipos_veiculo'
-    ) as any;
-    if (!mountedRef.current) return;
-    if (err) {
-      console.error('[useTiposVeiculoDB] fetch error:', err);
-      setError('Falha ao carregar tipos de veículo');
-    } else if (data) {
-      setTipos((data ?? []) as TipoVeiculo[]);
-      setError(null);
+        .order('ordem', { ascending: true });
+
+      if (!mountedRef.current) return;
+      if (err) {
+        console.error('[useTiposVeiculoDB] fetch error:', err);
+        setError('Falha ao carregar tipos de veículo');
+      } else {
+        setTipos((data ?? []) as TipoVeiculo[]);
+        setError(null);
+      }
+    } catch (e: any) {
+      console.error('[useTiposVeiculoDB] exception:', e);
+      if (mountedRef.current) setError('Falha ao carregar tipos de veículo');
+    } finally {
+      if (mountedRef.current) setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
