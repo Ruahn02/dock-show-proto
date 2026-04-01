@@ -39,10 +39,13 @@ export function useDivergenciasDB() {
   const mountedRef = useRef(true);
 
   const fetchDivergencias = useCallback(async () => {
-    const { data, error: err } = await supabase
-      .from('divergencias')
-      .select('*')
-      .order('created_at', { ascending: true });
+    const { data, error: err } = await enqueue(() =>
+      supabase
+        .from('divergencias')
+        .select('*')
+        .order('created_at', { ascending: true }),
+      'divergencias'
+    );
     if (!mountedRef.current) return;
     if (err) {
       console.error('[useDivergenciasDB] fetch error:', err);
