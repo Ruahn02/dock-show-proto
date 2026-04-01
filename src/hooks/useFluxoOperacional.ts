@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows } from '@/lib/supabasePagination';
+import { fetchAllRows, enqueueInitialFetch } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 
 export interface FluxoOperacional {
