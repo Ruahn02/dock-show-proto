@@ -81,9 +81,9 @@ async function fetchAllRowsInternal<T>(
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       if (attempt > 0) {
-        // Longer backoff: 3s base, up to 20s max, with 0-2s jitter
-        const jitter = Math.random() * 2000;
-        const backoff = Math.min(3000 * Math.pow(2, attempt - 1) + jitter, 20000);
+        // Short backoff: 500ms base, up to 2s max, with jitter
+        const jitter = Math.random() * 500;
+        const backoff = Math.min(500 * Math.pow(2, attempt - 1) + jitter, 2000);
         if (DEBUG) console.log(`[fetchAllRows] retry ${attempt}/${MAX_RETRIES} for ${table}, waiting ${Math.round(backoff)}ms`);
         await delay(backoff);
       }
