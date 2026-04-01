@@ -42,7 +42,7 @@ async function enviarEmail(params: {
 }
 
 export function SolicitacaoProvider({ children }: { children: ReactNode }) {
-  const { solicitacoes, criarSolicitacao: criarDB, atualizarSolicitacao: atualizarDB } = useSolicitacoesDB();
+  const { solicitacoes, criarSolicitacao: criarDB, atualizarSolicitacao: atualizarDB, loading, error, refetch } = useSolicitacoesDB();
   const { fornecedores } = useFornecedoresDB();
   const { adicionarCarga, atualizarCarga, cargas } = useSenha();
 
