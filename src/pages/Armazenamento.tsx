@@ -56,6 +56,9 @@ export default function Armazenamento() {
     }
   };
 
+  if (loadingCross) return <Layout><div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div></Layout>;
+  if (errorCross) return <Layout><ConnectionError message={errorCross} onRetry={refetchCross} /></Layout>;
+
   return (
     <Layout>
       <div className="space-y-6">
