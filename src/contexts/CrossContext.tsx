@@ -13,6 +13,9 @@ interface NovoCrossData {
 
 interface CrossContextType {
   crossItems: CrossDocking[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
   adicionarCross: (data: NovoCrossData) => Promise<void>;
   armazenarCarga: (id: string) => Promise<void>;
   confirmarCross: (id: string) => Promise<void>;
