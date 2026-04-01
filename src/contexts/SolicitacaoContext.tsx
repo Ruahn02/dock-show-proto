@@ -43,8 +43,8 @@ async function enviarEmail(params: {
 }
 
 export function SolicitacaoProvider({ children }: { children: ReactNode }) {
-  const { solicitacoes, criarSolicitacao: criarDB, atualizarSolicitacao: atualizarDB, loading, error, refetch } = useSolicitacoesDB();
-  const { fornecedores } = useFornecedoresDB();
+  const { solicitacoes, criarSolicitacao: criarDB, atualizarSolicitacao: atualizarDB, loading, error, refetch } = useSolicitacoesDB(1000);
+  const { fornecedores } = useFornecedoresDB(1000);
   const { adicionarCarga, atualizarCarga, cargas } = useSenha();
 
   const getFornecedorNome = (id: string) => fornecedores.find(f => f.id === id)?.nome || 'Fornecedor';
