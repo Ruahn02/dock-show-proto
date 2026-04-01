@@ -35,7 +35,7 @@ function getEntry<T>(key: string): CacheEntry<T> {
  */
 export async function cachedFetch<T>(
   key: string,
-  fetchFn: () => Promise<{ data: T[] | null; error: any }>,
+  fetchFn: () => PromiseLike<{ data: T[] | null; error: any }>,
 ): Promise<{ data: T[]; error: any }> {
   const entry = getEntry<T>(key);
   const now = Date.now();
