@@ -19,9 +19,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFluxoOperacional, FluxoOperacional } from '@/hooks/useFluxoOperacional';
-import { useCargasDB } from '@/hooks/useCargasDB';
+import { useSenha } from '@/contexts/SenhaContext';
 import { ConnectionError } from '@/components/ui/ConnectionError';
-import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
+import { useSolicitacao } from '@/contexts/SolicitacaoContext';
 import { statusCargaLabels } from '@/data/mockData';
 import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { StatusCarga } from '@/types';
