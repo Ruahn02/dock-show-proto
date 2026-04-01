@@ -20,7 +20,7 @@ import { ConnectionError } from '@/components/ui/ConnectionError';
 import { format } from 'date-fns';
 
 export default function Armazenamento() {
-  const { crossItems, armazenarCarga } = useCross();
+  const { crossItems, armazenarCarga, loading: loadingCross, error: errorCross, refetch: refetchCross } = useCross();
   const { fornecedores } = useFornecedoresDB();
   const { conferentes } = useConferentesDB();
   const { cargas } = useSenha();
