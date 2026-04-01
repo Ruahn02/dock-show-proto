@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 
 interface SolicitacaoContextType {
   solicitacoes: SolicitacaoEntrega[];
+  fornecedores: import('@/types').Fornecedor[];
   loading: boolean;
   error: string | null;
   refetch: () => void;
