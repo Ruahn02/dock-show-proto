@@ -128,6 +128,9 @@ export default function Solicitacoes() {
     } catch { toast.error('Erro ao recusar'); }
   };
 
+  if (loading) return <Layout><div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div></Layout>;
+  if (error) return <Layout><ConnectionError message={error} onRetry={refetch} /></Layout>;
+
   return (
     <Layout>
       <div className="space-y-6">
