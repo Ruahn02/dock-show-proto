@@ -159,6 +159,9 @@ export default function AgendamentoPlanejamento() {
     } catch { toast.error('Erro ao cancelar'); }
   };
 
+  if (loadingFluxo) return <Layout><div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div></Layout>;
+  if (errorFluxo) return <Layout><ConnectionError message={errorFluxo} onRetry={refetchFluxo} /></Layout>;
+
   return (
     <Layout>
       <div className="space-y-6">
