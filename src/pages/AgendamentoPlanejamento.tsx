@@ -49,7 +49,7 @@ function getDisplayStatus(d: FluxoOperacional): { key: string; label: string } {
 }
 
 export default function AgendamentoPlanejamento() {
-  const { dados, atualizarFluxo } = useFluxoOperacional();
+  const { dados, atualizarFluxo, loading: loadingFluxo, error: errorFluxo, refetch: refetchFluxo } = useFluxoOperacional();
   const { criarCarga, atualizarCarga } = useCargasDB();
   const { fornecedores } = useFornecedoresDB();
   const { getLabelByNome } = useTiposVeiculoDB();
