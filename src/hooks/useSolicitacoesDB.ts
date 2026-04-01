@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { SolicitacaoEntrega, StatusSolicitacao, TipoCaminhao } from '@/types';
+import { subscribeRealtime } from '@/lib/supabaseCache';
 
 function mapFromDB(row: any): SolicitacaoEntrega {
   return {
@@ -62,20 +63,14 @@ export function useSolicitacoesDB(initialDelay = 0) {
   useEffect(() => {
     mountedRef.current = true;
     const timer = setTimeout(() => fetchSolicitacoes(), initialDelay);
-
-    const channel = supabase
-      .channel('solicitacoes-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacoes' }, () => {
-        fetchSolicitacoes();
-      })
-      .subscribe();
+    const unsub = subscribeRealtime('solicitacoes', 'solicitacoes', fetchSolicitacoes);
 
     return () => {
       mountedRef.current = false;
       clearTimeout(timer);
-      supabase.removeChannel(channel);
+      unsub();
     };
-  }, [fetchSolicitacoes]);
+  }, [fetchSolicitacoes, initialDelay]);
 
   const criarSolicitacao = useCallback(async (dados: Omit<SolicitacaoEntrega, 'id' | 'status' | 'dataSolicitacao'>) => {
     const { data, error } = await withRetry(() =>

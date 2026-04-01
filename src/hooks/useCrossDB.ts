@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { CrossDocking, StatusCross } from '@/types';
+import { subscribeRealtime } from '@/lib/supabaseCache';
 
 function mapFromDB(row: any): CrossDocking {
   return {
@@ -59,20 +60,14 @@ export function useCrossDB(initialDelay = 0) {
   useEffect(() => {
     mountedRef.current = true;
     const timer = setTimeout(() => fetchCross(), initialDelay);
-
-    const channel = supabase
-      .channel('cross-docking-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cross_docking' }, () => {
-        fetchCross();
-      })
-      .subscribe();
+    const unsub = subscribeRealtime('cross_docking', 'cross_docking', fetchCross);
 
     return () => {
       mountedRef.current = false;
       clearTimeout(timer);
-      supabase.removeChannel(channel);
+      unsub();
     };
-  }, [fetchCross]);
+  }, [fetchCross, initialDelay]);
 
   const criarCross = useCallback(async (dados: {
     cargaId: string;

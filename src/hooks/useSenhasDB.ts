@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { Senha, StatusSenha, LocalSenha, TipoCaminhao } from '@/types';
+import { subscribeRealtime } from '@/lib/supabaseCache';
 
 export function mapSenhaFromDB(row: any): Senha {
   return {
@@ -62,17 +63,11 @@ export function useSenhasDB() {
   useEffect(() => {
     mountedRef.current = true;
     fetchSenhas();
-
-    const channel = supabase
-      .channel('senhas-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'senhas' }, () => {
-        fetchSenhas();
-      })
-      .subscribe();
+    const unsub = subscribeRealtime('senhas', 'senhas', fetchSenhas);
 
     return () => {
       mountedRef.current = false;
-      supabase.removeChannel(channel);
+      unsub();
     };
   }, [fetchSenhas]);
 
