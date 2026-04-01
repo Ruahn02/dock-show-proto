@@ -29,7 +29,7 @@ interface CrossContextType {
 const CrossContext = createContext<CrossContextType | undefined>(undefined);
 
 export function CrossProvider({ children }: { children: ReactNode }) {
-  const { crossItems, criarCross, atualizarCross, deletarCross } = useCrossDB();
+  const { crossItems, criarCross, atualizarCross, deletarCross, loading, error, refetch } = useCrossDB();
 
   const adicionarCross = async (data: NovoCrossData) => {
     await criarCross(data);
