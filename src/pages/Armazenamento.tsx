@@ -15,7 +15,8 @@ import { useConferentesDB } from '@/hooks/useConferentesDB';
 import { useSenha } from '@/contexts/SenhaContext';
 import type { CrossDocking } from '@/types';
 import { toast } from 'sonner';
-import { Archive, Package, CheckCircle } from 'lucide-react';
+import { Archive, Package, CheckCircle, Loader2 } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
 import { format } from 'date-fns';
 
 export default function Armazenamento() {
