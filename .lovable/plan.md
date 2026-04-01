@@ -1,89 +1,78 @@
-Diagnóstico confirmado (sim, validei no Supabase e no app):
 
-1) Banco NÃO está zerado
-- `fornecedores`: 359 registros
-- `cargas`: 210 registros
-- RLS está ativa e com políticas de SELECT/INSERT/UPDATE/DELETE para `anon` nas tabelas operacionais
 
-2) O problema principal é conectividade REST + rajada de requisições
-- Logs de rede: múltiplos `503` e `NetworkError` em `GET /rest/v1/*`
-- Também falha em escrita: ex. `POST /rest/v1/conferentes` com `NetworkError`
-- Quando o POST falha assim, o registro realmente não entra no banco (por isso “não aparece no sistema e nem no Supabase”)
+# Plano: Estabilizar carregamento de dados
 
-3) O app hoje mascara a falha como “lista vazia”
-- Páginas como `Fornecedores` e `Funcionarios` não exibem `loading/error` do hook
-- Resultado visual: parece “zerado”, mas na prática é erro de conexão
+## O que mudou / causa raiz
 
-Plano de correção (causa raiz, sem mexer regra de negócio):
+O app sempre buscou dados do Supabase REST. Mas as últimas alterações adicionaram:
+- Retry com 3 tentativas por hook (bom em teoria, mas multiplica a pressão)
+- 10+ hooks disparando em paralelo no mount (mesmo com random delay de 0-2s)
+- Polling de 120s mantendo pressão contínua
+- Providers globais (SenhaProvider, CrossProvider, SolicitacaoProvider) cada um instanciando hooks separados, todos no root do App
 
-1. Endurecer camada de leitura (anti-colapso)
-- Arquivo: `src/lib/supabasePagination.ts`
-- Adicionar:
-  - limite global de concorrência (evitar várias tabelas batendo ao mesmo tempo)
-  - cooldown curto por tabela após sequência de 503/timeout
-  - retry com backoff + jitter
-  - classificação de erro transitório vs erro funcional
+Resultado: ao abrir o app, ~10 hooks × 4 tentativas = ~40 requests em cascata. O Supabase free tier não aguenta e retorna 503 em tudo.
 
-2. Retry também para escrita (criar/editar/excluir)
-- Novo util: `src/lib/supabaseRetry.ts`
-- Aplicar nas mutações de hooks:
-  - `useFornecedoresDB.ts`
-  - `useConferentesDB.ts`
-  - `useCargasDB.ts`
-  - `useSenhasDB.ts`
-  - `useSolicitacoesDB.ts`
-  - `useCrossDB.ts`
-  - `useDocasDB.ts`
-  - `useDivergenciasDB.ts`
-- Objetivo: POST/PUT/DELETE não falhar no primeiro pico de instabilidade
+## Correção em 3 frentes
 
-3. Reduzir fan-out (thundering herd)
-- Hooks acima: trocar polling fixo de 30s por estratégia híbrida:
-  - Realtime como primário
-  - polling de fallback mais espaçado (ex. 120s) só quando canal não estiver estável
-  - pequeno atraso randômico no fetch inicial para não disparar tudo em bloco
+### 1) Serializar o carregamento inicial (principal)
+**Arquivo:** `src/lib/supabasePagination.ts`
 
-4. Corrigir UX de “tudo zerado”
-- Usar `ConnectionError` já criado em páginas-chave:
-  - `src/pages/Funcionarios.tsx`
-  - `src/pages/Fornecedores.tsx`
-  - `src/pages/Agenda.tsx`
-  - `src/pages/Docas.tsx`
-  - `src/pages/Dashboard.tsx`
-  - `src/pages/Solicitacoes.tsx`
-- Fluxo visual correto:
-  - carregando → erro de conexão (com “Tentar novamente”) → dados
-  - sem confundir erro de rede com lista vazia
+Em vez de disparar 10 hooks em paralelo (mesmo com concurrency=3), implementar uma **fila de inicialização sequencial** com prioridade:
+- Primeiro: tabelas essenciais (fornecedores, conferentes, tipos_veiculo) — catálogos leves
+- Depois: tabelas operacionais (cargas, senhas, docas) — dados maiores
+- Por último: tabelas secundárias (cross_docking, solicitacoes, divergencias)
 
-5. Mensagens de erro mais claras ao usuário
-- Em `catch` de criação (fornecedor/funcionário/etc), exibir causa real quando for rede/timeout
-- Evitar toast genérico “Erro ao salvar” sem contexto
+Cada fetch só começa após o anterior terminar com sucesso. Se falhar, espera mais tempo antes de tentar o próximo.
 
-6. Validação final (E2E)
-- Testar:
-  - abrir `/funcionarios` e `/fornecedores` com reconexão
-  - criar novo fornecedor e confirmar no banco
-  - recarregar página e validar persistência
-  - simular instabilidade e confirmar fallback/retry + tela de erro amigável
+### 2) Remover polling de 120s de todos os hooks
+**Arquivos:** Todos os 10 hooks (useCargasDB, useSenhasDB, useFornecedoresDB, useDocasDB, useCrossDB, useConferentesDB, useSolicitacoesDB, useDivergenciasDB, useFluxoOperacional, useTiposVeiculoDB)
 
-Arquivos-alvo do ajuste:
-- `src/lib/supabasePagination.ts`
-- `src/lib/supabaseRetry.ts` (novo)
-- `src/hooks/useFornecedoresDB.ts`
-- `src/hooks/useConferentesDB.ts`
-- `src/hooks/useCargasDB.ts`
-- `src/hooks/useSenhasDB.ts`
-- `src/hooks/useSolicitacoesDB.ts`
-- `src/hooks/useCrossDB.ts`
-- `src/hooks/useDocasDB.ts`
-- `src/hooks/useDivergenciasDB.ts`
-- `src/pages/Funcionarios.tsx`
-- `src/pages/Fornecedores.tsx`
-- `src/pages/Agenda.tsx`
-- `src/pages/Docas.tsx`
-- `src/pages/Dashboard.tsx`
-- `src/pages/Solicitacoes.tsx`
+Remover `setInterval(..., 120000)`. Manter apenas:
+- 1 fetch inicial (via fila serializada)
+- Realtime para atualizações subsequentes
+- `refetch` manual via botão "Tentar novamente"
 
-Observação importante:
-- Não há indício de problema de schema/RLS impedindo leitura/escrita neste caso.
-- A correção é de resiliência de rede + redução de rajada + tratamento correto de erro na UI.
+### 3) Reduzir retries agressivos no carregamento inicial
+**Arquivo:** `src/lib/supabasePagination.ts`
+
+- Aumentar backoff mínimo de 1s para 3s no primeiro retry
+- Aumentar backoff máximo de 10s para 20s
+- Adicionar jitter maior (0-2s em vez de 0-500ms)
+
+Isso dá tempo ao Supabase de se recuperar entre tentativas.
+
+### 4) UI de erro em todas as páginas principais
+**Arquivos:** Dashboard, Agenda, Docas, Solicitacoes, SenhaCaminhoneiro, CrossDocking, Armazenamento, AgendamentoPlanejamento
+
+Já existe o componente `ConnectionError`. Falta usá-lo nessas páginas para mostrar erro + botão "Tentar novamente" em vez de tela vazia.
+
+## Resumo de arquivos
+
+| Arquivo | Alteração |
+|---|---|
+| `src/lib/supabasePagination.ts` | Fila sequencial, backoff mais longo |
+| `src/hooks/useCargasDB.ts` | Remover polling 120s |
+| `src/hooks/useSenhasDB.ts` | Remover polling 120s |
+| `src/hooks/useFornecedoresDB.ts` | Remover polling 120s |
+| `src/hooks/useDocasDB.ts` | Remover polling 120s |
+| `src/hooks/useCrossDB.ts` | Remover polling 120s |
+| `src/hooks/useConferentesDB.ts` | Remover polling 120s |
+| `src/hooks/useSolicitacoesDB.ts` | Remover polling 120s |
+| `src/hooks/useDivergenciasDB.ts` | Remover polling 120s |
+| `src/hooks/useFluxoOperacional.ts` | Remover polling 120s |
+| `src/hooks/useTiposVeiculoDB.ts` | Remover polling 120s |
+| `src/pages/Dashboard.tsx` | Adicionar ConnectionError |
+| `src/pages/Agenda.tsx` | Adicionar ConnectionError |
+| `src/pages/Docas.tsx` | Adicionar ConnectionError |
+| `src/pages/Solicitacoes.tsx` | Adicionar ConnectionError |
+| `src/pages/SenhaCaminhoneiro.tsx` | Adicionar ConnectionError |
+| `src/pages/CrossDocking.tsx` | Adicionar ConnectionError |
+| `src/pages/Armazenamento.tsx` | Adicionar ConnectionError |
+| `src/pages/AgendamentoPlanejamento.tsx` | Adicionar ConnectionError |
+
+Nenhuma alteração em tabelas, RPCs, triggers ou regras de negócio.
+
+## Aviso importante
+
+Se mesmo após essa correção o Supabase continuar retornando 503, o problema é do lado do servidor (plano free tier pausado, ou instância sobrecarregada). Nesse caso, seria necessário verificar o status do projeto no painel do Supabase em https://supabase.com/dashboard/project/nsfenjymbpkhiiwqbqeo.
+
