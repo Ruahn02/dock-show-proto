@@ -58,7 +58,7 @@ export function useCrossDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchCross);
+    fetchCross();
 
     const channel = supabase
       .channel('cross-docking-realtime')

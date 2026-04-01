@@ -76,7 +76,7 @@ export function AssociarCargaModal({ open, onClose, doca, cargas, fornecedores, 
                       </Badge>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>NF: {carga.nfs.join(', ')}</span>
+                      <span>NF: {(carga.nfs ?? []).join(', ')}</span>
                       <span>Vol: {carga.volumePrevisto}</span>
                     </div>
                   </div>

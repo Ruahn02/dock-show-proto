@@ -50,7 +50,7 @@ export function useDocasDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchDocas);
+    fetchDocas();
 
     const channel = supabase
       .channel('docas-realtime')

@@ -34,7 +34,7 @@ export function useTiposVeiculoDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchTipos);
+    fetchTipos();
     return () => {
       mountedRef.current = false;
     };

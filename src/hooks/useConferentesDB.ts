@@ -29,7 +29,7 @@ export function useConferentesDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchConferentes);
+    fetchConferentes();
 
     const channel = supabase
       .channel('conferentes-realtime')

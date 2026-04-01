@@ -13,34 +13,6 @@ const DEBUG = false;
 // Deduplication: in-flight requests by key
 const inFlight = new Map<string, Promise<{ data: any[]; error: any }>>();
 
-// Sequential initialization queue — prevents request storms on app load
-let initQueue: Array<() => Promise<void>> = [];
-let initRunning = false;
-
-async function processInitQueue() {
-  if (initRunning) return;
-  initRunning = true;
-  while (initQueue.length > 0) {
-    const task = initQueue.shift()!;
-    try {
-      await task();
-    } catch (e) {
-      // continue with next
-    }
-    // Small pause between sequential fetches to let Supabase breathe
-    await delay(300 + Math.random() * 700);
-  }
-  initRunning = false;
-}
-
-/**
- * Enqueue an initial fetch to run sequentially instead of in parallel.
- * Returns a promise that resolves when this specific fetch completes.
- */
-export function enqueueInitialFetch(fn: () => Promise<void>): void {
-  initQueue.push(fn);
-  processInitQueue();
-}
 
 function makeKey(table: string, select: string, orderBy: OrderConfig[]): string {
   return `${table}|${select}|${JSON.stringify(orderBy)}`;

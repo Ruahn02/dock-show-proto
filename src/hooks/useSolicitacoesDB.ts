@@ -61,7 +61,7 @@ export function useSolicitacoesDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchSolicitacoes);
+    fetchSolicitacoes();
 
     const channel = supabase
       .channel('solicitacoes-realtime')

@@ -61,7 +61,7 @@ export function useSenhasDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchSenhas);
+    fetchSenhas();
 
     const channel = supabase
       .channel('senhas-realtime')

@@ -70,7 +70,7 @@ export function useFluxoOperacional() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchDados);
+    fetchDados();
 
     const channel = supabase
       .channel('fluxo-operacional')

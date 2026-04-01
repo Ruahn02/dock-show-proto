@@ -251,7 +251,7 @@ export default function AgendamentoPlanejamento() {
                         {d.tipo_veiculo ? getLabelByNome(d.tipo_veiculo) : '-'}
                         {d.quantidade_veiculos && d.quantidade_veiculos > 1 ? ` (${d.quantidade_veiculos})` : ''}
                       </TableCell>
-                      <TableCell>{d.divergencia || '-'}</TableCell>
+                      <TableCell>-</TableCell>
                       <TableCell>
                         {(() => { const s = getDisplayStatus(d); return (
                           <Badge variant="outline" className={statusStyles[s.key] || ''}>{s.label}</Badge>

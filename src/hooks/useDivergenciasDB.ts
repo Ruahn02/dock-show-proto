@@ -55,7 +55,7 @@ export function useDivergenciasDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchDivergencias);
+    fetchDivergencias();
 
     const channel = supabase
       .channel('divergencias-realtime')

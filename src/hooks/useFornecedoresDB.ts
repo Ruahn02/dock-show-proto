@@ -34,7 +34,7 @@ export function useFornecedoresDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchFornecedores);
+    fetchFornecedores();
 
     const channel = supabase
       .channel('fornecedores-realtime')

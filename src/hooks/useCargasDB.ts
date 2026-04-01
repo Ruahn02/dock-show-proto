@@ -69,7 +69,7 @@ export function useCargasDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchCargas);
+    fetchCargas();
 
     const channel = supabase
       .channel('cargas-realtime')
