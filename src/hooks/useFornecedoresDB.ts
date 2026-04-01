@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { Fornecedor } from '@/types';
+import { cachedFetch, subscribeRealtime, invalidateCache } from '@/lib/supabaseCache';
+
+const CACHE_KEY = 'fornecedores';
 
 function mapFromDB(row: any): Fornecedor {
   return {
@@ -20,12 +22,14 @@ export function useFornecedoresDB(initialDelay = 0) {
   const mountedRef = useRef(true);
 
   const fetchFornecedores = useCallback(async () => {
-    const { data, error: err } = await fetchAllRows('fornecedores', '*', [{ column: 'nome' }]);
+    const { data, error: err } = await cachedFetch(CACHE_KEY, () =>
+      supabase.from('fornecedores').select('*').order('nome', { ascending: true })
+    );
     if (!mountedRef.current) return;
     if (err) {
       console.error('[useFornecedoresDB] fetch error:', err);
       setError('Falha ao carregar fornecedores');
-    } else if (data) {
+    } else {
       setFornecedores(data.map(mapFromDB));
       setError(null);
     }
@@ -35,20 +39,14 @@ export function useFornecedoresDB(initialDelay = 0) {
   useEffect(() => {
     mountedRef.current = true;
     const timer = setTimeout(() => fetchFornecedores(), initialDelay);
-
-    const channel = supabase
-      .channel('fornecedores-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fornecedores' }, () => {
-        fetchFornecedores();
-      })
-      .subscribe();
+    const unsub = subscribeRealtime(CACHE_KEY, 'fornecedores', fetchFornecedores);
 
     return () => {
       mountedRef.current = false;
       clearTimeout(timer);
-      supabase.removeChannel(channel);
+      unsub();
     };
-  }, [fetchFornecedores]);
+  }, [fetchFornecedores, initialDelay]);
 
   const criarFornecedor = useCallback(async (dados: Partial<Fornecedor>) => {
     const { data, error } = await withRetry(() =>
@@ -57,6 +55,7 @@ export function useFornecedoresDB(initialDelay = 0) {
         .select().single()
     );
     if (!error && data) {
+      invalidateCache(CACHE_KEY);
       const novo = mapFromDB(data);
       setFornecedores(prev => [...prev, novo].sort((a, b) => a.nome.localeCompare(b.nome)));
       return novo;
@@ -74,6 +73,7 @@ export function useFornecedoresDB(initialDelay = 0) {
       supabase.from('fornecedores').update(updateData).eq('id', id).select().single()
     );
     if (!error && data) {
+      invalidateCache(CACHE_KEY);
       const atualizado = mapFromDB(data);
       setFornecedores(prev => prev.map(f => f.id === id ? atualizado : f));
       return atualizado;

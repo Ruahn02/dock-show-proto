@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
+import { cachedFetch, subscribeRealtime } from '@/lib/supabaseCache';
 
 export interface FluxoOperacional {
   carga_id: string | null;
@@ -49,6 +49,8 @@ interface AtualizarFluxoParams {
   p_divergencia?: string | null;
 }
 
+const CACHE_KEY = 'vw_carga_operacional';
+
 export function useFluxoOperacional() {
   const [dados, setDados] = useState<FluxoOperacional[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,12 +58,14 @@ export function useFluxoOperacional() {
   const mountedRef = useRef(true);
 
   const fetchDados = useCallback(async () => {
-    const { data, error: err } = await fetchAllRows('vw_carga_operacional', '*');
+    const { data, error: err } = await cachedFetch(CACHE_KEY, () =>
+      supabase.from('vw_carga_operacional').select('*')
+    );
     if (!mountedRef.current) return;
     if (err) {
       console.error('[useFluxoOperacional] fetch error:', err);
       setError('Falha ao carregar dados operacionais');
-    } else if (data) {
+    } else {
       setDados(data as unknown as FluxoOperacional[]);
       setError(null);
     }
@@ -72,16 +76,16 @@ export function useFluxoOperacional() {
     mountedRef.current = true;
     fetchDados();
 
-    const channel = supabase
-      .channel('fluxo-operacional')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cargas' }, () => fetchDados())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'senhas' }, () => fetchDados())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'docas' }, () => fetchDados())
-      .subscribe();
+    // View can't have Realtime, subscribe to underlying tables
+    const unsub1 = subscribeRealtime(`${CACHE_KEY}_cargas`, 'cargas', fetchDados);
+    const unsub2 = subscribeRealtime(`${CACHE_KEY}_senhas`, 'senhas', fetchDados);
+    const unsub3 = subscribeRealtime(`${CACHE_KEY}_docas`, 'docas', fetchDados);
 
     return () => {
       mountedRef.current = false;
-      supabase.removeChannel(channel);
+      unsub1();
+      unsub2();
+      unsub3();
     };
   }, [fetchDados]);
 

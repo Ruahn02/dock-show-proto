@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { Doca, StatusDoca } from '@/types';
+import { cachedFetch, subscribeRealtime, invalidateCache } from '@/lib/supabaseCache';
+
+const CACHE_KEY = 'docas';
 
 function mapFromDB(row: any): Doca {
   return {
@@ -36,12 +38,14 @@ export function useDocasDB() {
   const mountedRef = useRef(true);
 
   const fetchDocas = useCallback(async () => {
-    const { data, error: err } = await fetchAllRows('docas', '*', [{ column: 'numero' }]);
+    const { data, error: err } = await cachedFetch(CACHE_KEY, () =>
+      supabase.from('docas').select('*').order('numero', { ascending: true })
+    );
     if (!mountedRef.current) return;
     if (err) {
       console.error('[useDocasDB] fetch error:', err);
       setError('Falha ao carregar docas');
-    } else if (data) {
+    } else {
       setDocas(data.map(mapFromDB));
       setError(null);
     }
@@ -51,17 +55,11 @@ export function useDocasDB() {
   useEffect(() => {
     mountedRef.current = true;
     fetchDocas();
-
-    const channel = supabase
-      .channel('docas-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'docas' }, () => {
-        fetchDocas();
-      })
-      .subscribe();
+    const unsub = subscribeRealtime(CACHE_KEY, 'docas', fetchDocas);
 
     return () => {
       mountedRef.current = false;
-      supabase.removeChannel(channel);
+      unsub();
     };
   }, [fetchDocas]);
 
@@ -70,6 +68,7 @@ export function useDocasDB() {
       supabase.from('docas').update(mapToDB(dados)).eq('id', id).select().single()
     );
     if (!error && data) {
+      invalidateCache(CACHE_KEY);
       const atualizada = mapFromDB(data);
       setDocas(prev => prev.map(d => d.id === id ? atualizada : d));
       return atualizada;
@@ -82,6 +81,7 @@ export function useDocasDB() {
       supabase.from('docas').insert({ numero, status: 'livre' }).select().single()
     );
     if (!error && data) {
+      invalidateCache(CACHE_KEY);
       const nova = mapFromDB(data);
       setDocas(prev => [...prev, nova].sort((a, b) => a.numero - b.numero));
       return nova;

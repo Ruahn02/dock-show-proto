@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { Conferente } from '@/types';
+import { cachedFetch, subscribeRealtime, invalidateCache } from '@/lib/supabaseCache';
+
+const CACHE_KEY = 'conferentes';
 
 function mapFromDB(row: any): Conferente {
   return { id: row.id, nome: row.nome, ativo: row.ativo };
@@ -15,12 +17,14 @@ export function useConferentesDB() {
   const mountedRef = useRef(true);
 
   const fetchConferentes = useCallback(async () => {
-    const { data, error: err } = await fetchAllRows('conferentes', '*', [{ column: 'nome' }]);
+    const { data, error: err } = await cachedFetch(CACHE_KEY, () =>
+      supabase.from('conferentes').select('*').order('nome', { ascending: true })
+    );
     if (!mountedRef.current) return;
     if (err) {
       console.error('[useConferentesDB] fetch error:', err);
       setError('Falha ao carregar conferentes');
-    } else if (data) {
+    } else {
       setConferentes(data.map(mapFromDB));
       setError(null);
     }
@@ -30,17 +34,11 @@ export function useConferentesDB() {
   useEffect(() => {
     mountedRef.current = true;
     fetchConferentes();
-
-    const channel = supabase
-      .channel('conferentes-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conferentes' }, () => {
-        fetchConferentes();
-      })
-      .subscribe();
+    const unsub = subscribeRealtime(CACHE_KEY, 'conferentes', fetchConferentes);
 
     return () => {
       mountedRef.current = false;
-      supabase.removeChannel(channel);
+      unsub();
     };
   }, [fetchConferentes]);
 
@@ -49,6 +47,7 @@ export function useConferentesDB() {
       supabase.from('conferentes').insert({ nome: dados.nome!, ativo: dados.ativo ?? true }).select().single()
     );
     if (!error && data) {
+      invalidateCache(CACHE_KEY);
       const novo = mapFromDB(data);
       setConferentes(prev => [...prev, novo].sort((a, b) => a.nome.localeCompare(b.nome)));
       return novo;
@@ -65,6 +64,7 @@ export function useConferentesDB() {
       supabase.from('conferentes').update(updateData).eq('id', id).select().single()
     );
     if (!error && data) {
+      invalidateCache(CACHE_KEY);
       const atualizado = mapFromDB(data);
       setConferentes(prev => prev.map(c => c.id === id ? atualizado : c));
       return atualizado;
