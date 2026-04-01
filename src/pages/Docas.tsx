@@ -30,7 +30,8 @@ import { useDocasDB } from '@/hooks/useDocasDB';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { Doca, StatusDoca, StatusCarga, Senha } from '@/types';
 import { toast } from 'sonner';
-import { Container, Plus, Coffee, Unlock, XCircle, MapPin, RotateCcw } from 'lucide-react';
+import { Container, Plus, Coffee, Unlock, XCircle, MapPin, RotateCcw, Loader2 } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
 import { useFluxoOperacional } from '@/hooks/useFluxoOperacional';
 
 const statusStyles: Record<StatusDoca, string> = {
