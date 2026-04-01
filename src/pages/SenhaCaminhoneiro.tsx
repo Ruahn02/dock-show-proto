@@ -381,6 +381,9 @@ export default function SenhaCaminhoneiro() {
     );
   }
 
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-slate-100"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  if (error) return <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-slate-100"><ConnectionError message={error} onRetry={refetch} /></div>;
+
   // ===== VIEW: ACOMPANHAMENTO =====
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-slate-100 flex flex-col items-center justify-center p-4">
