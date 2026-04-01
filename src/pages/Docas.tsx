@@ -56,11 +56,14 @@ export default function Docas() {
     moverParaPatio,
     retomarDoPatio,
     atualizarStatusSenha,
-    vincularSenhaADoca
+    vincularSenhaADoca,
+    loading: loadingSenha,
+    error: errorSenha,
+    refetch: refetchSenha,
   } = useSenha();
   const { atualizarFluxo } = useFluxoOperacional();
   const { adicionarCross } = useCross();
-  const { docas, atualizarDoca, criarDoca: criarDocaDB, refetch: refetchDocas } = useDocasDB();
+  const { docas, atualizarDoca, criarDoca: criarDocaDB, refetch: refetchDocas, loading: loadingDocas, error: errorDocas } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
   const { salvarDivergencias } = useDivergenciasDB();
   const [modalOpen, setModalOpen] = useState(false);
