@@ -61,7 +61,7 @@ export function useSolicitacoesDB(initialDelay = 0) {
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchSolicitacoes();
+    const timer = setTimeout(() => fetchSolicitacoes(), initialDelay);
 
     const channel = supabase
       .channel('solicitacoes-realtime')
@@ -72,6 +72,7 @@ export function useSolicitacoesDB(initialDelay = 0) {
 
     return () => {
       mountedRef.current = false;
+      clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [fetchSolicitacoes]);

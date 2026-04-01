@@ -34,7 +34,7 @@ export function useFornecedoresDB(initialDelay = 0) {
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchFornecedores();
+    const timer = setTimeout(() => fetchFornecedores(), initialDelay);
 
     const channel = supabase
       .channel('fornecedores-realtime')
@@ -45,6 +45,7 @@ export function useFornecedoresDB(initialDelay = 0) {
 
     return () => {
       mountedRef.current = false;
+      clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [fetchFornecedores]);
