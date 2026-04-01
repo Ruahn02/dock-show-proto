@@ -51,7 +51,7 @@ export function useDivergenciasDB() {
       console.error('[useDivergenciasDB] fetch error:', err);
       setError('Falha ao carregar divergências');
     } else if (data) {
-      setDivergencias(data as unknown as DivergenciaRow[]);
+      setDivergencias((data ?? []) as unknown as DivergenciaRow[]);
       setError(null);
     }
   }, []);

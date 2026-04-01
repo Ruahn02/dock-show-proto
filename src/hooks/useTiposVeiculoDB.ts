@@ -30,7 +30,7 @@ export function useTiposVeiculoDB() {
       console.error('[useTiposVeiculoDB] fetch error:', err);
       setError('Falha ao carregar tipos de veículo');
     } else if (data) {
-      setTipos(data as TipoVeiculo[]);
+      setTipos((data ?? []) as TipoVeiculo[]);
       setError(null);
     }
     setLoading(false);
