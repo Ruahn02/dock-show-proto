@@ -47,7 +47,7 @@ const statusLabels: Record<StatusCross, string> = {
 
 export default function CrossDocking() {
   const { isAdmin } = useProfile();
-  const { getCrossParaAdmin, getCrossParaOperacional, armazenarCarga, confirmarCross, montarCross, iniciarSeparacao, finalizarSeparacao } = useCross();
+  const { getCrossParaAdmin, getCrossParaOperacional, armazenarCarga, confirmarCross, montarCross, iniciarSeparacao, finalizarSeparacao, loading: loadingCross, error: errorCross, refetch: refetchCross } = useCross();
   const { cargas } = useSenha();
   const { fornecedores } = useFornecedoresDB();
   const { conferentes } = useConferentesDB();
