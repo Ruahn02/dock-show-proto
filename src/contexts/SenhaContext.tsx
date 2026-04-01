@@ -26,6 +26,9 @@ interface GerarSenhaData {
 interface SenhaContextType {
   senhas: Senha[];
   cargas: Carga[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
   gerarSenha: (data: GerarSenhaData) => Promise<Senha>;
   atualizarSenha: (senhaId: string, updates: Partial<Senha>) => Promise<void>;
   getSenhaById: (senhaId: string) => Senha | undefined;
