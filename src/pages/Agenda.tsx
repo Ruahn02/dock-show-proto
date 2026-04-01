@@ -227,7 +227,7 @@ export default function Agenda() {
     return {
       'Horário': carga.horarioPrevisto || '-',
       'Fornecedor': getFornecedorNome(carga.fornecedorId),
-      'NF(s)': carga.nfs?.join(', ') || '-',
+      'NF(s)': (carga.nfs ?? []).join(', ') || '-',
       'Cam. Prev.': carga.quantidadeVeiculos || 1,
       'Senhas': getSenhasEmitidas(carga.id),
       'Vol. Previsto': carga.volumePrevisto,
