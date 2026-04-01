@@ -1,101 +1,111 @@
 
 
-# Plano: Eliminar requisições duplicadas e escalonar carregamento
+# Plano: Sistema de carregamento inteligente por tela
 
-## Diagnóstico (confirmado pelos logs e código)
+## Diagnóstico real (baseado nos network logs de agora)
 
-Ao abrir `/agendamento`, o app dispara **9 requisições simultâneas**, sendo 2 duplicadas:
+Os logs mostram que MESMO na rota `/login`, o app dispara **5 requisições + 5 canais Realtime** porque os 3 providers globais envolvem TODO o app:
 
 ```text
-PROVIDERS (sempre montados):
-  SenhaProvider    → useSenhasDB()        → senhas
-                   → useCargasDB()        → cargas          ← 1x
-  CrossProvider    → useCrossDB()         → cross_docking
-  SolicitacaoProvider → useSolicitacoesDB() → solicitacoes
-                      → useFornecedoresDB() → fornecedores  ← 1x
+SEMPRE (qualquer rota, incluindo /login):
+  SenhaProvider    → senhas + cargas           = 2 req + 2 canais
+  CrossProvider    → cross_docking             = 1 req + 1 canal
+  SolicitacaoProvider → solicitacoes + fornecedores = 2 req + 2 canais
+                                          SUBTOTAL: 5 req + 5 canais
 
-PÁGINA AgendamentoPlanejamento:
-  useFluxoOperacional()  → vw_carga_operacional
-  useCargasDB()          → cargas              ← DUPLICADO!
-  useFornecedoresDB()    → fornecedores        ← DUPLICADO!
-  useTiposVeiculoDB()    → tipos_veiculo
+Página /docas (exemplo):
+  + useFluxoOperacional → vw_carga_operacional  = 1 req + 1 canal
+  + useDocasDB → docas                          = 1 req + 1 canal
+  + useTiposVeiculoDB → tipos_veiculo           = 1 req + 1 canal
+  + useDivergenciasDB → divergencias            = 1 req + 1 canal
+                                          SUBTOTAL: 4 req + 4 canais
 
-TOTAL: 9 requests simultâneas (7 únicas + 2 duplicadas)
+TOTAL na /docas: 9 requests + 9 canais Realtime simultâneos → 503
 ```
 
-Mesma duplicação em outras páginas:
-- **Docas.tsx**: `useFornecedoresDB()` duplicado (já está no SolicitacaoProvider)
-- **Dashboard.tsx**: `useCrossDB()` duplicado (já está no CrossProvider)
+Além disso, `useFornecedoresDB()` é chamado em **8 páginas** além do provider — cada uma abre um canal Realtime separado.
 
-O free tier do Supabase rejeita com 503 quando recebe 9+ requests simultâneas.
+## Sua proposta é viável? SIM, parcialmente
 
-## Solução: 2 ações cirúrgicas
+O hook genérico com chunked fetch + delay **resolve o 503**, mas tem trade-offs:
+- Carregar 50 em 50 com delay de 500ms para 359 fornecedores = ~4 segundos para completar
+- Reescrever TODOS os hooks e páginas é trabalho grande e arriscado
 
-### 1) Eliminar hooks duplicados nas páginas
+## Proposta otimizada (mesmo resultado, menos risco)
 
-As páginas devem consumir dados dos contexts que já existem, em vez de chamar o hook novamente.
+### Fase 1: Providers lazy — impacto imediato (resolve 503)
 
-| Arquivo | Hook duplicado | Substituir por |
-|---|---|---|
-| `AgendamentoPlanejamento.tsx` | `useCargasDB()` | `useSenha()` → já expõe `cargas` |
-| `AgendamentoPlanejamento.tsx` | `useFornecedoresDB()` | Expor `fornecedores` via `SolicitacaoContext` |
-| `Docas.tsx` | `useFornecedoresDB()` | Idem |
-| `Dashboard.tsx` | `useCrossDB()` | `useCross()` → já expõe `crossItems` |
+Mover os 3 providers para dentro das rotas protegidas. Nas rotas públicas (`/login`, `/solicitacao`, `/senha`, `/painel`, `/comprador`), não carregar providers.
 
-**Resultado**: de 9 requests para **7 requests únicas**.
+**Arquivo: `src/App.tsx`**
+- Criar componente `<ProvidersWrapper>` que envolve apenas as rotas admin/operacional
+- Rotas públicas ficam FORA dos providers → zero requests no `/login`
 
-### 2) Escalonar os providers com delay simples
+Resultado: de 5 requests no login → 0 requests no login.
 
-Os 3 providers disparam 5 requests no mesmo instante. Adicionar um delay simples no mount de `CrossProvider` e `SolicitacaoProvider` para escalonar:
+### Fase 2: Hooks com cache singleton (elimina duplicação)
 
-- `SenhaProvider`: carrega imediato (senhas + cargas)
-- `CrossProvider`: delay de 500ms antes do fetch
-- `SolicitacaoProvider`: delay de 1000ms antes do fetch
+Criar um cache simples em memória para cada tabela. Se `useFornecedoresDB()` é chamado em 8 páginas, o fetch real acontece **1 vez**. Os outros 7 recebem o cache.
 
-Os hooks de página (`useFluxoOperacional`, `useTiposVeiculoDB`, `useDocasDB`) mantêm fetch imediato.
+**Arquivo: `src/lib/supabaseCache.ts`** (novo, ~40 linhas)
+- Map simples: `{ fornecedores: { data, promise, timestamp } }`
+- Se já tem dados em cache (< 30s), retorna direto
+- Se já tem um fetch em andamento, aguarda a mesma promise
+- Um único canal Realtime por tabela (não por hook)
 
-**Resultado**: máximo de 3-4 requests simultâneas em vez de 7+.
+**Todos os hooks (fornecedores, conferentes, tipos_veiculo, docas, divergencias):**
+- Usar cache antes de fazer fetch
+- Compartilhar canal Realtime entre instâncias
 
-## Detalhes técnicos
+Resultado: de 4x `fornecedores` → 1x `fornecedores`.
 
-### Arquivo: `src/contexts/SolicitacaoContext.tsx`
-- Já importa `useFornecedoresDB()` internamente
-- Expor `fornecedores` no context value (adicionar ao tipo e ao Provider value)
+### Fase 3: Realtime com debounce (reduz cascata)
 
-### Arquivo: `src/pages/AgendamentoPlanejamento.tsx`
-- Remover `import { useCargasDB }` e `import { useFornecedoresDB }`
-- Usar `const { cargas } = useSenha()` (já importa useSenha indiretamente)
-- Usar `const { fornecedores } = useSolicitacao()` (novo campo exposto)
+**Todos os hooks que escutam Realtime:**
+- Adicionar debounce de 2 segundos no handler
+- Se receber 5 eventos em 2s, faz 1 refetch (não 5)
 
-### Arquivo: `src/pages/Docas.tsx`
-- Remover `import { useFornecedoresDB }`
-- Usar `const { fornecedores } = useSolicitacao()` (ou importar do SolicitacaoContext)
+### Fase 4: Escalonamento entre providers
 
-### Arquivo: `src/pages/Dashboard.tsx`
-- Remover `import { useCrossDB }`
-- Usar `const { crossItems } = useCross()`
-
-### Escalonamento nos providers
-- `CrossProvider`: wrapping do fetch inicial com `setTimeout(() => refetch(), 500)`
-- `SolicitacaoProvider`: wrapping do fetch inicial com `setTimeout(() => refetch(), 1000)`
-- Implementado via flag `initialDelayDone` nos hooks internos, ou diretamente no useEffect do provider
+Os providers que restam dentro das rotas protegidas:
+- SenhaProvider: imediato
+- CrossProvider: 500ms delay (já implementado)
+- SolicitacaoProvider: 1000ms delay (já implementado)
 
 ## Arquivos alterados
 
 | Arquivo | Alteração |
 |---|---|
-| `src/contexts/SolicitacaoContext.tsx` | Expor `fornecedores` no context |
-| `src/pages/AgendamentoPlanejamento.tsx` | Remover hooks duplicados, usar contexts |
-| `src/pages/Docas.tsx` | Remover `useFornecedoresDB`, usar context |
-| `src/pages/Dashboard.tsx` | Remover `useCrossDB`, usar `useCross` |
-| `src/contexts/CrossContext.tsx` | Delay de 500ms no fetch inicial |
-| `src/contexts/SolicitacaoContext.tsx` | Delay de 1000ms no fetch inicial |
+| `src/App.tsx` | Mover providers para dentro das rotas protegidas |
+| `src/lib/supabaseCache.ts` | Novo: cache singleton + canal Realtime compartilhado |
+| `src/hooks/useFornecedoresDB.ts` | Usar cache singleton |
+| `src/hooks/useConferentesDB.ts` | Usar cache singleton |
+| `src/hooks/useTiposVeiculoDB.ts` | Usar cache singleton |
+| `src/hooks/useDocasDB.ts` | Usar cache singleton |
+| `src/hooks/useDivergenciasDB.ts` | Usar cache singleton |
+| `src/hooks/useFluxoOperacional.ts` | Usar cache singleton |
+| `src/hooks/useSenhasDB.ts` | Adicionar debounce no Realtime |
+| `src/hooks/useCargasDB.ts` | Adicionar debounce no Realtime |
+| `src/hooks/useCrossDB.ts` | Adicionar debounce no Realtime |
+| `src/hooks/useSolicitacoesDB.ts` | Adicionar debounce no Realtime |
 
 ## Resultado esperado
 
-- De 9 requests simultâneas para **máx 3-4 simultâneas**
-- Zero duplicação
-- Sem nova arquitetura, sem filas, sem abstrações
-- O 503 deve desaparecer porque o gateway consegue lidar com 3-4 requests
-- Sem alteração de lógica de negócio ou banco
+- `/login`: 0 requests (antes: 5)
+- Qualquer página admin: máx 4-5 requests únicas (antes: 9+)
+- Zero duplicação de fetch
+- Zero duplicação de canais Realtime
+- Debounce evita cascata de refetch
+- **Sem chunked loading** (as tabelas são pequenas, max 359 rows — chunk não ajuda aqui)
+- Mantém toda a lógica de negócio, contexts e estrutura existente
+
+## Por que NÃO usar chunk de 50 registros?
+
+As tabelas são pequenas:
+- fornecedores: 359 rows
+- conferentes: ~10 rows
+- docas: ~20 rows
+- tipos_veiculo: ~10 rows
+
+Carregar 50 por vez com delay seria MAIS lento que uma única query. O chunk só faz sentido para tabelas com 5000+ rows. O problema real é **quantidade de requests simultâneas**, não tamanho delas.
 
