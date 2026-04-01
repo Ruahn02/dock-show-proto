@@ -53,8 +53,12 @@ interface SenhaContextType {
 const SenhaContext = createContext<SenhaContextType | undefined>(undefined);
 
 export function SenhaProvider({ children }: { children: ReactNode }) {
-  const { senhas, criarSenha: criarSenhaDB, atualizarSenha: atualizarSenhaDB } = useSenhasDB();
-  const { cargas, criarCarga: criarCargaDB, atualizarCarga: atualizarCargaDB, excluirCarga: excluirCargaDB } = useCargasDB();
+  const { senhas, criarSenha: criarSenhaDB, atualizarSenha: atualizarSenhaDB, loading: loadingSenhas, error: errorSenhas, refetch: refetchSenhas } = useSenhasDB();
+  const { cargas, criarCarga: criarCargaDB, atualizarCarga: atualizarCargaDB, excluirCarga: excluirCargaDB, loading: loadingCargas, error: errorCargas, refetch: refetchCargas } = useCargasDB();
+
+  const loading = loadingSenhas || loadingCargas;
+  const error = errorSenhas || errorCargas;
+  const refetch = useCallback(() => { refetchSenhas(); refetchCargas(); }, [refetchSenhas, refetchCargas]);
 
   const gerarSenha = useCallback(async (data: GerarSenhaData): Promise<Senha> => {
     const nova = await criarSenhaDB({
