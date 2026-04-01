@@ -60,6 +60,7 @@ export function useCargasDB() {
     if (err) {
       console.error('[useCargasDB] fetch error:', err);
       setError('Falha ao carregar cargas');
+      // Keep existing data on error
     } else if (data) {
       setCargas(data.map(mapCargaFromDB));
       setError(null);
