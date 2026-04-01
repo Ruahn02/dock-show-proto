@@ -1,38 +1,73 @@
 
 
-# Plano: Null Safety Global em Arrays
+# Plano: Escalonamento de requisições + proteção de estado
 
-## O problema real
+## Causa raiz confirmada
 
-Os logs mostram dois problemas simultâneos:
-1. **Supabase 503 (connection timeout)** — o banco às vezes não responde, hooks ficam com arrays vazios
-2. **Crash de renderização** — quando dados chegam, campos como `nfs` vêm como `null` e o código chama `.join()` direto, causando crash que impede toda a tela de renderizar
+O App.tsx monta 3 providers globais que disparam 5 hooks simultâneos no mount:
+- `SenhaProvider` → useSenhasDB + useCargasDB (2 requests)
+- `CrossProvider` → useCrossDB (1 request)  
+- `SolicitacaoProvider` → useSolicitacoesDB + useFornecedoresDB (2 requests)
 
-A correção de null safety **não resolve o 503**, mas **garante que quando os dados chegarem, a tela renderize sem crash**. Hoje, mesmo quando o Supabase responde, um único campo `null` derruba a tela inteira.
+Depois, a página ativa adiciona mais 3-5 hooks (conferentes, docas, divergencias, fluxo, tipos_veiculo). Total: **8-10 requests simultâneas**, causando 503 no free tier.
 
-## Locais a corrigir
+## Solução
 
-| Arquivo | Linha | Código atual | Correção |
-|---|---|---|---|
-| `src/pages/Docas.tsx` | 410 | `carga?.nfs.join(', ')` | `(carga?.nfs ?? []).join(', ') \|\| '-'` |
-| `src/pages/Armazenamento.tsx` | 100 | `cross.nfs.join(', ')` | `(cross.nfs ?? []).join(', ') \|\| '-'` |
-| `src/pages/Agenda.tsx` | 230 | `carga.nfs?.join(', ')` | `(carga.nfs ?? []).join(', ') \|\| '-'` |
-| `src/pages/Agenda.tsx` | 261 | `c.nfs?.join(', ')` | `(c.nfs ?? []).join(', ') \|\| '-'` |
-| `src/pages/Agenda.tsx` | 394 | `carga.nfs?.join(', ')` | `(carga.nfs ?? []).join(', ') \|\| '-'` |
+### 1) Criar fila centralizada com concorrência limitada (`src/lib/supabaseQueue.ts`)
 
-Os seguintes já estão corretos (já usam `?? []`):
-- `CrossDocking.tsx:253` — OK
-- `AssociarCargaModal.tsx:79` — OK
-- `AgendamentoModal.tsx:44` — OK
-- `AgendamentoPlanejamento.tsx:247` — tem check de length antes — OK
+```text
+Fila global com:
+- Concorrência máx: 2 requests simultâneas
+- Delay de 300ms entre cada request
+- Prioridade: vw_carga_operacional primeiro
+- Log de cada request (tabela, status, tempo)
+```
 
-## Escopo
+Todas as chamadas `fetchAllRows` passarão automaticamente pela fila (modificar internamente, sem mudar assinatura).
 
-- **5 substituições pontuais** nos 3 arquivos acima
-- Zero alteração em lógica de negócio, queries, ou estrutura de dados
-- Apenas adicionar `?? []` antes de `.join()`
+### 2) Proteção de estado nos hooks
 
-## Resultado
+Em cada hook, ao receber erro, **manter último estado válido** em vez de sobrescrever com `[]`:
 
-Quando `nfs` vier como `null` do banco, a tela continua renderizando normalmente mostrando `'-'` no lugar.
+```typescript
+// Antes (atual):
+if (err) { setError(...); }
+else if (data) { setDados(data); }
+
+// Depois:
+if (err) { 
+  setError(...);
+  // NÃO sobrescreve dados existentes
+} else if (data) { 
+  setDados(data); 
+  setError(null); 
+}
+```
+
+### 3) Retry progressivo já existente — ajustar tempos
+
+O retry em `fetchAllRowsInternal` já existe com backoff. Ajustar para intervalos mais curtos (500ms, 1s, 2s) em vez dos atuais 3s-20s, pois a fila já controla a pressão.
+
+### 4) Logs de debug
+
+Adicionar console.log com `[Queue]` prefix mostrando: tabela, attempt, status code, tempo de resposta.
+
+## Arquivos a alterar
+
+| Arquivo | Alteração |
+|---|---|
+| `src/lib/supabaseQueue.ts` | **NOVO** — fila com concorrência 2 + delay 300ms |
+| `src/lib/supabasePagination.ts` | Integrar fila na `fetchAllRows`, ajustar backoff |
+| `src/hooks/useFornecedoresDB.ts` | Proteger estado contra sobrescrita em erro |
+| `src/hooks/useConferentesDB.ts` | Idem |
+| `src/hooks/useCargasDB.ts` | Idem |
+| `src/hooks/useSenhasDB.ts` | Idem |
+| `src/hooks/useDocasDB.ts` | Idem |
+| `src/hooks/useCrossDB.ts` | Idem |
+| `src/hooks/useSolicitacoesDB.ts` | Idem |
+| `src/hooks/useDivergenciasDB.ts` | Idem |
+| `src/hooks/useFluxoOperacional.ts` | Idem |
+| `src/hooks/useTiposVeiculoDB.ts` | Idem |
+
+Nenhuma alteração no banco, RPCs ou regras de negócio.
 
