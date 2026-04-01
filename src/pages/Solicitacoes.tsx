@@ -38,7 +38,7 @@ const statusStyles: Record<StatusSolicitacao, string> = {
 };
 
 export default function Solicitacoes() {
-  const { solicitacoes, aprovarSolicitacao, aprovarSolicitacaoUnificada, recusarSolicitacao, getSolicitacoesPendentes } = useSolicitacao();
+  const { solicitacoes, aprovarSolicitacao, aprovarSolicitacaoUnificada, recusarSolicitacao, getSolicitacoesPendentes, loading, error, refetch } = useSolicitacao();
   const { cargas } = useSenha();
   const { fornecedores } = useFornecedoresDB();
   const { getLabelByNome } = useTiposVeiculoDB();
