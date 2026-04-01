@@ -55,7 +55,7 @@ export async function fetchAllRows<T = any>(
     return existing as Promise<{ data: T[]; error: any }>;
   }
 
-  const promise = fetchAllRowsInternal<T>(table, select, orderBy, key);
+  const promise = enqueue(() => fetchAllRowsInternal<T>(table, select, orderBy, key), String(table));
   inFlight.set(key, promise);
 
   try {
