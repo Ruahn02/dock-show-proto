@@ -1,57 +1,101 @@
 
 
-# Plano: Remover fila e simplificar fetch
+# Plano: Eliminar requisições duplicadas e escalonar carregamento
 
-## Causa do loading infinito
+## Diagnóstico (confirmado pelos logs e código)
 
-`fetchAllRows` passa por `enqueue()` (fila com concorrência 2 + delay 300ms). Com 8-10 hooks + retry de 3 tentativas cada, as promises ficam enfileiradas e nunca resolvem a tempo. Além disso, se o Supabase retorna NetworkError, o retry segura a fila por mais tempo ainda.
+Ao abrir `/agendamento`, o app dispara **9 requisições simultâneas**, sendo 2 duplicadas:
 
-## Alterações
+```text
+PROVIDERS (sempre montados):
+  SenhaProvider    → useSenhasDB()        → senhas
+                   → useCargasDB()        → cargas          ← 1x
+  CrossProvider    → useCrossDB()         → cross_docking
+  SolicitacaoProvider → useSolicitacoesDB() → solicitacoes
+                      → useFornecedoresDB() → fornecedores  ← 1x
 
-### 1) `src/lib/supabasePagination.ts` — Remover enqueue e simplificar
+PÁGINA AgendamentoPlanejamento:
+  useFluxoOperacional()  → vw_carga_operacional
+  useCargasDB()          → cargas              ← DUPLICADO!
+  useFornecedoresDB()    → fornecedores        ← DUPLICADO!
+  useTiposVeiculoDB()    → tipos_veiculo
 
-- Remover import de `enqueue` e `supabaseQueue`
-- Remover deduplicação (`inFlight` map)
-- Remover retry/backoff interno
-- `fetchAllRows` vira chamada direta: `supabase.from(table).select(select).order(...).range(...)`
-- Em caso de erro, retorna `{ data: [], error }` imediatamente
-- Sempre resolve a promise (nunca fica pendurada)
+TOTAL: 9 requests simultâneas (7 únicas + 2 duplicadas)
+```
 
-### 2) `src/lib/supabaseQueue.ts` — Remover arquivo ou deixar sem uso
+Mesma duplicação em outras páginas:
+- **Docas.tsx**: `useFornecedoresDB()` duplicado (já está no SolicitacaoProvider)
+- **Dashboard.tsx**: `useCrossDB()` duplicado (já está no CrossProvider)
 
-Nenhum hook deve mais importar `enqueue`.
+O free tier do Supabase rejeita com 503 quando recebe 9+ requests simultâneas.
 
-### 3) `src/hooks/useDivergenciasDB.ts` — Remover enqueue
+## Solução: 2 ações cirúrgicas
 
-- Trocar `enqueue(() => supabase.from('divergencias')...)` por chamada direta
-- Garantir `setLoading(false)` em todos os paths
+### 1) Eliminar hooks duplicados nas páginas
 
-### 4) `src/hooks/useTiposVeiculoDB.ts` — Remover enqueue
+As páginas devem consumir dados dos contexts que já existem, em vez de chamar o hook novamente.
 
-- Trocar `enqueue(() => supabase.from('tipos_veiculo')...)` por chamada direta
-- Garantir `setLoading(false)` em todos os paths
+| Arquivo | Hook duplicado | Substituir por |
+|---|---|---|
+| `AgendamentoPlanejamento.tsx` | `useCargasDB()` | `useSenha()` → já expõe `cargas` |
+| `AgendamentoPlanejamento.tsx` | `useFornecedoresDB()` | Expor `fornecedores` via `SolicitacaoContext` |
+| `Docas.tsx` | `useFornecedoresDB()` | Idem |
+| `Dashboard.tsx` | `useCrossDB()` | `useCross()` → já expõe `crossItems` |
 
-### 5) Todos os outros hooks (cargas, senhas, docas, fornecedores, conferentes, cross, solicitacoes, fluxo)
+**Resultado**: de 9 requests para **7 requests únicas**.
 
-- Já usam `fetchAllRows` — a simplificação do passo 1 resolve automaticamente
-- Verificar que `setLoading(false)` é chamado em sucesso E erro (já está OK em todos)
+### 2) Escalonar os providers com delay simples
 
-### 6) Manter `withRetry` apenas para operações de escrita
+Os 3 providers disparam 5 requests no mesmo instante. Adicionar um delay simples no mount de `CrossProvider` e `SolicitacaoProvider` para escalonar:
 
-`withRetry` em `supabaseRetry.ts` continua sendo usado apenas em INSERT/UPDATE/DELETE. Não mexer.
+- `SenhaProvider`: carrega imediato (senhas + cargas)
+- `CrossProvider`: delay de 500ms antes do fetch
+- `SolicitacaoProvider`: delay de 1000ms antes do fetch
+
+Os hooks de página (`useFluxoOperacional`, `useTiposVeiculoDB`, `useDocasDB`) mantêm fetch imediato.
+
+**Resultado**: máximo de 3-4 requests simultâneas em vez de 7+.
+
+## Detalhes técnicos
+
+### Arquivo: `src/contexts/SolicitacaoContext.tsx`
+- Já importa `useFornecedoresDB()` internamente
+- Expor `fornecedores` no context value (adicionar ao tipo e ao Provider value)
+
+### Arquivo: `src/pages/AgendamentoPlanejamento.tsx`
+- Remover `import { useCargasDB }` e `import { useFornecedoresDB }`
+- Usar `const { cargas } = useSenha()` (já importa useSenha indiretamente)
+- Usar `const { fornecedores } = useSolicitacao()` (novo campo exposto)
+
+### Arquivo: `src/pages/Docas.tsx`
+- Remover `import { useFornecedoresDB }`
+- Usar `const { fornecedores } = useSolicitacao()` (ou importar do SolicitacaoContext)
+
+### Arquivo: `src/pages/Dashboard.tsx`
+- Remover `import { useCrossDB }`
+- Usar `const { crossItems } = useCross()`
+
+### Escalonamento nos providers
+- `CrossProvider`: wrapping do fetch inicial com `setTimeout(() => refetch(), 500)`
+- `SolicitacaoProvider`: wrapping do fetch inicial com `setTimeout(() => refetch(), 1000)`
+- Implementado via flag `initialDelayDone` nos hooks internos, ou diretamente no useEffect do provider
 
 ## Arquivos alterados
 
 | Arquivo | Alteração |
 |---|---|
-| `src/lib/supabasePagination.ts` | Remover enqueue, dedup, retry. Fetch direto. |
-| `src/hooks/useDivergenciasDB.ts` | Remover import/uso de enqueue |
-| `src/hooks/useTiposVeiculoDB.ts` | Remover import/uso de enqueue |
+| `src/contexts/SolicitacaoContext.tsx` | Expor `fornecedores` no context |
+| `src/pages/AgendamentoPlanejamento.tsx` | Remover hooks duplicados, usar contexts |
+| `src/pages/Docas.tsx` | Remover `useFornecedoresDB`, usar context |
+| `src/pages/Dashboard.tsx` | Remover `useCrossDB`, usar `useCross` |
+| `src/contexts/CrossContext.tsx` | Delay de 500ms no fetch inicial |
+| `src/contexts/SolicitacaoContext.tsx` | Delay de 1000ms no fetch inicial |
 
-## Resultado
+## Resultado esperado
 
-- Todas as 8-10 requisições disparam em paralelo direto ao Supabase
-- Sem fila, sem delay artificial
-- `setLoading(false)` garantido em todos os cenários
-- Nenhuma promise pendurada
+- De 9 requests simultâneas para **máx 3-4 simultâneas**
+- Zero duplicação
+- Sem nova arquitetura, sem filas, sem abstrações
+- O 503 deve desaparecer porque o gateway consegue lidar com 3-4 requests
+- Sem alteração de lógica de negócio ou banco
 
