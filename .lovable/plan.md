@@ -1,73 +1,38 @@
 
 
-# Plano: Escalonamento de requisições + proteção de estado
+# Plano: Corrigir erros de renderização (null safety) sem alterar arquitetura
 
-## Causa raiz confirmada
+## Diagnóstico
 
-O App.tsx monta 3 providers globais que disparam 5 hooks simultâneos no mount:
-- `SenhaProvider` → useSenhasDB + useCargasDB (2 requests)
-- `CrossProvider` → useCrossDB (1 request)  
-- `SolicitacaoProvider` → useSolicitacoesDB + useFornecedoresDB (2 requests)
+Analisei todos os arquivos de páginas e hooks. O código já tem a maioria dos `.join()` protegidos com `?? []`, e os hooks já protegem contra sobrescrita de estado. Os pontos que ainda podem causar crash de renderização são:
 
-Depois, a página ativa adiciona mais 3-5 hooks (conferentes, docas, divergencias, fluxo, tipos_veiculo). Total: **8-10 requests simultâneas**, causando 503 no free tier.
+### Problemas encontrados
 
-## Solução
+| Arquivo | Linha | Problema | Correção |
+|---|---|---|---|
+| `src/pages/Docas.tsx` | 525 | `cargaDaSenha?.nfs?.join(', ')` — se `nfs` vier `null`, `?.join` funciona, mas se `cargaDaSenha` existir e `nfs` for `null`, o `?.` no `nfs` retorna `undefined` e `join` não é chamado. Seguro, mas inconsistente com padrão `?? []`. | `(cargaDaSenha?.nfs ?? []).join(', ') \|\| '-'` |
+| `src/pages/AgendamentoPlanejamento.tsx` | 123 | `d.nota_fiscal?.join(', ')` — se `nota_fiscal` for `null`, `?.join` funciona mas melhor padronizar | `(d.nota_fiscal ?? []).join(', ') \|\| ''` |
+| `src/pages/Fornecedores.tsx` | 29 | `f.nome.toLowerCase()` — se `nome` vier `null` do banco, crash direto | `(f.nome ?? '').toLowerCase()` |
+| `src/hooks/useCargasDB.ts` | 12 | `nfs: row.nfs \|\| []` — usa `\|\|` que falha se `nfs` for `0` (improvável mas inconsistente) | `nfs: row.nfs ?? []` (menor risco) |
+| `src/hooks/useDivergenciasDB.ts` | 42-48 | `enqueue` retorna `{data, error}` mas o `as any` cast mascara. Se Supabase retornar erro com `data: null`, `data` é `null` e `setDivergencias(null)` quebraria `.filter()` depois | Adicionar `setDivergencias((data ?? []) as ...)` |
+| `src/hooks/useTiposVeiculoDB.ts` | 33 | Mesmo problema: `setTipos(data as TipoVeiculo[])` sem null check | `setTipos((data ?? []) as TipoVeiculo[])` |
 
-### 1) Criar fila centralizada com concorrência limitada (`src/lib/supabaseQueue.ts`)
+### Estado nos hooks — proteção contra sobrescrita com `[]`
 
-```text
-Fila global com:
-- Concorrência máx: 2 requests simultâneas
-- Delay de 300ms entre cada request
-- Prioridade: vw_carga_operacional primeiro
-- Log de cada request (tabela, status, tempo)
-```
+Nos hooks `useSenhasDB`, `useDocasDB`, `useConferentesDB`, `useFornecedoresDB`, `useFluxoOperacional`: quando `err` acontece, o hook faz `setError(...)` mas **não** limpa o array de dados. Isso já está correto. Porém, falta garantir que o `else if (data)` não sete arrays vazios quando `data` é `[]` vs `null`.
 
-Todas as chamadas `fetchAllRows` passarão automaticamente pela fila (modificar internamente, sem mudar assinatura).
+### console.error nos pontos críticos
 
-### 2) Proteção de estado nos hooks
+Adicionar `console.error` em cada catch/error path que ainda não tem.
 
-Em cada hook, ao receber erro, **manter último estado válido** em vez de sobrescrever com `[]`:
+## Alterações pontuais (sem refatoração)
 
-```typescript
-// Antes (atual):
-if (err) { setError(...); }
-else if (data) { setDados(data); }
+1. **`src/pages/Docas.tsx` L525** — padronizar null safety no `.join`
+2. **`src/pages/AgendamentoPlanejamento.tsx` L123** — padronizar null safety
+3. **`src/pages/Fornecedores.tsx` L29** — proteger `.toLowerCase()` contra nome null
+4. **`src/hooks/useDivergenciasDB.ts` L54** — proteger `setDivergencias` contra data null
+5. **`src/hooks/useTiposVeiculoDB.ts` L33** — proteger `setTipos` contra data null
+6. **`src/hooks/useCargasDB.ts` L12** — usar `??` em vez de `||` para `nfs`
 
-// Depois:
-if (err) { 
-  setError(...);
-  // NÃO sobrescreve dados existentes
-} else if (data) { 
-  setDados(data); 
-  setError(null); 
-}
-```
-
-### 3) Retry progressivo já existente — ajustar tempos
-
-O retry em `fetchAllRowsInternal` já existe com backoff. Ajustar para intervalos mais curtos (500ms, 1s, 2s) em vez dos atuais 3s-20s, pois a fila já controla a pressão.
-
-### 4) Logs de debug
-
-Adicionar console.log com `[Queue]` prefix mostrando: tabela, attempt, status code, tempo de resposta.
-
-## Arquivos a alterar
-
-| Arquivo | Alteração |
-|---|---|
-| `src/lib/supabaseQueue.ts` | **NOVO** — fila com concorrência 2 + delay 300ms |
-| `src/lib/supabasePagination.ts` | Integrar fila na `fetchAllRows`, ajustar backoff |
-| `src/hooks/useFornecedoresDB.ts` | Proteger estado contra sobrescrita em erro |
-| `src/hooks/useConferentesDB.ts` | Idem |
-| `src/hooks/useCargasDB.ts` | Idem |
-| `src/hooks/useSenhasDB.ts` | Idem |
-| `src/hooks/useDocasDB.ts` | Idem |
-| `src/hooks/useCrossDB.ts` | Idem |
-| `src/hooks/useSolicitacoesDB.ts` | Idem |
-| `src/hooks/useDivergenciasDB.ts` | Idem |
-| `src/hooks/useFluxoOperacional.ts` | Idem |
-| `src/hooks/useTiposVeiculoDB.ts` | Idem |
-
-Nenhuma alteração no banco, RPCs ou regras de negócio.
+Total: 6 correções cirúrgicas. Zero alteração de arquitetura, hooks, queries ou lógica de negócio.
 
