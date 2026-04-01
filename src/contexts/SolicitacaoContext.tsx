@@ -8,6 +8,9 @@ import { toast } from 'sonner';
 
 interface SolicitacaoContextType {
   solicitacoes: SolicitacaoEntrega[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
   criarSolicitacao: (data: Omit<SolicitacaoEntrega, 'id' | 'status' | 'dataSolicitacao'>) => Promise<void>;
   aprovarSolicitacao: (id: string, dataAgendada: string, horarioAgendado: string) => Promise<void>;
   aprovarSolicitacaoUnificada: (solicitacaoId: string, cargaExistenteId: string, dataAgendada: string, horarioAgendado: string) => Promise<void>;
