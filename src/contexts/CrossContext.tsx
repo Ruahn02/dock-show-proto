@@ -79,6 +79,9 @@ export function CrossProvider({ children }: { children: ReactNode }) {
   return (
     <CrossContext.Provider value={{
       crossItems,
+      loading,
+      error,
+      refetch,
       adicionarCross,
       armazenarCarga,
       confirmarCross,

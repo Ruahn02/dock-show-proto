@@ -136,6 +136,9 @@ export function SolicitacaoProvider({ children }: { children: ReactNode }) {
   return (
     <SolicitacaoContext.Provider value={{
       solicitacoes,
+      loading,
+      error,
+      refetch,
       criarSolicitacao,
       aprovarSolicitacao,
       aprovarSolicitacaoUnificada,
