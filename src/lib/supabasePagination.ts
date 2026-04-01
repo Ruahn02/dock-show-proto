@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { enqueue } from './supabaseQueue';
 
 type TableOrView = keyof Database['public']['Tables'] | keyof Database['public']['Views'];
 
