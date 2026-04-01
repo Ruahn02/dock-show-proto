@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows, enqueueInitialFetch } from '@/lib/supabasePagination';
+import { fetchAllRows } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { Doca, StatusDoca } from '@/types';
 
@@ -50,7 +50,7 @@ export function useDocasDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchDocas);
+    fetchDocas();
 
     const channel = supabase
       .channel('docas-realtime')

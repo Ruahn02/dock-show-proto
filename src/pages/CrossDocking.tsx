@@ -250,7 +250,7 @@ export default function CrossDocking() {
                     <TableRow key={cross.id}>
                       {isAdmin && <TableCell>{formatarData(cross.data)}</TableCell>}
                       <TableCell className="font-medium">{fornecedor?.nome || '-'}</TableCell>
-                      {isAdmin && <TableCell>{cross.nfs.join(', ') || '-'}</TableCell>}
+                      {isAdmin && <TableCell>{(cross.nfs ?? []).join(', ') || '-'}</TableCell>}
                       <TableCell>{cross.rua || '-'}</TableCell>
                       {isAdmin && <TableCell>{getConferenteNome(cross.cargaId)}</TableCell>}
                       {isAdmin && <TableCell className="whitespace-pre-line break-words max-w-[200px]">{getDivergenciasRecebimento(cross.cargaId)}</TableCell>}

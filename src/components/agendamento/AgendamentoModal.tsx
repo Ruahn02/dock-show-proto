@@ -41,7 +41,7 @@ interface AgendamentoModalProps {
 export function AgendamentoModal({ open, onClose, carga, onSave, selectedDate, fornecedores }: AgendamentoModalProps) {
   const [data, setData] = useState<Date | undefined>(selectedDate || new Date());
   const [fornecedorId, setFornecedorId] = useState(carga?.fornecedorId || '');
-  const [nfs, setNfs] = useState(carga?.nfs.join(', ') || '');
+  const [nfs, setNfs] = useState((carga?.nfs ?? []).join(', ') || '');
   const [volumePrevisto, setVolumePrevisto] = useState(carga?.volumePrevisto?.toString() || '');
   const [openFornecedor, setOpenFornecedor] = useState(false);
   const [openCalendar, setOpenCalendar] = useState(false);

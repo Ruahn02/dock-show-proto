@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { enqueueInitialFetch } from '@/lib/supabasePagination';
+
 import { withRetry } from '@/lib/supabaseRetry';
 import type { DivergenciaItem } from '@/types';
 
@@ -55,7 +55,7 @@ export function useDivergenciasDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    enqueueInitialFetch(fetchDivergencias);
+    fetchDivergencias();
 
     const channel = supabase
       .channel('divergencias-realtime')
