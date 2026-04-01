@@ -26,9 +26,10 @@ import { cn } from '@/lib/utils';
 type View = 'menu' | 'formulario' | 'minhasSenhas' | 'acompanhamento';
 
 export default function SenhaCaminhoneiro() {
-  const { gerarSenha, getSenhaById, cargas, senhas, atualizarCarga } = useSenha();
+  const { gerarSenha, getSenhaById, cargas, senhas, atualizarCarga, loading, error, refetch } = useSenha();
   const { fornecedores } = useFornecedoresDB();
   const { tipos: tiposVeiculo, getLabelByNome } = useTiposVeiculoDB();
+  import { ConnectionError } from '@/components/ui/ConnectionError';
 
   const dataHoje = format(new Date(), 'yyyy-MM-dd');
 
