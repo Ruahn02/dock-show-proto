@@ -258,7 +258,7 @@ export default function Agenda() {
       return [
         c.horarioPrevisto || '-',
         getFornecedorNome(c.fornecedorId),
-        c.nfs?.join(', ') || '-',
+        (c.nfs ?? []).join(', ') || '-',
         String(c.quantidadeVeiculos || 1),
         String(getSenhasEmitidas(c.id)),
         String(c.volumePrevisto),
