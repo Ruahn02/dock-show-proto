@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-
+import { enqueue } from '@/lib/supabaseQueue';
 import { withRetry } from '@/lib/supabaseRetry';
 import type { DivergenciaItem } from '@/types';
 
@@ -39,10 +39,13 @@ export function useDivergenciasDB() {
   const mountedRef = useRef(true);
 
   const fetchDivergencias = useCallback(async () => {
-    const { data, error: err } = await supabase
-      .from('divergencias')
-      .select('*')
-      .order('created_at', { ascending: true });
+    const { data, error: err } = await enqueue(async () =>
+      await supabase
+        .from('divergencias')
+        .select('*')
+        .order('created_at', { ascending: true }),
+      'divergencias'
+    ) as any;
     if (!mountedRef.current) return;
     if (err) {
       console.error('[useDivergenciasDB] fetch error:', err);
