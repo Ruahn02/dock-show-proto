@@ -22,6 +22,7 @@ import { format } from 'date-fns';
 import { getDeviceSenhas, saveDeviceSenha } from '@/lib/deviceStorage';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { ConnectionError } from '@/components/ui/ConnectionError';
 
 type View = 'menu' | 'formulario' | 'minhasSenhas' | 'acompanhamento';
 
