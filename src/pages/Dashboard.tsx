@@ -12,7 +12,7 @@ import { statusCargaLabels } from '@/data/mockData';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useFluxoOperacional } from '@/hooks/useFluxoOperacional';
 import { useDocasDB } from '@/hooks/useDocasDB';
-import { useCrossDB } from '@/hooks/useCrossDB';
+import { useCross } from '@/contexts/CrossContext';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
 import { ConnectionError } from '@/components/ui/ConnectionError';
 import { Package, CheckCircle, AlertCircle, XCircle, Container, FileSpreadsheet, FileText, CalendarIcon, CalendarRange, ArrowRightLeft, Loader2 } from 'lucide-react';
