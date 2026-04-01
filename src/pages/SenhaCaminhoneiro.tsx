@@ -16,7 +16,7 @@ import { useSenha } from '@/contexts/SenhaContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { TipoCaminhao } from '@/types';
-import { Truck, ArrowLeft, List, PlusCircle, Check, ChevronsUpDown } from 'lucide-react';
+import { Truck, ArrowLeft, List, PlusCircle, Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { getDeviceSenhas, saveDeviceSenha } from '@/lib/deviceStorage';
