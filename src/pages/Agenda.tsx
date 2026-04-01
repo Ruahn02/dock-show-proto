@@ -391,7 +391,7 @@ export default function Agenda() {
                     <TableRow key={carga.id}>
                       <TableCell className="whitespace-nowrap">{carga.horarioPrevisto || '-'}</TableCell>
                       <TableCell className={`font-medium ${getFornecedorColor(carga)}`}>{getFornecedorNome(carga.fornecedorId)}</TableCell>
-                      <TableCell className="text-sm">{carga.nfs?.join(', ') || '-'}</TableCell>
+                      <TableCell className="text-sm">{(carga.nfs ?? []).join(', ') || '-'}</TableCell>
                       <TableCell className="text-center">{carga.quantidadeVeiculos || 1}</TableCell>
                       <TableCell className="text-center">{getSenhasEmitidas(carga.id)}</TableCell>
                       <TableCell className="text-right">{carga.volumePrevisto}</TableCell>
