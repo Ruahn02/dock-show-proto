@@ -1,78 +1,70 @@
 
 
-# Plano: Estabilizar carregamento de dados
+# Plano: Remover fila sequencial + Null safety + Campo legado + Isolamento de erros
 
-## O que mudou / causa raiz
+## Alterações
 
-O app sempre buscou dados do Supabase REST. Mas as últimas alterações adicionaram:
-- Retry com 3 tentativas por hook (bom em teoria, mas multiplica a pressão)
-- 10+ hooks disparando em paralelo no mount (mesmo com random delay de 0-2s)
-- Polling de 120s mantendo pressão contínua
-- Providers globais (SenhaProvider, CrossProvider, SolicitacaoProvider) cada um instanciando hooks separados, todos no root do App
+### 1) Remover `enqueueInitialFetch` de `supabasePagination.ts`
+Apagar `initQueue`, `initRunning`, `processInitQueue` e a função exportada `enqueueInitialFetch` (linhas 17-43). Manter `fetchAllRows` com retry e deduplicação intactos.
 
-Resultado: ao abrir o app, ~10 hooks × 4 tentativas = ~40 requests em cascata. O Supabase free tier não aguenta e retorna 503 em tudo.
+### 2) Todos os hooks: fetch direto no mount
+Em cada um dos 10 hooks, trocar:
+```typescript
+import { enqueueInitialFetch } from '@/lib/supabasePagination';
+// ...
+enqueueInitialFetch(fetchXxx);
+```
+por:
+```typescript
+fetchXxx();
+```
 
-## Correção em 3 frentes
+**Hooks afetados:** `useFornecedoresDB`, `useConferentesDB`, `useCargasDB`, `useSenhasDB`, `useDocasDB`, `useCrossDB`, `useSolicitacoesDB`, `useDivergenciasDB`, `useFluxoOperacional`, `useTiposVeiculoDB`.
 
-### 1) Serializar o carregamento inicial (principal)
-**Arquivo:** `src/lib/supabasePagination.ts`
+### 3) Null safety na renderização — campos da view
+Locais já identificados que precisam de fallback seguro:
 
-Em vez de disparar 10 hooks em paralelo (mesmo com concurrency=3), implementar uma **fila de inicialização sequencial** com prioridade:
-- Primeiro: tabelas essenciais (fornecedores, conferentes, tipos_veiculo) — catálogos leves
-- Depois: tabelas operacionais (cargas, senhas, docas) — dados maiores
-- Por último: tabelas secundárias (cross_docking, solicitacoes, divergencias)
+| Arquivo | Campo | Correção |
+|---|---|---|
+| `AgendamentoPlanejamento.tsx:247` | `d.nota_fiscal` | Já tem check — OK |
+| `AgendamentoPlanejamento.tsx:254` | `d.divergencia` | Substituir por `'-'` (item 4) |
+| `CrossDocking.tsx:253` | `cross.nfs.join(...)` | `(cross.nfs ?? []).join(', ') \|\| '-'` |
+| `Agenda.tsx:230,261,394` | `carga.nfs?.join(...)` | Já tem `?.` — OK |
+| `AgendamentoComprador.tsx:165` | `d.nota_fiscal` | Já tem check — OK |
+| `AssociarCargaModal.tsx:79` | `carga.nfs.join(...)` | `(carga.nfs ?? []).join(', ')` |
+| `AgendamentoModal.tsx:44` | `carga?.nfs.join(...)` | `(carga?.nfs ?? []).join(', ')` |
 
-Cada fetch só começa após o anterior terminar com sucesso. Se falhar, espera mais tempo antes de tentar o próximo.
+### 4) Remover uso do campo legado `divergencia`
+- `AgendamentoPlanejamento.tsx:254`: trocar `d.divergencia || '-'` por `'-'` (ou remover a coluna da tabela)
+- `Docas.tsx:298`: `p_divergencia: data.divergencia || null` — manter no RPC call pois o campo ainda existe no banco, mas usar `null` como default
+- `useCargasDB.ts:19,39`: manter o mapeamento (campo existe no banco), mas não exibir em telas
 
-### 2) Remover polling de 120s de todos os hooks
-**Arquivos:** Todos os 10 hooks (useCargasDB, useSenhasDB, useFornecedoresDB, useDocasDB, useCrossDB, useConferentesDB, useSolicitacoesDB, useDivergenciasDB, useFluxoOperacional, useTiposVeiculoDB)
+### 5) Isolamento de erros por hook
+Cada hook já tem seu próprio `error` state independente. O problema atual é que o `enqueueInitialFetch` serializa tudo — se um falha, atrasa todos os seguintes. Ao remover a fila (item 1), cada hook carrega independentemente e seu erro não afeta os outros.
 
-Remover `setInterval(..., 120000)`. Manter apenas:
-- 1 fetch inicial (via fila serializada)
-- Realtime para atualizações subsequentes
-- `refetch` manual via botão "Tentar novamente"
+Nas páginas que usam múltiplos hooks, verificar que o `ConnectionError` só aparece quando **todos** os hooks relevantes falharem, não quando apenas um falhou:
+- `Agenda.tsx`: usa `useSenha()` (que tem `error`) + `useFornecedoresDB` + `useConferentesDB` + `useDivergenciasDB` — cada um independente
+- `Dashboard.tsx`, `Docas.tsx`, etc. — mesmo padrão
 
-### 3) Reduzir retries agressivos no carregamento inicial
-**Arquivo:** `src/lib/supabasePagination.ts`
-
-- Aumentar backoff mínimo de 1s para 3s no primeiro retry
-- Aumentar backoff máximo de 10s para 20s
-- Adicionar jitter maior (0-2s em vez de 0-500ms)
-
-Isso dá tempo ao Supabase de se recuperar entre tentativas.
-
-### 4) UI de erro em todas as páginas principais
-**Arquivos:** Dashboard, Agenda, Docas, Solicitacoes, SenhaCaminhoneiro, CrossDocking, Armazenamento, AgendamentoPlanejamento
-
-Já existe o componente `ConnectionError`. Falta usá-lo nessas páginas para mostrar erro + botão "Tentar novamente" em vez de tela vazia.
-
-## Resumo de arquivos
+## Arquivos a alterar
 
 | Arquivo | Alteração |
 |---|---|
-| `src/lib/supabasePagination.ts` | Fila sequencial, backoff mais longo |
-| `src/hooks/useCargasDB.ts` | Remover polling 120s |
-| `src/hooks/useSenhasDB.ts` | Remover polling 120s |
-| `src/hooks/useFornecedoresDB.ts` | Remover polling 120s |
-| `src/hooks/useDocasDB.ts` | Remover polling 120s |
-| `src/hooks/useCrossDB.ts` | Remover polling 120s |
-| `src/hooks/useConferentesDB.ts` | Remover polling 120s |
-| `src/hooks/useSolicitacoesDB.ts` | Remover polling 120s |
-| `src/hooks/useDivergenciasDB.ts` | Remover polling 120s |
-| `src/hooks/useFluxoOperacional.ts` | Remover polling 120s |
-| `src/hooks/useTiposVeiculoDB.ts` | Remover polling 120s |
-| `src/pages/Dashboard.tsx` | Adicionar ConnectionError |
-| `src/pages/Agenda.tsx` | Adicionar ConnectionError |
-| `src/pages/Docas.tsx` | Adicionar ConnectionError |
-| `src/pages/Solicitacoes.tsx` | Adicionar ConnectionError |
-| `src/pages/SenhaCaminhoneiro.tsx` | Adicionar ConnectionError |
-| `src/pages/CrossDocking.tsx` | Adicionar ConnectionError |
-| `src/pages/Armazenamento.tsx` | Adicionar ConnectionError |
-| `src/pages/AgendamentoPlanejamento.tsx` | Adicionar ConnectionError |
+| `src/lib/supabasePagination.ts` | Remover fila (linhas 17-43) |
+| `src/hooks/useFornecedoresDB.ts` | `fetchFornecedores()` direto |
+| `src/hooks/useConferentesDB.ts` | `fetchConferentes()` direto |
+| `src/hooks/useCargasDB.ts` | `fetchCargas()` direto |
+| `src/hooks/useSenhasDB.ts` | `fetchSenhas()` direto |
+| `src/hooks/useDocasDB.ts` | `fetchDocas()` direto |
+| `src/hooks/useCrossDB.ts` | `fetchCross()` direto |
+| `src/hooks/useSolicitacoesDB.ts` | `fetchSolicitacoes()` direto |
+| `src/hooks/useDivergenciasDB.ts` | `fetchDivergencias()` direto |
+| `src/hooks/useFluxoOperacional.ts` | `fetchDados()` direto |
+| `src/hooks/useTiposVeiculoDB.ts` | `fetchTipos()` direto |
+| `src/pages/AgendamentoPlanejamento.tsx` | Remover exibição de `d.divergencia` |
+| `src/pages/CrossDocking.tsx` | Null safety em `cross.nfs` |
+| `src/components/docas/AssociarCargaModal.tsx` | Null safety em `carga.nfs` |
+| `src/components/agendamento/AgendamentoModal.tsx` | Null safety em `carga?.nfs` |
 
-Nenhuma alteração em tabelas, RPCs, triggers ou regras de negócio.
-
-## Aviso importante
-
-Se mesmo após essa correção o Supabase continuar retornando 503, o problema é do lado do servidor (plano free tier pausado, ou instância sobrecarregada). Nesse caso, seria necessário verificar o status do projeto no painel do Supabase em https://supabase.com/dashboard/project/nsfenjymbpkhiiwqbqeo.
+Nenhuma alteração em banco, RPCs, triggers ou regras de negócio.
 
