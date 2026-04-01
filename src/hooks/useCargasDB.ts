@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { Carga, StatusCarga, TipoCaminhao } from '@/types';
+import { subscribeRealtime } from '@/lib/supabaseCache';
 
 export function mapCargaFromDB(row: any): Carga {
   return {
@@ -60,7 +61,6 @@ export function useCargasDB() {
     if (err) {
       console.error('[useCargasDB] fetch error:', err);
       setError('Falha ao carregar cargas');
-      // Keep existing data on error
     } else if (data) {
       setCargas(data.map(mapCargaFromDB));
       setError(null);
@@ -71,17 +71,11 @@ export function useCargasDB() {
   useEffect(() => {
     mountedRef.current = true;
     fetchCargas();
-
-    const channel = supabase
-      .channel('cargas-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cargas' }, () => {
-        fetchCargas();
-      })
-      .subscribe();
+    const unsub = subscribeRealtime('cargas', 'cargas', fetchCargas);
 
     return () => {
       mountedRef.current = false;
-      supabase.removeChannel(channel);
+      unsub();
     };
   }, [fetchCargas]);
 

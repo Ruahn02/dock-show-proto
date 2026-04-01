@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { withRetry } from '@/lib/supabaseRetry';
 import type { DivergenciaItem } from '@/types';
+import { cachedFetch, subscribeRealtime, invalidateCache } from '@/lib/supabaseCache';
+
+const CACHE_KEY = 'divergencias';
 
 export interface DivergenciaRow {
   id: string;
@@ -38,38 +41,27 @@ export function useDivergenciasDB() {
   const mountedRef = useRef(true);
 
   const fetchDivergencias = useCallback(async () => {
-    try {
-      const { data, error: err } = await supabase
-        .from('divergencias')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-      if (!mountedRef.current) return;
-      if (err) {
-        console.error('[useDivergenciasDB] fetch error:', err);
-        setError('Falha ao carregar divergências');
-      } else {
-        setDivergencias((data ?? []) as unknown as DivergenciaRow[]);
-        setError(null);
-      }
-    } catch (e: any) {
-      console.error('[useDivergenciasDB] exception:', e);
-      if (mountedRef.current) setError('Falha ao carregar divergências');
+    const { data, error: err } = await cachedFetch(CACHE_KEY, async () =>
+      await supabase.from('divergencias').select('*').order('created_at', { ascending: true })
+    );
+    if (!mountedRef.current) return;
+    if (err) {
+      console.error('[useDivergenciasDB] fetch error:', err);
+      setError('Falha ao carregar divergências');
+    } else {
+      setDivergencias(data as unknown as DivergenciaRow[]);
+      setError(null);
     }
   }, []);
 
   useEffect(() => {
     mountedRef.current = true;
     fetchDivergencias();
-
-    const channel = supabase
-      .channel('divergencias-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'divergencias' }, () => fetchDivergencias())
-      .subscribe();
+    const unsub = subscribeRealtime(CACHE_KEY, 'divergencias', fetchDivergencias);
 
     return () => {
       mountedRef.current = false;
-      supabase.removeChannel(channel);
+      unsub();
     };
   }, [fetchDivergencias]);
 
@@ -93,6 +85,7 @@ export function useDivergenciasDB() {
       console.error('Erro ao salvar divergências:', error);
       throw error;
     }
+    invalidateCache(CACHE_KEY);
     await fetchDivergencias();
   }, [fetchDivergencias]);
 

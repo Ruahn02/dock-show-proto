@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { cachedFetch, subscribeRealtime } from '@/lib/supabaseCache';
 
 export interface TipoVeiculo {
   id: string;
@@ -8,6 +9,8 @@ export interface TipoVeiculo {
   ordem: number;
 }
 
+const CACHE_KEY = 'tipos_veiculo';
+
 export function useTiposVeiculoDB() {
   const [tipos, setTipos] = useState<TipoVeiculo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,34 +18,28 @@ export function useTiposVeiculoDB() {
   const mountedRef = useRef(true);
 
   const fetchTipos = useCallback(async () => {
-    try {
-      const { data, error: err } = await supabase
-        .from('tipos_veiculo')
-        .select('*')
-        .eq('ativo', true)
-        .order('ordem', { ascending: true });
-
-      if (!mountedRef.current) return;
-      if (err) {
-        console.error('[useTiposVeiculoDB] fetch error:', err);
-        setError('Falha ao carregar tipos de veículo');
-      } else {
-        setTipos((data ?? []) as TipoVeiculo[]);
-        setError(null);
-      }
-    } catch (e: any) {
-      console.error('[useTiposVeiculoDB] exception:', e);
-      if (mountedRef.current) setError('Falha ao carregar tipos de veículo');
-    } finally {
-      if (mountedRef.current) setLoading(false);
+    const { data, error: err } = await cachedFetch(CACHE_KEY, async () =>
+      await supabase.from('tipos_veiculo').select('*').eq('ativo', true).order('ordem', { ascending: true })
+    );
+    if (!mountedRef.current) return;
+    if (err) {
+      console.error('[useTiposVeiculoDB] fetch error:', err);
+      setError('Falha ao carregar tipos de veículo');
+    } else {
+      setTipos(data as TipoVeiculo[]);
+      setError(null);
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
     mountedRef.current = true;
     fetchTipos();
+    const unsub = subscribeRealtime(CACHE_KEY, 'tipos_veiculo', fetchTipos);
+
     return () => {
       mountedRef.current = false;
+      unsub();
     };
   }, [fetchTipos]);
 
