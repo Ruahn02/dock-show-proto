@@ -203,6 +203,24 @@ export default function Dashboard() {
     toast.success('Gerando PDF...', { description: 'O relatório será baixado em instantes.' });
   };
 
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <ConnectionError message={error} onRetry={refetchAll} />
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="space-y-6">
