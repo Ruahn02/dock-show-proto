@@ -37,7 +37,7 @@ function mapToDB(data: Partial<CrossDocking>): any {
   return result;
 }
 
-export function useCrossDB() {
+export function useCrossDB(initialDelay = 0) {
   const [crossItems, setCrossItems] = useState<CrossDocking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
