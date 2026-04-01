@@ -27,7 +27,7 @@ import { useCross } from '@/contexts/CrossContext';
 import { statusDocaLabels } from '@/data/mockData';
 import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { useDocasDB } from '@/hooks/useDocasDB';
-import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
+import { useSolicitacao } from '@/contexts/SolicitacaoContext';
 import { Doca, StatusDoca, StatusCarga, Senha } from '@/types';
 import { toast } from 'sonner';
 import { Container, Plus, Coffee, Unlock, XCircle, MapPin, RotateCcw, Loader2 } from 'lucide-react';
