@@ -351,6 +351,16 @@ export default function Docas() {
     toast.success(`Doca ${novoNumero} criada`);
   };
 
+  const loadingAll = loadingSenha || loadingDocas;
+  const errorAll = errorSenha || errorDocas;
+
+  if (loadingAll) {
+    return <Layout><div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div></Layout>;
+  }
+  if (errorAll) {
+    return <Layout><ConnectionError message={errorAll} onRetry={() => { refetchSenha(); refetchDocas(); }} /></Layout>;
+  }
+
   return (
     <Layout>
       <div className="space-y-6">
