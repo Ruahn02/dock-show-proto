@@ -26,7 +26,7 @@ import { statusCargaLabels } from '@/data/mockData';
 import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { Plus, CalendarPlus, CalendarIcon, Check, ChevronsUpDown, X, Edit, Package, Truck, BarChart3, ClipboardCheck } from 'lucide-react';
+import { Plus, CalendarPlus, CalendarIcon, Check, ChevronsUpDown, X, Edit, Package, Truck, BarChart3, ClipboardCheck, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
