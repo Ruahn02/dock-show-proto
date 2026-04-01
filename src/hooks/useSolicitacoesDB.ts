@@ -40,7 +40,7 @@ function mapToDB(data: Partial<SolicitacaoEntrega>): any {
   return result;
 }
 
-export function useSolicitacoesDB() {
+export function useSolicitacoesDB(initialDelay = 0) {
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoEntrega[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
