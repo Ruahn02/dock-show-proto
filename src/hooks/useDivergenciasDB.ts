@@ -54,8 +54,7 @@ export function useDivergenciasDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const initDelay = setTimeout(fetchDivergencias, Math.random() * 2000);
-    const interval = setInterval(fetchDivergencias, 120000);
+    enqueueInitialFetch(fetchDivergencias);
 
     const channel = supabase
       .channel('divergencias-realtime')
@@ -64,8 +63,6 @@ export function useDivergenciasDB() {
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(initDelay);
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchDivergencias]);
