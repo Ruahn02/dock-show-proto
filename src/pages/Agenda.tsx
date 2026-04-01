@@ -53,7 +53,7 @@ const getDisplayStatus = (carga: Carga): { label: string; styleKey: string } => 
 };
 
 export default function Agenda() {
-  const { cargas, senhas, atualizarCarga, recusarCarga, finalizarEntrega, excluirCarga } = useSenha();
+  const { cargas, senhas, atualizarCarga, recusarCarga, finalizarEntrega, excluirCarga, loading, error, refetch } = useSenha();
   const { isAdmin } = useProfile();
   const { atualizarFluxo } = useFluxoOperacional();
   const { fornecedores } = useFornecedoresDB();
