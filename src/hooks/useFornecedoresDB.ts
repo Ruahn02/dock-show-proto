@@ -13,7 +13,7 @@ function mapFromDB(row: any): Fornecedor {
   };
 }
 
-export function useFornecedoresDB() {
+export function useFornecedoresDB(initialDelay = 0) {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
