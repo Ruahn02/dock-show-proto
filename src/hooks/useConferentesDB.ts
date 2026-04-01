@@ -29,8 +29,7 @@ export function useConferentesDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const initDelay = setTimeout(fetchConferentes, Math.random() * 2000);
-    const interval = setInterval(fetchConferentes, 120000);
+    enqueueInitialFetch(fetchConferentes);
 
     const channel = supabase
       .channel('conferentes-realtime')
@@ -41,8 +40,6 @@ export function useConferentesDB() {
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(initDelay);
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchConferentes]);

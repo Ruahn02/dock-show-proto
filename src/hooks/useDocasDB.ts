@@ -50,8 +50,7 @@ export function useDocasDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const initDelay = setTimeout(fetchDocas, Math.random() * 2000);
-    const interval = setInterval(fetchDocas, 120000);
+    enqueueInitialFetch(fetchDocas);
 
     const channel = supabase
       .channel('docas-realtime')
@@ -62,8 +61,6 @@ export function useDocasDB() {
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(initDelay);
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchDocas]);

@@ -34,10 +34,9 @@ export function useTiposVeiculoDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const initDelay = setTimeout(fetchTipos, Math.random() * 2000);
+    enqueueInitialFetch(fetchTipos);
     return () => {
       mountedRef.current = false;
-      clearTimeout(initDelay);
     };
   }, [fetchTipos]);
 

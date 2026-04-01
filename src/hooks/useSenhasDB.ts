@@ -61,8 +61,7 @@ export function useSenhasDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const initDelay = setTimeout(fetchSenhas, Math.random() * 2000);
-    const interval = setInterval(fetchSenhas, 120000);
+    enqueueInitialFetch(fetchSenhas);
 
     const channel = supabase
       .channel('senhas-realtime')
@@ -73,8 +72,6 @@ export function useSenhasDB() {
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(initDelay);
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchSenhas]);

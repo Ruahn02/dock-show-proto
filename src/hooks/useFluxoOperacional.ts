@@ -70,8 +70,7 @@ export function useFluxoOperacional() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const initDelay = setTimeout(fetchDados, Math.random() * 2000);
-    const interval = setInterval(fetchDados, 120000);
+    enqueueInitialFetch(fetchDados);
 
     const channel = supabase
       .channel('fluxo-operacional')
@@ -82,8 +81,6 @@ export function useFluxoOperacional() {
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(initDelay);
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchDados]);
