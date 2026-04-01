@@ -17,14 +17,14 @@ export function useTiposVeiculoDB() {
   const mountedRef = useRef(true);
 
   const fetchTipos = useCallback(async () => {
-    const { data, error: err } = await enqueue(() =>
-      supabase
+    const { data, error: err } = await enqueue(async () =>
+      await supabase
         .from('tipos_veiculo')
         .select('*')
         .eq('ativo', true)
         .order('ordem', { ascending: true }),
       'tipos_veiculo'
-    );
+    ) as any;
     if (!mountedRef.current) return;
     if (err) {
       console.error('[useTiposVeiculoDB] fetch error:', err);
