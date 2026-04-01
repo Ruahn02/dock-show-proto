@@ -17,8 +17,8 @@ export function useConferentesDB() {
   const mountedRef = useRef(true);
 
   const fetchConferentes = useCallback(async () => {
-    const { data, error: err } = await cachedFetch(CACHE_KEY, () =>
-      supabase.from('conferentes').select('*').order('nome', { ascending: true })
+    const { data, error: err } = await cachedFetch(CACHE_KEY, async () =>
+      await supabase.from('conferentes').select('*').order('nome', { ascending: true })
     );
     if (!mountedRef.current) return;
     if (err) {

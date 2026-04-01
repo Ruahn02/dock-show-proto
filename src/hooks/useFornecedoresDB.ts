@@ -22,8 +22,8 @@ export function useFornecedoresDB(initialDelay = 0) {
   const mountedRef = useRef(true);
 
   const fetchFornecedores = useCallback(async () => {
-    const { data, error: err } = await cachedFetch(CACHE_KEY, () =>
-      supabase.from('fornecedores').select('*').order('nome', { ascending: true })
+    const { data, error: err } = await cachedFetch(CACHE_KEY, async () =>
+      await supabase.from('fornecedores').select('*').order('nome', { ascending: true })
     );
     if (!mountedRef.current) return;
     if (err) {

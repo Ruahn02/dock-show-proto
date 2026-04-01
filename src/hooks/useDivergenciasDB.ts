@@ -41,8 +41,8 @@ export function useDivergenciasDB() {
   const mountedRef = useRef(true);
 
   const fetchDivergencias = useCallback(async () => {
-    const { data, error: err } = await cachedFetch(CACHE_KEY, () =>
-      supabase.from('divergencias').select('*').order('created_at', { ascending: true })
+    const { data, error: err } = await cachedFetch(CACHE_KEY, async () =>
+      await supabase.from('divergencias').select('*').order('created_at', { ascending: true })
     );
     if (!mountedRef.current) return;
     if (err) {

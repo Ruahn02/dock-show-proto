@@ -38,8 +38,8 @@ export function useDocasDB() {
   const mountedRef = useRef(true);
 
   const fetchDocas = useCallback(async () => {
-    const { data, error: err } = await cachedFetch(CACHE_KEY, () =>
-      supabase.from('docas').select('*').order('numero', { ascending: true })
+    const { data, error: err } = await cachedFetch(CACHE_KEY, async () =>
+      await supabase.from('docas').select('*').order('numero', { ascending: true })
     );
     if (!mountedRef.current) return;
     if (err) {

@@ -18,8 +18,8 @@ export function useTiposVeiculoDB() {
   const mountedRef = useRef(true);
 
   const fetchTipos = useCallback(async () => {
-    const { data, error: err } = await cachedFetch(CACHE_KEY, () =>
-      supabase.from('tipos_veiculo').select('*').eq('ativo', true).order('ordem', { ascending: true })
+    const { data, error: err } = await cachedFetch(CACHE_KEY, async () =>
+      await supabase.from('tipos_veiculo').select('*').eq('ativo', true).order('ordem', { ascending: true })
     );
     if (!mountedRef.current) return;
     if (err) {

@@ -58,8 +58,8 @@ export function useFluxoOperacional() {
   const mountedRef = useRef(true);
 
   const fetchDados = useCallback(async () => {
-    const { data, error: err } = await cachedFetch(CACHE_KEY, () =>
-      supabase.from('vw_carga_operacional').select('*')
+    const { data, error: err } = await cachedFetch(CACHE_KEY, async () =>
+      await (supabase.from as any)('vw_carga_operacional').select('*')
     );
     if (!mountedRef.current) return;
     if (err) {
