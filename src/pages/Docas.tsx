@@ -407,7 +407,7 @@ export default function Docas() {
                   <TableRow key={doca.id}>
                     <TableCell className="font-bold text-lg">#{doca.numero}</TableCell>
                     <TableCell>{fornecedor?.nome || '-'}</TableCell>
-                    <TableCell>{carga?.nfs.join(', ') || '-'}</TableCell>
+                    <TableCell>{(carga?.nfs ?? []).join(', ') || '-'}</TableCell>
                     <TableCell className="text-right">{carga?.volumePrevisto || '-'}</TableCell>
                     <TableCell>{doca.rua || carga?.rua || senha?.rua || '-'}</TableCell>
                     <TableCell>

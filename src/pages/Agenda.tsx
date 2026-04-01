@@ -227,7 +227,7 @@ export default function Agenda() {
     return {
       'Horário': carga.horarioPrevisto || '-',
       'Fornecedor': getFornecedorNome(carga.fornecedorId),
-      'NF(s)': carga.nfs?.join(', ') || '-',
+      'NF(s)': (carga.nfs ?? []).join(', ') || '-',
       'Cam. Prev.': carga.quantidadeVeiculos || 1,
       'Senhas': getSenhasEmitidas(carga.id),
       'Vol. Previsto': carga.volumePrevisto,
@@ -258,7 +258,7 @@ export default function Agenda() {
       return [
         c.horarioPrevisto || '-',
         getFornecedorNome(c.fornecedorId),
-        c.nfs?.join(', ') || '-',
+        (c.nfs ?? []).join(', ') || '-',
         String(c.quantidadeVeiculos || 1),
         String(getSenhasEmitidas(c.id)),
         String(c.volumePrevisto),
@@ -391,7 +391,7 @@ export default function Agenda() {
                     <TableRow key={carga.id}>
                       <TableCell className="whitespace-nowrap">{carga.horarioPrevisto || '-'}</TableCell>
                       <TableCell className={`font-medium ${getFornecedorColor(carga)}`}>{getFornecedorNome(carga.fornecedorId)}</TableCell>
-                      <TableCell className="text-sm">{carga.nfs?.join(', ') || '-'}</TableCell>
+                      <TableCell className="text-sm">{(carga.nfs ?? []).join(', ') || '-'}</TableCell>
                       <TableCell className="text-center">{carga.quantidadeVeiculos || 1}</TableCell>
                       <TableCell className="text-center">{getSenhasEmitidas(carga.id)}</TableCell>
                       <TableCell className="text-right">{carga.volumePrevisto}</TableCell>

@@ -97,7 +97,7 @@ export default function Armazenamento() {
                     <TableRow key={cross.id}>
                       <TableCell>{formatarData(cross.data)}</TableCell>
                       <TableCell className="font-medium">{getFornecedor(cross.fornecedorId)}</TableCell>
-                      <TableCell>{cross.nfs.join(', ') || '-'}</TableCell>
+                      <TableCell>{(cross.nfs ?? []).join(', ') || '-'}</TableCell>
                       <TableCell>{cross.rua || '-'}</TableCell>
                       <TableCell>{getConferente(cross.cargaId)}</TableCell>
                       <TableCell className="text-right">{cross.volumeRecebido}</TableCell>
