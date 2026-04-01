@@ -36,7 +36,7 @@ export default function Dashboard() {
   const { isAdmin } = useProfile();
   const { dados, loading: loadingFluxo, error: errorFluxo, refetch: refetchFluxo } = useFluxoOperacional();
   const { docas, loading: loadingDocas, error: errorDocas, refetch: refetchDocas } = useDocasDB();
-  const { crossItems, loading: loadingCross, error: errorCross, refetch: refetchCross } = useCrossDB();
+  const { crossItems, loading: loadingCross, error: errorCross, refetch: refetchCross } = useCross();
   const { conferentes } = useConferentesDB();
 
   const loading = loadingFluxo || loadingDocas || loadingCross;

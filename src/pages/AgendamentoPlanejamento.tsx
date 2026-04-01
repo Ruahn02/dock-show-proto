@@ -50,8 +50,8 @@ function getDisplayStatus(d: FluxoOperacional): { key: string; label: string } {
 
 export default function AgendamentoPlanejamento() {
   const { dados, atualizarFluxo, loading: loadingFluxo, error: errorFluxo, refetch: refetchFluxo } = useFluxoOperacional();
-  const { criarCarga, atualizarCarga } = useCargasDB();
-  const { fornecedores } = useFornecedoresDB();
+  const { adicionarCarga: criarCarga, atualizarCarga } = useSenha();
+  const { fornecedores } = useSolicitacao();
   const { getLabelByNome } = useTiposVeiculoDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());

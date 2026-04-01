@@ -65,7 +65,7 @@ export default function Docas() {
   const { atualizarFluxo } = useFluxoOperacional();
   const { adicionarCross } = useCross();
   const { docas, atualizarDoca, criarDoca: criarDocaDB, refetch: refetchDocas, loading: loadingDocas, error: errorDocas } = useDocasDB();
-  const { fornecedores } = useFornecedoresDB();
+  const { fornecedores } = useSolicitacao();
   const { salvarDivergencias } = useDivergenciasDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [associarModalOpen, setAssociarModalOpen] = useState(false);
