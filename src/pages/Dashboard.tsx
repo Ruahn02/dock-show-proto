@@ -12,7 +12,7 @@ import { statusCargaLabels } from '@/data/mockData';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useFluxoOperacional } from '@/hooks/useFluxoOperacional';
 import { useDocasDB } from '@/hooks/useDocasDB';
-import { useCrossDB } from '@/hooks/useCrossDB';
+import { useCross } from '@/contexts/CrossContext';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
 import { ConnectionError } from '@/components/ui/ConnectionError';
 import { Package, CheckCircle, AlertCircle, XCircle, Container, FileSpreadsheet, FileText, CalendarIcon, CalendarRange, ArrowRightLeft, Loader2 } from 'lucide-react';
@@ -36,7 +36,7 @@ export default function Dashboard() {
   const { isAdmin } = useProfile();
   const { dados, loading: loadingFluxo, error: errorFluxo, refetch: refetchFluxo } = useFluxoOperacional();
   const { docas, loading: loadingDocas, error: errorDocas, refetch: refetchDocas } = useDocasDB();
-  const { crossItems, loading: loadingCross, error: errorCross, refetch: refetchCross } = useCrossDB();
+  const { crossItems, loading: loadingCross, error: errorCross, refetch: refetchCross } = useCross();
   const { conferentes } = useConferentesDB();
 
   const loading = loadingFluxo || loadingDocas || loadingCross;

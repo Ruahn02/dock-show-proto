@@ -37,7 +37,7 @@ function mapToDB(data: Partial<CrossDocking>): any {
   return result;
 }
 
-export function useCrossDB() {
+export function useCrossDB(initialDelay = 0) {
   const [crossItems, setCrossItems] = useState<CrossDocking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export function useCrossDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchCross();
+    const timer = setTimeout(() => fetchCross(), initialDelay);
 
     const channel = supabase
       .channel('cross-docking-realtime')
@@ -69,6 +69,7 @@ export function useCrossDB() {
 
     return () => {
       mountedRef.current = false;
+      clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [fetchCross]);

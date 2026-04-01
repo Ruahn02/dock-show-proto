@@ -19,9 +19,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFluxoOperacional, FluxoOperacional } from '@/hooks/useFluxoOperacional';
-import { useCargasDB } from '@/hooks/useCargasDB';
+import { useSenha } from '@/contexts/SenhaContext';
 import { ConnectionError } from '@/components/ui/ConnectionError';
-import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
+import { useSolicitacao } from '@/contexts/SolicitacaoContext';
 import { statusCargaLabels } from '@/data/mockData';
 import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { StatusCarga } from '@/types';
@@ -50,8 +50,8 @@ function getDisplayStatus(d: FluxoOperacional): { key: string; label: string } {
 
 export default function AgendamentoPlanejamento() {
   const { dados, atualizarFluxo, loading: loadingFluxo, error: errorFluxo, refetch: refetchFluxo } = useFluxoOperacional();
-  const { criarCarga, atualizarCarga } = useCargasDB();
-  const { fornecedores } = useFornecedoresDB();
+  const { adicionarCarga: criarCarga, atualizarCarga } = useSenha();
+  const { fornecedores } = useSolicitacao();
   const { getLabelByNome } = useTiposVeiculoDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());

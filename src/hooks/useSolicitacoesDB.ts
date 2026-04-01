@@ -40,7 +40,7 @@ function mapToDB(data: Partial<SolicitacaoEntrega>): any {
   return result;
 }
 
-export function useSolicitacoesDB() {
+export function useSolicitacoesDB(initialDelay = 0) {
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoEntrega[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export function useSolicitacoesDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchSolicitacoes();
+    const timer = setTimeout(() => fetchSolicitacoes(), initialDelay);
 
     const channel = supabase
       .channel('solicitacoes-realtime')
@@ -72,6 +72,7 @@ export function useSolicitacoesDB() {
 
     return () => {
       mountedRef.current = false;
+      clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [fetchSolicitacoes]);

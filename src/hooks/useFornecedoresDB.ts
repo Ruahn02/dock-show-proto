@@ -13,7 +13,7 @@ function mapFromDB(row: any): Fornecedor {
   };
 }
 
-export function useFornecedoresDB() {
+export function useFornecedoresDB(initialDelay = 0) {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export function useFornecedoresDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchFornecedores();
+    const timer = setTimeout(() => fetchFornecedores(), initialDelay);
 
     const channel = supabase
       .channel('fornecedores-realtime')
@@ -45,6 +45,7 @@ export function useFornecedoresDB() {
 
     return () => {
       mountedRef.current = false;
+      clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [fetchFornecedores]);

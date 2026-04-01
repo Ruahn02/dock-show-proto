@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 
 interface SolicitacaoContextType {
   solicitacoes: SolicitacaoEntrega[];
+  fornecedores: import('@/types').Fornecedor[];
   loading: boolean;
   error: string | null;
   refetch: () => void;
@@ -42,8 +43,8 @@ async function enviarEmail(params: {
 }
 
 export function SolicitacaoProvider({ children }: { children: ReactNode }) {
-  const { solicitacoes, criarSolicitacao: criarDB, atualizarSolicitacao: atualizarDB, loading, error, refetch } = useSolicitacoesDB();
-  const { fornecedores } = useFornecedoresDB();
+  const { solicitacoes, criarSolicitacao: criarDB, atualizarSolicitacao: atualizarDB, loading, error, refetch } = useSolicitacoesDB(1000);
+  const { fornecedores } = useFornecedoresDB(1000);
   const { adicionarCarga, atualizarCarga, cargas } = useSenha();
 
   const getFornecedorNome = (id: string) => fornecedores.find(f => f.id === id)?.nome || 'Fornecedor';
@@ -136,6 +137,7 @@ export function SolicitacaoProvider({ children }: { children: ReactNode }) {
   return (
     <SolicitacaoContext.Provider value={{
       solicitacoes,
+      fornecedores,
       loading,
       error,
       refetch,

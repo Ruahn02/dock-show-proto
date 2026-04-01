@@ -27,7 +27,7 @@ import { useCross } from '@/contexts/CrossContext';
 import { statusDocaLabels } from '@/data/mockData';
 import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { useDocasDB } from '@/hooks/useDocasDB';
-import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
+import { useSolicitacao } from '@/contexts/SolicitacaoContext';
 import { Doca, StatusDoca, StatusCarga, Senha } from '@/types';
 import { toast } from 'sonner';
 import { Container, Plus, Coffee, Unlock, XCircle, MapPin, RotateCcw, Loader2 } from 'lucide-react';
@@ -65,7 +65,7 @@ export default function Docas() {
   const { atualizarFluxo } = useFluxoOperacional();
   const { adicionarCross } = useCross();
   const { docas, atualizarDoca, criarDoca: criarDocaDB, refetch: refetchDocas, loading: loadingDocas, error: errorDocas } = useDocasDB();
-  const { fornecedores } = useFornecedoresDB();
+  const { fornecedores } = useSolicitacao();
   const { salvarDivergencias } = useDivergenciasDB();
   const [modalOpen, setModalOpen] = useState(false);
   const [associarModalOpen, setAssociarModalOpen] = useState(false);
