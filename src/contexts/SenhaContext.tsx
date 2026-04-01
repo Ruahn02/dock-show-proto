@@ -199,6 +199,9 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
     <SenhaContext.Provider value={{
       senhas,
       cargas,
+      loading,
+      error,
+      refetch,
       gerarSenha,
       atualizarSenha,
       getSenhaById,
