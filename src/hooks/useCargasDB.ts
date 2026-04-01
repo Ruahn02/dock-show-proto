@@ -69,8 +69,7 @@ export function useCargasDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const initDelay = setTimeout(fetchCargas, Math.random() * 2000);
-    const interval = setInterval(fetchCargas, 120000);
+    enqueueInitialFetch(fetchCargas);
 
     const channel = supabase
       .channel('cargas-realtime')
@@ -81,8 +80,6 @@ export function useCargasDB() {
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(initDelay);
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchCargas]);
