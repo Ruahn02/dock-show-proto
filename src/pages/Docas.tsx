@@ -30,7 +30,8 @@ import { useDocasDB } from '@/hooks/useDocasDB';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { Doca, StatusDoca, StatusCarga, Senha } from '@/types';
 import { toast } from 'sonner';
-import { Container, Plus, Coffee, Unlock, XCircle, MapPin, RotateCcw } from 'lucide-react';
+import { Container, Plus, Coffee, Unlock, XCircle, MapPin, RotateCcw, Loader2 } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
 import { useFluxoOperacional } from '@/hooks/useFluxoOperacional';
 
 const statusStyles: Record<StatusDoca, string> = {
@@ -56,11 +57,14 @@ export default function Docas() {
     moverParaPatio,
     retomarDoPatio,
     atualizarStatusSenha,
-    vincularSenhaADoca
+    vincularSenhaADoca,
+    loading: loadingSenha,
+    error: errorSenha,
+    refetch: refetchSenha,
   } = useSenha();
   const { atualizarFluxo } = useFluxoOperacional();
   const { adicionarCross } = useCross();
-  const { docas, atualizarDoca, criarDoca: criarDocaDB, refetch: refetchDocas } = useDocasDB();
+  const { docas, atualizarDoca, criarDoca: criarDocaDB, refetch: refetchDocas, loading: loadingDocas, error: errorDocas } = useDocasDB();
   const { fornecedores } = useFornecedoresDB();
   const { salvarDivergencias } = useDivergenciasDB();
   const [modalOpen, setModalOpen] = useState(false);
@@ -346,6 +350,16 @@ export default function Docas() {
     await criarDocaDB(novoNumero);
     toast.success(`Doca ${novoNumero} criada`);
   };
+
+  const loadingAll = loadingSenha || loadingDocas;
+  const errorAll = errorSenha || errorDocas;
+
+  if (loadingAll) {
+    return <Layout><div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div></Layout>;
+  }
+  if (errorAll) {
+    return <Layout><ConnectionError message={errorAll} onRetry={() => { refetchSenha(); refetchDocas(); }} /></Layout>;
+  }
 
   return (
     <Layout>

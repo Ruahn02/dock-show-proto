@@ -26,6 +26,9 @@ interface GerarSenhaData {
 interface SenhaContextType {
   senhas: Senha[];
   cargas: Carga[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
   gerarSenha: (data: GerarSenhaData) => Promise<Senha>;
   atualizarSenha: (senhaId: string, updates: Partial<Senha>) => Promise<void>;
   getSenhaById: (senhaId: string) => Senha | undefined;
@@ -50,8 +53,12 @@ interface SenhaContextType {
 const SenhaContext = createContext<SenhaContextType | undefined>(undefined);
 
 export function SenhaProvider({ children }: { children: ReactNode }) {
-  const { senhas, criarSenha: criarSenhaDB, atualizarSenha: atualizarSenhaDB } = useSenhasDB();
-  const { cargas, criarCarga: criarCargaDB, atualizarCarga: atualizarCargaDB, excluirCarga: excluirCargaDB } = useCargasDB();
+  const { senhas, criarSenha: criarSenhaDB, atualizarSenha: atualizarSenhaDB, loading: loadingSenhas, error: errorSenhas, refetch: refetchSenhas } = useSenhasDB();
+  const { cargas, criarCarga: criarCargaDB, atualizarCarga: atualizarCargaDB, excluirCarga: excluirCargaDB, loading: loadingCargas, error: errorCargas, refetch: refetchCargas } = useCargasDB();
+
+  const loading = loadingSenhas || loadingCargas;
+  const error = errorSenhas || errorCargas;
+  const refetch = useCallback(() => { refetchSenhas(); refetchCargas(); }, [refetchSenhas, refetchCargas]);
 
   const gerarSenha = useCallback(async (data: GerarSenhaData): Promise<Senha> => {
     const nova = await criarSenhaDB({
@@ -192,6 +199,9 @@ export function SenhaProvider({ children }: { children: ReactNode }) {
     <SenhaContext.Provider value={{
       senhas,
       cargas,
+      loading,
+      error,
+      refetch,
       gerarSenha,
       atualizarSenha,
       getSenhaById,

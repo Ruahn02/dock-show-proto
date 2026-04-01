@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows } from '@/lib/supabasePagination';
+import { fetchAllRows, enqueueInitialFetch } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { Fornecedor } from '@/types';
 
@@ -34,9 +34,7 @@ export function useFornecedoresDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    // Stagger initial fetch with random delay (0-2s)
-    const initDelay = setTimeout(fetchFornecedores, Math.random() * 2000);
-    const interval = setInterval(fetchFornecedores, 120000);
+    enqueueInitialFetch(fetchFornecedores);
 
     const channel = supabase
       .channel('fornecedores-realtime')
@@ -47,8 +45,6 @@ export function useFornecedoresDB() {
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(initDelay);
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchFornecedores]);

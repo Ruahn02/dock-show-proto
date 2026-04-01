@@ -16,17 +16,18 @@ import { useSenha } from '@/contexts/SenhaContext';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { TipoCaminhao } from '@/types';
-import { Truck, ArrowLeft, List, PlusCircle, Check, ChevronsUpDown } from 'lucide-react';
+import { Truck, ArrowLeft, List, PlusCircle, Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { getDeviceSenhas, saveDeviceSenha } from '@/lib/deviceStorage';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { ConnectionError } from '@/components/ui/ConnectionError';
 
 type View = 'menu' | 'formulario' | 'minhasSenhas' | 'acompanhamento';
 
 export default function SenhaCaminhoneiro() {
-  const { gerarSenha, getSenhaById, cargas, senhas, atualizarCarga } = useSenha();
+  const { gerarSenha, getSenhaById, cargas, senhas, atualizarCarga, loading, error, refetch } = useSenha();
   const { fornecedores } = useFornecedoresDB();
   const { tipos: tiposVeiculo, getLabelByNome } = useTiposVeiculoDB();
 
@@ -379,6 +380,9 @@ export default function SenhaCaminhoneiro() {
       </div>
     );
   }
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-slate-100"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  if (error) return <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-slate-100"><ConnectionError message={error} onRetry={refetch} /></div>;
 
   // ===== VIEW: ACOMPANHAMENTO =====
   return (

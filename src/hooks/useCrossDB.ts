@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows } from '@/lib/supabasePagination';
+import { fetchAllRows, enqueueInitialFetch } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { CrossDocking, StatusCross } from '@/types';
 
@@ -58,8 +58,7 @@ export function useCrossDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const initDelay = setTimeout(fetchCross, Math.random() * 2000);
-    const interval = setInterval(fetchCross, 120000);
+    enqueueInitialFetch(fetchCross);
 
     const channel = supabase
       .channel('cross-docking-realtime')
@@ -70,8 +69,6 @@ export function useCrossDB() {
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(initDelay);
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchCross]);

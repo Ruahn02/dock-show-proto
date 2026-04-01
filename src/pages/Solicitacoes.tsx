@@ -22,7 +22,8 @@ import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { statusSolicitacaoLabels } from '@/data/mockData';
 import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info, AlertTriangle } from 'lucide-react';
+import { Info, AlertTriangle, Loader2 } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
 import { SolicitacaoEntrega, StatusSolicitacao } from '@/types';
 import { toast } from 'sonner';
 import { ClipboardList, CalendarIcon, Check, X, Download } from 'lucide-react';
@@ -38,7 +39,7 @@ const statusStyles: Record<StatusSolicitacao, string> = {
 };
 
 export default function Solicitacoes() {
-  const { solicitacoes, aprovarSolicitacao, aprovarSolicitacaoUnificada, recusarSolicitacao, getSolicitacoesPendentes } = useSolicitacao();
+  const { solicitacoes, aprovarSolicitacao, aprovarSolicitacaoUnificada, recusarSolicitacao, getSolicitacoesPendentes, loading, error, refetch } = useSolicitacao();
   const { cargas } = useSenha();
   const { fornecedores } = useFornecedoresDB();
   const { getLabelByNome } = useTiposVeiculoDB();
@@ -126,6 +127,9 @@ export default function Solicitacoes() {
       setRecusarDialogOpen(false); setSelectedSolicitacao(null);
     } catch { toast.error('Erro ao recusar'); }
   };
+
+  if (loading) return <Layout><div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div></Layout>;
+  if (error) return <Layout><ConnectionError message={error} onRetry={refetch} /></Layout>;
 
   return (
     <Layout>

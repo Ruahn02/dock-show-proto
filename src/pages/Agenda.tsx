@@ -26,7 +26,8 @@ import { useCross } from '@/contexts/CrossContext';
 import { statusCargaLabels } from '@/data/mockData';
 import { Carga, StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { CalendarCheck, CalendarIcon, Download, FileSpreadsheet, MoreHorizontal, CheckCircle, Clock, Trash2 } from 'lucide-react';
+import { CalendarCheck, CalendarIcon, Download, FileSpreadsheet, MoreHorizontal, CheckCircle, Clock, Trash2, Loader2 } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -53,7 +54,7 @@ const getDisplayStatus = (carga: Carga): { label: string; styleKey: string } => 
 };
 
 export default function Agenda() {
-  const { cargas, senhas, atualizarCarga, recusarCarga, finalizarEntrega, excluirCarga } = useSenha();
+  const { cargas, senhas, atualizarCarga, recusarCarga, finalizarEntrega, excluirCarga, loading, error, refetch } = useSenha();
   const { isAdmin } = useProfile();
   const { atualizarFluxo } = useFluxoOperacional();
   const { fornecedores } = useFornecedoresDB();
@@ -290,6 +291,24 @@ export default function Agenda() {
     XLSX.writeFile(wb, `agenda_${format(dataSelecionada, 'yyyy-MM-dd')}.xlsx`);
     toast.success('Excel exportado com sucesso');
   };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <ConnectionError message={error} onRetry={refetch} />
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

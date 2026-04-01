@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows } from '@/lib/supabasePagination';
+import { fetchAllRows, enqueueInitialFetch } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { Carga, StatusCarga, TipoCaminhao } from '@/types';
 
@@ -69,8 +69,7 @@ export function useCargasDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const initDelay = setTimeout(fetchCargas, Math.random() * 2000);
-    const interval = setInterval(fetchCargas, 120000);
+    enqueueInitialFetch(fetchCargas);
 
     const channel = supabase
       .channel('cargas-realtime')
@@ -81,8 +80,6 @@ export function useCargasDB() {
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(initDelay);
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchCargas]);

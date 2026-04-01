@@ -13,25 +13,33 @@ const DEBUG = false;
 // Deduplication: in-flight requests by key
 const inFlight = new Map<string, Promise<{ data: any[]; error: any }>>();
 
-// Global concurrency limiter — max 3 simultaneous Supabase REST calls
-let activeRequests = 0;
-const MAX_CONCURRENT = 3;
-const waitQueue: Array<() => void> = [];
+// Sequential initialization queue — prevents request storms on app load
+let initQueue: Array<() => Promise<void>> = [];
+let initRunning = false;
 
-async function acquireSlot(): Promise<void> {
-  if (activeRequests < MAX_CONCURRENT) {
-    activeRequests++;
-    return;
+async function processInitQueue() {
+  if (initRunning) return;
+  initRunning = true;
+  while (initQueue.length > 0) {
+    const task = initQueue.shift()!;
+    try {
+      await task();
+    } catch (e) {
+      // continue with next
+    }
+    // Small pause between sequential fetches to let Supabase breathe
+    await delay(300 + Math.random() * 700);
   }
-  return new Promise(resolve => waitQueue.push(() => { activeRequests++; resolve(); }));
+  initRunning = false;
 }
 
-function releaseSlot() {
-  activeRequests--;
-  if (waitQueue.length > 0 && activeRequests < MAX_CONCURRENT) {
-    const next = waitQueue.shift();
-    next?.();
-  }
+/**
+ * Enqueue an initial fetch to run sequentially instead of in parallel.
+ * Returns a promise that resolves when this specific fetch completes.
+ */
+export function enqueueInitialFetch(fn: () => Promise<void>): void {
+  initQueue.push(fn);
+  processInitQueue();
 }
 
 function makeKey(table: string, select: string, orderBy: OrderConfig[]): string {
@@ -59,7 +67,6 @@ async function delay(ms: number) {
  * Fetches all rows from a Supabase table using paginated requests.
  * Includes retry with exponential backoff + jitter for transient errors.
  * Deduplicates concurrent identical requests.
- * Uses global concurrency limiter to avoid request storms.
  */
 export async function fetchAllRows<T = any>(
   table: TableOrView,
@@ -101,14 +108,12 @@ async function fetchAllRowsInternal<T>(
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       if (attempt > 0) {
-        const jitter = Math.random() * 500;
-        const backoff = Math.min(1000 * Math.pow(2, attempt - 1) + jitter, 10000);
+        // Longer backoff: 3s base, up to 20s max, with 0-2s jitter
+        const jitter = Math.random() * 2000;
+        const backoff = Math.min(3000 * Math.pow(2, attempt - 1) + jitter, 20000);
         if (DEBUG) console.log(`[fetchAllRows] retry ${attempt}/${MAX_RETRIES} for ${table}, waiting ${Math.round(backoff)}ms`);
         await delay(backoff);
       }
-
-      // Wait for concurrency slot
-      await acquireSlot();
 
       try {
         let query = (supabase.from as any)(table).select(select);
@@ -147,8 +152,6 @@ async function fetchAllRowsInternal<T>(
         }
         console.error(`[fetchAllRows] ${table} exception after ${attempt + 1} attempts:`, fetchError);
         return { data: allRows, error: { message: fetchError?.message || String(fetchError), _table: table, _attempts: attempt + 1 } };
-      } finally {
-        releaseSlot();
       }
     }
 

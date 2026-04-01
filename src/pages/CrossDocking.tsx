@@ -22,7 +22,8 @@ import { useConferentesDB } from '@/hooks/useConferentesDB';
 import { useDivergenciasDB } from '@/hooks/useDivergenciasDB';
 import type { CrossDocking as CrossDockingType, StatusCross, DivergenciaItem } from '@/types';
 import { toast } from 'sonner';
-import { ArrowRightLeft, Package, Archive, CalendarIcon, Filter } from 'lucide-react';
+import { ArrowRightLeft, Package, Archive, CalendarIcon, Filter, Loader2 } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -47,7 +48,7 @@ const statusLabels: Record<StatusCross, string> = {
 
 export default function CrossDocking() {
   const { isAdmin } = useProfile();
-  const { getCrossParaAdmin, getCrossParaOperacional, armazenarCarga, confirmarCross, montarCross, iniciarSeparacao, finalizarSeparacao } = useCross();
+  const { getCrossParaAdmin, getCrossParaOperacional, armazenarCarga, confirmarCross, montarCross, iniciarSeparacao, finalizarSeparacao, loading: loadingCross, error: errorCross, refetch: refetchCross } = useCross();
   const { cargas } = useSenha();
   const { fornecedores } = useFornecedoresDB();
   const { conferentes } = useConferentesDB();
@@ -155,6 +156,9 @@ export default function CrossDocking() {
     
     toast.success('Separação finalizada'); setSelectedCross(null);
   };
+
+  if (loadingCross) return <Layout><div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div></Layout>;
+  if (errorCross) return <Layout><ConnectionError message={errorCross} onRetry={refetchCross} /></Layout>;
 
   return (
     <Layout>

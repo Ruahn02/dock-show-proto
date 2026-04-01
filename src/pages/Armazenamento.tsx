@@ -15,11 +15,12 @@ import { useConferentesDB } from '@/hooks/useConferentesDB';
 import { useSenha } from '@/contexts/SenhaContext';
 import type { CrossDocking } from '@/types';
 import { toast } from 'sonner';
-import { Archive, Package, CheckCircle } from 'lucide-react';
+import { Archive, Package, CheckCircle, Loader2 } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
 import { format } from 'date-fns';
 
 export default function Armazenamento() {
-  const { crossItems, armazenarCarga } = useCross();
+  const { crossItems, armazenarCarga, loading: loadingCross, error: errorCross, refetch: refetchCross } = useCross();
   const { fornecedores } = useFornecedoresDB();
   const { conferentes } = useConferentesDB();
   const { cargas } = useSenha();
@@ -54,6 +55,9 @@ export default function Armazenamento() {
       setConfirmId(null);
     }
   };
+
+  if (loadingCross) return <Layout><div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div></Layout>;
+  if (errorCross) return <Layout><ConnectionError message={errorCross} onRetry={refetchCross} /></Layout>;
 
   return (
     <Layout>

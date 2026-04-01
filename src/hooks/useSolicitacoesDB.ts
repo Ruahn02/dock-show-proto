@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows } from '@/lib/supabasePagination';
+import { fetchAllRows, enqueueInitialFetch } from '@/lib/supabasePagination';
 import { withRetry } from '@/lib/supabaseRetry';
 import { SolicitacaoEntrega, StatusSolicitacao, TipoCaminhao } from '@/types';
 
@@ -61,8 +61,7 @@ export function useSolicitacoesDB() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const initDelay = setTimeout(fetchSolicitacoes, Math.random() * 2000);
-    const interval = setInterval(fetchSolicitacoes, 120000);
+    enqueueInitialFetch(fetchSolicitacoes);
 
     const channel = supabase
       .channel('solicitacoes-realtime')
@@ -73,8 +72,6 @@ export function useSolicitacoesDB() {
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(initDelay);
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [fetchSolicitacoes]);

@@ -14,7 +14,8 @@ import { useFluxoOperacional } from '@/hooks/useFluxoOperacional';
 import { useDocasDB } from '@/hooks/useDocasDB';
 import { useCrossDB } from '@/hooks/useCrossDB';
 import { useConferentesDB } from '@/hooks/useConferentesDB';
-import { Package, CheckCircle, AlertCircle, XCircle, Container, FileSpreadsheet, FileText, CalendarIcon, CalendarRange, ArrowRightLeft } from 'lucide-react';
+import { ConnectionError } from '@/components/ui/ConnectionError';
+import { Package, CheckCircle, AlertCircle, XCircle, Container, FileSpreadsheet, FileText, CalendarIcon, CalendarRange, ArrowRightLeft, Loader2 } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, isSameDay, isWithinInterval, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -33,10 +34,14 @@ const statusColors: Record<string, string> = {
 
 export default function Dashboard() {
   const { isAdmin } = useProfile();
-  const { dados } = useFluxoOperacional();
-  const { docas } = useDocasDB();
-  const { crossItems } = useCrossDB();
+  const { dados, loading: loadingFluxo, error: errorFluxo, refetch: refetchFluxo } = useFluxoOperacional();
+  const { docas, loading: loadingDocas, error: errorDocas, refetch: refetchDocas } = useDocasDB();
+  const { crossItems, loading: loadingCross, error: errorCross, refetch: refetchCross } = useCrossDB();
   const { conferentes } = useConferentesDB();
+
+  const loading = loadingFluxo || loadingDocas || loadingCross;
+  const error = errorFluxo || errorDocas || errorCross;
+  const refetchAll = () => { refetchFluxo(); refetchDocas(); refetchCross(); };
 
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>('hoje');
   const [dataSelecionada, setDataSelecionada] = useState<Date>(new Date());
@@ -197,6 +202,24 @@ export default function Dashboard() {
   const handleExportPDF = () => {
     toast.success('Gerando PDF...', { description: 'O relatório será baixado em instantes.' });
   };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <ConnectionError message={error} onRetry={refetchAll} />
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

@@ -13,6 +13,9 @@ interface NovoCrossData {
 
 interface CrossContextType {
   crossItems: CrossDocking[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
   adicionarCross: (data: NovoCrossData) => Promise<void>;
   armazenarCarga: (id: string) => Promise<void>;
   confirmarCross: (id: string) => Promise<void>;
@@ -26,7 +29,7 @@ interface CrossContextType {
 const CrossContext = createContext<CrossContextType | undefined>(undefined);
 
 export function CrossProvider({ children }: { children: ReactNode }) {
-  const { crossItems, criarCross, atualizarCross, deletarCross } = useCrossDB();
+  const { crossItems, criarCross, atualizarCross, deletarCross, loading, error, refetch } = useCrossDB();
 
   const adicionarCross = async (data: NovoCrossData) => {
     await criarCross(data);
@@ -76,6 +79,9 @@ export function CrossProvider({ children }: { children: ReactNode }) {
   return (
     <CrossContext.Provider value={{
       crossItems,
+      loading,
+      error,
+      refetch,
       adicionarCross,
       armazenarCarga,
       confirmarCross,

@@ -20,12 +20,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFluxoOperacional, FluxoOperacional } from '@/hooks/useFluxoOperacional';
 import { useCargasDB } from '@/hooks/useCargasDB';
+import { ConnectionError } from '@/components/ui/ConnectionError';
 import { useFornecedoresDB } from '@/hooks/useFornecedoresDB';
 import { statusCargaLabels } from '@/data/mockData';
 import { useTiposVeiculoDB } from '@/hooks/useTiposVeiculoDB';
 import { StatusCarga } from '@/types';
 import { toast } from 'sonner';
-import { Plus, CalendarPlus, CalendarIcon, Check, ChevronsUpDown, X, Edit, Package, Truck, BarChart3, ClipboardCheck } from 'lucide-react';
+import { Plus, CalendarPlus, CalendarIcon, Check, ChevronsUpDown, X, Edit, Package, Truck, BarChart3, ClipboardCheck, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -48,7 +49,7 @@ function getDisplayStatus(d: FluxoOperacional): { key: string; label: string } {
 }
 
 export default function AgendamentoPlanejamento() {
-  const { dados, atualizarFluxo } = useFluxoOperacional();
+  const { dados, atualizarFluxo, loading: loadingFluxo, error: errorFluxo, refetch: refetchFluxo } = useFluxoOperacional();
   const { criarCarga, atualizarCarga } = useCargasDB();
   const { fornecedores } = useFornecedoresDB();
   const { getLabelByNome } = useTiposVeiculoDB();
@@ -157,6 +158,9 @@ export default function AgendamentoPlanejamento() {
       toast.success('Agendamento cancelado');
     } catch { toast.error('Erro ao cancelar'); }
   };
+
+  if (loadingFluxo) return <Layout><div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div></Layout>;
+  if (errorFluxo) return <Layout><ConnectionError message={errorFluxo} onRetry={refetchFluxo} /></Layout>;
 
   return (
     <Layout>
