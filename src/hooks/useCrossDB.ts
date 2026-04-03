@@ -45,12 +45,14 @@ export function useCrossDB(initialDelay = 0) {
   const mountedRef = useRef(true);
 
   const fetchCross = useCallback(async () => {
+    console.log('[FETCH START] cross_docking');
     const { data, error: err } = await fetchAllRows('cross_docking', '*', [{ column: 'created_at', ascending: false }]);
     if (!mountedRef.current) return;
     if (err) {
-      console.error('[useCrossDB] fetch error:', err);
+      console.error('[FETCH ERROR] cross_docking:', err);
       setError('Falha ao carregar cross docking');
     } else if (data) {
+      console.log('[FETCH SUCCESS] cross_docking:', data.length);
       setCrossItems(data.map(mapFromDB));
       setError(null);
     }
