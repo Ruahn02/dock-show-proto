@@ -1,111 +1,84 @@
 
 
-# Plano: Sistema de carregamento inteligente por tela
+# Plano: Corrigir frontend que não exibe dados
 
-## Diagnóstico real (baseado nos network logs de agora)
+## Problema confirmado
 
-Os logs mostram que MESMO na rota `/login`, o app dispara **5 requisições + 5 canais Realtime** porque os 3 providers globais envolvem TODO o app:
+O `cachedFetch` em `src/lib/supabaseCache.ts` mascara erros 503: retorna `{ data: [], error: null }` quando a request falha e não há cache anterior. Os hooks acham que foi sucesso e renderizam lista vazia.
 
-```text
-SEMPRE (qualquer rota, incluindo /login):
-  SenhaProvider    → senhas + cargas           = 2 req + 2 canais
-  CrossProvider    → cross_docking             = 1 req + 1 canal
-  SolicitacaoProvider → solicitacoes + fornecedores = 2 req + 2 canais
-                                          SUBTOTAL: 5 req + 5 canais
+Além disso, 3 providers globais (`SenhaProvider`, `CrossProvider`, `SolicitacaoProvider`) disparam 5 requests + 5 canais Realtime em TODAS as rotas, incluindo `/login` e `/acesso`, que não precisam de dados.
 
-Página /docas (exemplo):
-  + useFluxoOperacional → vw_carga_operacional  = 1 req + 1 canal
-  + useDocasDB → docas                          = 1 req + 1 canal
-  + useTiposVeiculoDB → tipos_veiculo           = 1 req + 1 canal
-  + useDivergenciasDB → divergencias            = 1 req + 1 canal
-                                          SUBTOTAL: 4 req + 4 canais
+## Complicação identificada
 
-TOTAL na /docas: 9 requests + 9 canais Realtime simultâneos → 503
-```
+Algumas rotas "públicas" USAM os providers:
+- `/solicitacao` → `useSolicitacao()`
+- `/senha` → `useSenha()`
+- `/painel` → `useSenha()`
 
-Além disso, `useFornecedoresDB()` é chamado em **8 páginas** além do provider — cada uma abre um canal Realtime separado.
+Portanto, não é possível simplesmente tirar os providers de todas as rotas públicas. Apenas `/login`, `/acesso`, `/comprador` e `/comprador/agenda` ficam sem providers.
 
-## Sua proposta é viável? SIM, parcialmente
+## Etapas (na ordem exata pedida)
 
-O hook genérico com chunked fetch + delay **resolve o 503**, mas tem trade-offs:
-- Carregar 50 em 50 com delay de 500ms para 359 fornecedores = ~4 segundos para completar
-- Reescrever TODOS os hooks e páginas é trabalho grande e arriscado
+### ETAPA 1 — Parar falha silenciosa em `cachedFetch`
 
-## Proposta otimizada (mesmo resultado, menos risco)
+**Arquivo: `src/lib/supabaseCache.ts`**
 
-### Fase 1: Providers lazy — impacto imediato (resolve 503)
+Alterar `cachedFetch` para:
+- Se a request falhar E `entry.data` estiver vazio → retornar `{ data: [], error: erroReal }`
+- Se a request falhar E `entry.data` tiver dados anteriores → retornar `{ data: dadosAntigos, error: erroReal }`
+- NUNCA retornar `error: null` quando houve erro
 
-Mover os 3 providers para dentro das rotas protegidas. Nas rotas públicas (`/login`, `/solicitacao`, `/senha`, `/painel`, `/comprador`), não carregar providers.
+Isso faz com que os hooks recebam o erro real e possam mostrar `ConnectionError` em vez de lista vazia.
+
+### ETAPA 2 — Mover providers para fora das rotas que não precisam
 
 **Arquivo: `src/App.tsx`**
-- Criar componente `<ProvidersWrapper>` que envolve apenas as rotas admin/operacional
-- Rotas públicas ficam FORA dos providers → zero requests no `/login`
 
-Resultado: de 5 requests no login → 0 requests no login.
+Criar estrutura onde:
+- Rotas `/login`, `/acesso`, `/comprador`, `/comprador/agenda` ficam FORA dos providers
+- Todas as outras rotas (incluindo `/solicitacao`, `/senha`, `/painel`) ficam DENTRO dos providers
 
-### Fase 2: Hooks com cache singleton (elimina duplicação)
+Isso elimina 5 requests + 5 canais no `/login`.
 
-Criar um cache simples em memória para cada tabela. Se `useFornecedoresDB()` é chamado em 8 páginas, o fetch real acontece **1 vez**. Os outros 7 recebem o cache.
+### ETAPA 3 — Proteger hooks contra sobrescrita de dados em erro
 
-**Arquivo: `src/lib/supabaseCache.ts`** (novo, ~40 linhas)
-- Map simples: `{ fornecedores: { data, promise, timestamp } }`
-- Se já tem dados em cache (< 30s), retorna direto
-- Se já tem um fetch em andamento, aguarda a mesma promise
-- Um único canal Realtime por tabela (não por hook)
+**Arquivos: todos os hooks que usam `cachedFetch`**
 
-**Todos os hooks (fornecedores, conferentes, tipos_veiculo, docas, divergencias):**
-- Usar cache antes de fazer fetch
-- Compartilhar canal Realtime entre instâncias
+Em cada hook (`useFornecedoresDB`, `useDocasDB`, `useConferentesDB`, `useTiposVeiculoDB`, `useDivergenciasDB`, `useFluxoOperacional`):
+- Se `cachedFetch` retornar `error` não-nulo → NÃO chamar `setData(novoValor)`, manter estado anterior
+- Só atualizar estado quando `error` for null E data for válido
+- Garantir `setLoading(false)` sempre
 
-Resultado: de 4x `fornecedores` → 1x `fornecedores`.
+Mesma proteção nos hooks que usam `fetchAllRows` (`useSenhasDB`, `useCargasDB`, `useCrossDB`, `useSolicitacoesDB`): já fazem `else if (data)` — verificar que não sobrescrevem em erro.
 
-### Fase 3: Realtime com debounce (reduz cascata)
+### ETAPA 4 — Logs temporários
 
-**Todos os hooks que escutam Realtime:**
-- Adicionar debounce de 2 segundos no handler
-- Se receber 5 eventos em 2s, faz 1 refetch (não 5)
-
-### Fase 4: Escalonamento entre providers
-
-Os providers que restam dentro das rotas protegidas:
-- SenhaProvider: imediato
-- CrossProvider: 500ms delay (já implementado)
-- SolicitacaoProvider: 1000ms delay (já implementado)
+Adicionar em cada hook:
+- `console.log("[FETCH START]", tabela)` antes do fetch
+- `console.error("[FETCH ERROR]", tabela, error)` em erro
+- `console.log("[FETCH SUCCESS]", tabela, rows.length)` em sucesso
 
 ## Arquivos alterados
 
 | Arquivo | Alteração |
 |---|---|
-| `src/App.tsx` | Mover providers para dentro das rotas protegidas |
-| `src/lib/supabaseCache.ts` | Novo: cache singleton + canal Realtime compartilhado |
-| `src/hooks/useFornecedoresDB.ts` | Usar cache singleton |
-| `src/hooks/useConferentesDB.ts` | Usar cache singleton |
-| `src/hooks/useTiposVeiculoDB.ts` | Usar cache singleton |
-| `src/hooks/useDocasDB.ts` | Usar cache singleton |
-| `src/hooks/useDivergenciasDB.ts` | Usar cache singleton |
-| `src/hooks/useFluxoOperacional.ts` | Usar cache singleton |
-| `src/hooks/useSenhasDB.ts` | Adicionar debounce no Realtime |
-| `src/hooks/useCargasDB.ts` | Adicionar debounce no Realtime |
-| `src/hooks/useCrossDB.ts` | Adicionar debounce no Realtime |
-| `src/hooks/useSolicitacoesDB.ts` | Adicionar debounce no Realtime |
+| `src/lib/supabaseCache.ts` | Propagar erro real em vez de mascarar |
+| `src/App.tsx` | Separar rotas com/sem providers |
+| `src/hooks/useFornecedoresDB.ts` | Proteger estado + logs |
+| `src/hooks/useConferentesDB.ts` | Proteger estado + logs |
+| `src/hooks/useTiposVeiculoDB.ts` | Proteger estado + logs |
+| `src/hooks/useDocasDB.ts` | Proteger estado + logs |
+| `src/hooks/useDivergenciasDB.ts` | Proteger estado + logs |
+| `src/hooks/useFluxoOperacional.ts` | Proteger estado + logs |
+| `src/hooks/useSenhasDB.ts` | Logs |
+| `src/hooks/useCargasDB.ts` | Logs |
+| `src/hooks/useCrossDB.ts` | Logs |
+| `src/hooks/useSolicitacoesDB.ts` | Logs |
 
 ## Resultado esperado
 
-- `/login`: 0 requests (antes: 5)
-- Qualquer página admin: máx 4-5 requests únicas (antes: 9+)
-- Zero duplicação de fetch
-- Zero duplicação de canais Realtime
-- Debounce evita cascata de refetch
-- **Sem chunked loading** (as tabelas são pequenas, max 359 rows — chunk não ajuda aqui)
-- Mantém toda a lógica de negócio, contexts e estrutura existente
-
-## Por que NÃO usar chunk de 50 registros?
-
-As tabelas são pequenas:
-- fornecedores: 359 rows
-- conferentes: ~10 rows
-- docas: ~20 rows
-- tipos_veiculo: ~10 rows
-
-Carregar 50 por vez com delay seria MAIS lento que uma única query. O chunk só faz sentido para tabelas com 5000+ rows. O problema real é **quantidade de requests simultâneas**, não tamanho delas.
+- Se backend responder: dados aparecem normalmente
+- Se backend falhar: tela mostra erro visível, não lista vazia
+- `/login`: zero requests ao Supabase
+- Nenhuma alteração de arquitetura, banco ou lógica de negócio
 
