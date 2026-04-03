@@ -27,8 +27,9 @@ export function useFornecedoresDB(initialDelay = 0) {
     );
     if (!mountedRef.current) return;
     if (err) {
-      console.error('[useFornecedoresDB] fetch error:', err);
+      console.error('[FETCH ERROR] fornecedores:', err);
       setError('Falha ao carregar fornecedores');
+      // Do NOT overwrite fornecedores with empty array
     } else {
       setFornecedores(data.map(mapFromDB));
       setError(null);
