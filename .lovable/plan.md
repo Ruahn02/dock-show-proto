@@ -1,84 +1,113 @@
 
+Diagnóstico direto
 
-# Plano: Corrigir frontend que não exibe dados
+Você tem razão em um ponto: a tela de fornecedores deveria buscar só fornecedores.
 
-## Problema confirmado
+Hoje isso não acontece porque o erro está no nível da rota, não na página `Fornecedores.tsx`.
 
-O `cachedFetch` em `src/lib/supabaseCache.ts` mascara erros 503: retorna `{ data: [], error: null }` quando a request falha e não há cache anterior. Os hooks acham que foi sucesso e renderizam lista vazia.
+Evidência do código
 
-Além disso, 3 providers globais (`SenhaProvider`, `CrossProvider`, `SolicitacaoProvider`) disparam 5 requests + 5 canais Realtime em TODAS as rotas, incluindo `/login` e `/acesso`, que não precisam de dados.
+- `src/pages/Fornecedores.tsx` usa só `useFornecedoresDB()`
+- Mas `src/App.tsx` coloca `/fornecedores` dentro de `RoutesWithProviders`
+- Esse wrapper monta sempre:
+  - `SenhaProvider` → `useSenhasDB()` + `useCargasDB()`
+  - `CrossProvider` → `useCrossDB()`
+  - `SolicitacaoProvider` → `useSolicitacoesDB()` + `useFornecedoresDB()` + `useSenha()`
 
-## Complicação identificada
+Então a rota real hoje é:
 
-Algumas rotas "públicas" USAM os providers:
-- `/solicitacao` → `useSolicitacao()`
-- `/senha` → `useSenha()`
-- `/painel` → `useSenha()`
+```text
+/fornecedores
+  -> RoutesWithProviders
+     -> SenhaProvider        => senhas + cargas
+     -> CrossProvider        => cross_docking
+     -> SolicitacaoProvider  => solicitacoes + fornecedores
+     -> Fornecedores page    => fornecedores
+```
 
-Portanto, não é possível simplesmente tirar os providers de todas as rotas públicas. Apenas `/login`, `/acesso`, `/comprador` e `/comprador/agenda` ficam sem providers.
+Ou seja: a tela que deveria fazer 1 request faz pelo menos 5 fetches lógicos.
 
-## Etapas (na ordem exata pedida)
+Por que “colocar loading enquanto busca tudo” não resolve
 
-### ETAPA 1 — Parar falha silenciosa em `cachedFetch`
+- Loading é só UI
+- Ele não reduz requests
+- O burst continua acontecendo por trás
+- E os hooks pesados ainda usam `fetchAllRows('*')`, então `senhas`, `cargas`, `solicitacoes` e `cross_docking` podem virar mais de 1 chamada HTTP cada se houver paginação interna
 
-**Arquivo: `src/lib/supabaseCache.ts`**
+Então o problema da tela simples não é “fornecedores ser pesado”.
+É ela estar herdando tabelas pesadas que não usa.
 
-Alterar `cachedFetch` para:
-- Se a request falhar E `entry.data` estiver vazio → retornar `{ data: [], error: erroReal }`
-- Se a request falhar E `entry.data` tiver dados anteriores → retornar `{ data: dadosAntigos, error: erroReal }`
-- NUNCA retornar `error: null` quando houve erro
+Onde a abordagem anterior ficou errada
 
-Isso faz com que os hooks recebam o erro real e possam mostrar `ConnectionError` em vez de lista vazia.
+- O corte foi feito no `/login`
+- Mas não foi feito por tela simples
+- Então `/fornecedores`, `/funcionarios` e `/acessos` continuam entrando no bloco pesado de providers
 
-### ETAPA 2 — Mover providers para fora das rotas que não precisam
+Plano de correção
 
-**Arquivo: `src/App.tsx`**
+1. Quebrar o `RoutesWithProviders` em grupos menores por necessidade real da rota
 
-Criar estrutura onde:
-- Rotas `/login`, `/acesso`, `/comprador`, `/comprador/agenda` ficam FORA dos providers
-- Todas as outras rotas (incluindo `/solicitacao`, `/senha`, `/painel`) ficam DENTRO dos providers
+2. Tirar estas rotas de `SenhaProvider`, `CrossProvider` e `SolicitacaoProvider`:
+   - `/fornecedores`
+   - `/funcionarios`
+   - `/acessos`
 
-Isso elimina 5 requests + 5 canais no `/login`.
+3. Manter cada uma com só o que já usa hoje:
+   - `/fornecedores` → `useFornecedoresDB()`
+   - `/funcionarios` → `useConferentesDB()`
+   - `/acessos` → zero Supabase
 
-### ETAPA 3 — Proteger hooks contra sobrescrita de dados em erro
+4. Manter providers só nas rotas que realmente consomem contexto:
+   - `SenhaProvider` apenas onde há `useSenha()`
+   - `CrossProvider` apenas onde há `useCross()`
+   - `SolicitacaoProvider` apenas onde há `useSolicitacao()`
 
-**Arquivos: todos os hooks que usam `cachedFetch`**
+5. Preservar a ordem obrigatória nas rotas que usam solicitação:
+   - `SenhaProvider` deve ficar por fora de `SolicitacaoProvider`
+   - Senão volta o erro: `useSenha must be used within a SenhaProvider`
 
-Em cada hook (`useFornecedoresDB`, `useDocasDB`, `useConferentesDB`, `useTiposVeiculoDB`, `useDivergenciasDB`, `useFluxoOperacional`):
-- Se `cachedFetch` retornar `error` não-nulo → NÃO chamar `setData(novoValor)`, manter estado anterior
-- Só atualizar estado quando `error` for null E data for válido
-- Garantir `setLoading(false)` sempre
+Mapa de rota recomendado
 
-Mesma proteção nos hooks que usam `fetchAllRows` (`useSenhasDB`, `useCargasDB`, `useCrossDB`, `useSolicitacoesDB`): já fazem `else if (data)` — verificar que não sobrescrevem em erro.
+```text
+Sem providers:
+- /login
+- /acesso
+- /comprador
+- /comprador/agenda
+- /fornecedores
+- /funcionarios
+- /acessos
 
-### ETAPA 4 — Logs temporários
+Só SenhaProvider:
+- /senha
+- /painel
 
-Adicionar em cada hook:
-- `console.log("[FETCH START]", tabela)` antes do fetch
-- `console.error("[FETCH ERROR]", tabela, error)` em erro
-- `console.log("[FETCH SUCCESS]", tabela, rows.length)` em sucesso
+SenhaProvider + SolicitacaoProvider:
+- /solicitacao
+- /solicitacoes
+- /agendamento
+- /docas (se continuar usando useSolicitacao)
 
-## Arquivos alterados
+SenhaProvider + CrossProvider:
+- /cross
+- /armazenamento
 
-| Arquivo | Alteração |
-|---|---|
-| `src/lib/supabaseCache.ts` | Propagar erro real em vez de mascarar |
-| `src/App.tsx` | Separar rotas com/sem providers |
-| `src/hooks/useFornecedoresDB.ts` | Proteger estado + logs |
-| `src/hooks/useConferentesDB.ts` | Proteger estado + logs |
-| `src/hooks/useTiposVeiculoDB.ts` | Proteger estado + logs |
-| `src/hooks/useDocasDB.ts` | Proteger estado + logs |
-| `src/hooks/useDivergenciasDB.ts` | Proteger estado + logs |
-| `src/hooks/useFluxoOperacional.ts` | Proteger estado + logs |
-| `src/hooks/useSenhasDB.ts` | Logs |
-| `src/hooks/useCargasDB.ts` | Logs |
-| `src/hooks/useCrossDB.ts` | Logs |
-| `src/hooks/useSolicitacoesDB.ts` | Logs |
+Rotas operacionais completas:
+- /
+- /agenda
+- /senhas
+- /docas
+```
 
-## Resultado esperado
+O que isso resolve imediatamente
 
-- Se backend responder: dados aparecem normalmente
-- Se backend falhar: tela mostra erro visível, não lista vazia
-- `/login`: zero requests ao Supabase
-- Nenhuma alteração de arquitetura, banco ou lógica de negócio
+- `/fornecedores` passa a pedir só `fornecedores`
+- `/funcionarios` passa a pedir só `conferentes`
+- `/acessos` para de tocar no Supabase
+- Os 503 dessas telas simples tendem a sumir porque elas deixam de carregar `senhas`, `cargas`, `cross_docking` e `solicitacoes` junto
 
+Resumo honesto
+
+O erro não é “faltou spinner”.
+O erro é: a tela simples ainda está montando providers globais pesados.
+Enquanto isso não for separado por rota, `/fornecedores` nunca vai se comportar como uma tela de 1 request.
