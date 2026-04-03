@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface CacheEntry<T = any> {
   data: T[];
-  promise: Promise<T[]> | null;
+  promise: Promise<{ data: T[]; error: any }> | null;
   timestamp: number;
   channel: ReturnType<typeof supabase.channel> | null;
   subscribers: number;
@@ -11,8 +11,8 @@ interface CacheEntry<T = any> {
 }
 
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 30_000; // 30s
-const DEBOUNCE_MS = 2_000; // 2s debounce on Realtime
+const CACHE_TTL = 30_000;
+const DEBOUNCE_MS = 2_000;
 
 function getEntry<T>(key: string): CacheEntry<T> {
   if (!cache.has(key)) {
@@ -29,10 +29,6 @@ function getEntry<T>(key: string): CacheEntry<T> {
   return cache.get(key)! as CacheEntry<T>;
 }
 
-/**
- * Fetch data from cache or Supabase. Deduplicates concurrent fetches.
- * If cache is fresh (< TTL), returns cached data immediately.
- */
 export async function cachedFetch<T>(
   key: string,
   fetchFn: () => PromiseLike<{ data: T[] | null; error: any }>,
@@ -47,38 +43,37 @@ export async function cachedFetch<T>(
 
   // Another fetch in progress → wait for it
   if (entry.promise) {
-    const data = await entry.promise;
-    return { data, error: null };
+    return await entry.promise;
   }
 
   // Start fresh fetch
   entry.promise = (async () => {
     try {
+      console.log(`[FETCH START] ${key}`);
       const { data, error } = await fetchFn();
+
       if (error) {
-        console.error(`[cachedFetch] ${key} error:`, error.message || error);
-        // Keep old data on error
-        return entry.data;
+        console.error(`[FETCH ERROR] ${key}:`, error.message || error);
+        // Return old data if available, but ALWAYS propagate error
+        return { data: entry.data, error };
       }
+
       const rows = (data ?? []) as T[];
       entry.data = rows;
       entry.timestamp = Date.now();
-      return rows;
+      console.log(`[FETCH SUCCESS] ${key}:`, rows.length);
+      return { data: rows, error: null };
     } catch (e: any) {
-      console.error(`[cachedFetch] ${key} exception:`, e?.message || e);
-      return entry.data;
+      console.error(`[FETCH ERROR] ${key} exception:`, e?.message || e);
+      return { data: entry.data, error: { message: e?.message || String(e) } };
     } finally {
       entry.promise = null;
     }
   })();
 
-  const result = await entry.promise;
-  return { data: result ?? entry.data, error: null };
+  return await entry.promise;
 }
 
-/**
- * Force refresh cache for a key (used after mutations).
- */
 export function invalidateCache(key: string) {
   const entry = cache.get(key);
   if (entry) {
@@ -86,11 +81,6 @@ export function invalidateCache(key: string) {
   }
 }
 
-/**
- * Subscribe to a shared Realtime channel for a table.
- * Only creates ONE channel per table regardless of how many hook instances call this.
- * Debounces the refetch callback by 2 seconds.
- */
 export function subscribeRealtime(
   key: string,
   table: string,
@@ -104,17 +94,15 @@ export function subscribeRealtime(
     entry.channel = supabase
       .channel(`shared-${key}`)
       .on('postgres_changes', { event: '*', schema: 'public', table }, () => {
-        // Debounce: if 5 events arrive in 2s, only 1 refetch
         if (entry.debounceTimer) clearTimeout(entry.debounceTimer);
         entry.debounceTimer = setTimeout(() => {
-          entry.timestamp = 0; // invalidate cache
+          entry.timestamp = 0;
           entry.refetchFn?.();
         }, DEBOUNCE_MS);
       })
       .subscribe();
   }
 
-  // Cleanup function
   return () => {
     entry.subscribers -= 1;
     if (entry.subscribers <= 0) {
@@ -124,7 +112,6 @@ export function subscribeRealtime(
         supabase.removeChannel(entry.channel);
         entry.channel = null;
       }
-      // Keep data in cache for quick re-mount
     }
   };
 }

@@ -43,7 +43,7 @@ export function useDocasDB() {
     );
     if (!mountedRef.current) return;
     if (err) {
-      console.error('[useDocasDB] fetch error:', err);
+      console.error('[FETCH ERROR] docas:', err);
       setError('Falha ao carregar docas');
     } else {
       setDocas(data.map(mapFromDB));

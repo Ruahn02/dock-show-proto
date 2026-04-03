@@ -22,7 +22,7 @@ export function useConferentesDB() {
     );
     if (!mountedRef.current) return;
     if (err) {
-      console.error('[useConferentesDB] fetch error:', err);
+      console.error('[FETCH ERROR] conferentes:', err);
       setError('Falha ao carregar conferentes');
     } else {
       setConferentes(data.map(mapFromDB));

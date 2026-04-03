@@ -48,12 +48,14 @@ export function useSenhasDB() {
   const mountedRef = useRef(true);
 
   const fetchSenhas = useCallback(async () => {
+    console.log('[FETCH START] senhas');
     const { data, error: err } = await fetchAllRows('senhas', '*', [{ column: 'numero' }]);
     if (!mountedRef.current) return;
     if (err) {
-      console.error('[useSenhasDB] fetch error:', err);
+      console.error('[FETCH ERROR] senhas:', err);
       setError('Falha ao carregar senhas');
     } else if (data) {
+      console.log('[FETCH SUCCESS] senhas:', data.length);
       setSenhas(data.map(mapSenhaFromDB));
       setError(null);
     }

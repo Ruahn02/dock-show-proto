@@ -48,12 +48,14 @@ export function useSolicitacoesDB(initialDelay = 0) {
   const mountedRef = useRef(true);
 
   const fetchSolicitacoes = useCallback(async () => {
+    console.log('[FETCH START] solicitacoes');
     const { data, error: err } = await fetchAllRows('solicitacoes', '*', [{ column: 'created_at', ascending: false }]);
     if (!mountedRef.current) return;
     if (err) {
-      console.error('[useSolicitacoesDB] fetch error:', err);
+      console.error('[FETCH ERROR] solicitacoes:', err);
       setError('Falha ao carregar solicitações');
     } else if (data) {
+      console.log('[FETCH SUCCESS] solicitacoes:', data.length);
       setSolicitacoes(data.map(mapFromDB));
       setError(null);
     }

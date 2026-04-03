@@ -63,7 +63,7 @@ export function useFluxoOperacional() {
     );
     if (!mountedRef.current) return;
     if (err) {
-      console.error('[useFluxoOperacional] fetch error:', err);
+      console.error('[FETCH ERROR] vw_carga_operacional:', err);
       setError('Falha ao carregar dados operacionais');
     } else {
       setDados(data as unknown as FluxoOperacional[]);
@@ -76,7 +76,6 @@ export function useFluxoOperacional() {
     mountedRef.current = true;
     fetchDados();
 
-    // View can't have Realtime, subscribe to underlying tables
     const unsub1 = subscribeRealtime(`${CACHE_KEY}_cargas`, 'cargas', fetchDados);
     const unsub2 = subscribeRealtime(`${CACHE_KEY}_senhas`, 'senhas', fetchDados);
     const unsub3 = subscribeRealtime(`${CACHE_KEY}_docas`, 'docas', fetchDados);

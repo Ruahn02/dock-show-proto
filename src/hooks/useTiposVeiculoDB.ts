@@ -23,7 +23,7 @@ export function useTiposVeiculoDB() {
     );
     if (!mountedRef.current) return;
     if (err) {
-      console.error('[useTiposVeiculoDB] fetch error:', err);
+      console.error('[FETCH ERROR] tipos_veiculo:', err);
       setError('Falha ao carregar tipos de veículo');
     } else {
       setTipos(data as TipoVeiculo[]);

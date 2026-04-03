@@ -31,93 +31,59 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+/** Routes that need data providers */
+const RoutesWithProviders = () => (
+  <SenhaProvider>
+    <CrossProvider>
+      <SolicitacaoProvider>
+        <Routes>
+          {/* Public routes that USE providers */}
+          <Route path="/solicitacao" element={<SolicitacaoEntrega />} />
+          <Route path="/senha" element={<SenhaCaminhoneiro />} />
+          <Route path="/painel" element={<PainelSenhas />} />
+
+          {/* Admin routes */}
+          <Route path="/" element={<ProtectedRoute adminOnly><Dashboard /></ProtectedRoute>} />
+          <Route path="/solicitacoes" element={<ProtectedRoute adminOnly><Solicitacoes /></ProtectedRoute>} />
+          <Route path="/agendamento" element={<ProtectedRoute adminOnly><AgendamentoPlanejamento /></ProtectedRoute>} />
+          <Route path="/agenda" element={<ProtectedRoute adminOnly><Agenda /></ProtectedRoute>} />
+          <Route path="/senhas" element={<ProtectedRoute adminOnly><ControleSenhas /></ProtectedRoute>} />
+          <Route path="/fornecedores" element={<ProtectedRoute adminOnly><Fornecedores /></ProtectedRoute>} />
+          <Route path="/funcionarios" element={<ProtectedRoute adminOnly><Funcionarios /></ProtectedRoute>} />
+          <Route path="/acessos" element={<ProtectedRoute adminOnly><Acessos /></ProtectedRoute>} />
+          <Route path="/armazenamento" element={<ProtectedRoute adminOnly><Armazenamento /></ProtectedRoute>} />
+
+          {/* Protected (any profile) */}
+          <Route path="/docas" element={<ProtectedRoute><Docas /></ProtectedRoute>} />
+          <Route path="/cross" element={<ProtectedRoute><CrossDockingPage /></ProtectedRoute>} />
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </SolicitacaoProvider>
+    </CrossProvider>
+  </SenhaProvider>
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="light" storageKey="doca-theme">
     <ProfileProvider>
-      <SenhaProvider>
-        <CrossProvider>
-          <SolicitacaoProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <Routes>
-                  {/* Rotas públicas */}
-                  <Route path="/login" element={<LoginAdmin />} />
-                  <Route path="/acesso" element={<LoginOperacional />} />
-                  <Route path="/solicitacao" element={<SolicitacaoEntrega />} />
-                  <Route path="/senha" element={<SenhaCaminhoneiro />} />
-                  <Route path="/painel" element={<PainelSenhas />} />
-                  <Route path="/comprador" element={<LoginComprador />} />
-                  <Route path="/comprador/agenda" element={<AgendamentoComprador />} />
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Public routes WITHOUT providers — zero Supabase requests */}
+            <Route path="/login" element={<LoginAdmin />} />
+            <Route path="/acesso" element={<LoginOperacional />} />
+            <Route path="/comprador" element={<LoginComprador />} />
+            <Route path="/comprador/agenda" element={<AgendamentoComprador />} />
 
-                  {/* Rotas admin only */}
-                  <Route path="/" element={
-                    <ProtectedRoute adminOnly>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/solicitacoes" element={
-                    <ProtectedRoute adminOnly>
-                      <Solicitacoes />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/agendamento" element={
-                    <ProtectedRoute adminOnly>
-                      <AgendamentoPlanejamento />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/agenda" element={
-                    <ProtectedRoute adminOnly>
-                      <Agenda />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/senhas" element={
-                    <ProtectedRoute adminOnly>
-                      <ControleSenhas />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/fornecedores" element={
-                    <ProtectedRoute adminOnly>
-                      <Fornecedores />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/funcionarios" element={
-                    <ProtectedRoute adminOnly>
-                      <Funcionarios />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/acessos" element={
-                    <ProtectedRoute adminOnly>
-                      <Acessos />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/armazenamento" element={
-                    <ProtectedRoute adminOnly>
-                      <Armazenamento />
-                    </ProtectedRoute>
-                  } />
-
-                  {/* Rotas protegidas (qualquer perfil autenticado) */}
-                  <Route path="/docas" element={
-                    <ProtectedRoute>
-                      <Docas />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/cross" element={
-                    <ProtectedRoute>
-                      <CrossDockingPage />
-                    </ProtectedRoute>
-                  } />
-
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </BrowserRouter>
-            </TooltipProvider>
-          </SolicitacaoProvider>
-        </CrossProvider>
-      </SenhaProvider>
+            {/* Everything else goes through providers */}
+            <Route path="/*" element={<RoutesWithProviders />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
     </ProfileProvider>
     </ThemeProvider>
   </QueryClientProvider>

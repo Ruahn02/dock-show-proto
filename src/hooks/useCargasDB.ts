@@ -53,15 +53,17 @@ export function useCargasDB() {
   const mountedRef = useRef(true);
 
   const fetchCargas = useCallback(async () => {
+    console.log('[FETCH START] cargas');
     const { data, error: err } = await fetchAllRows('cargas', '*', [
       { column: 'data' },
       { column: 'horario_previsto' },
     ]);
     if (!mountedRef.current) return;
     if (err) {
-      console.error('[useCargasDB] fetch error:', err);
+      console.error('[FETCH ERROR] cargas:', err);
       setError('Falha ao carregar cargas');
     } else if (data) {
+      console.log('[FETCH SUCCESS] cargas:', data.length);
       setCargas(data.map(mapCargaFromDB));
       setError(null);
     }
