@@ -1,0 +1,1 @@
+ALTER TABLE tipos_veiculo ADD COLUMN quantidade_docas INTEGER NOT NULL DEFAULT 1;

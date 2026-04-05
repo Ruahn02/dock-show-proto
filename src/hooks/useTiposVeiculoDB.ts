@@ -1,15 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { cachedFetch, subscribeRealtime } from '@/lib/supabaseCache';
 
 export interface TipoVeiculo {
   id: string;
   nome: string;
   ativo: boolean;
   ordem: number;
+  quantidade_docas: number;
 }
-
-const CACHE_KEY = 'tipos_veiculo';
 
 export function useTiposVeiculoDB() {
   const [tipos, setTipos] = useState<TipoVeiculo[]>([]);
@@ -18,9 +16,12 @@ export function useTiposVeiculoDB() {
   const mountedRef = useRef(true);
 
   const fetchTipos = useCallback(async () => {
-    const { data, error: err } = await cachedFetch(CACHE_KEY, async () =>
-      await supabase.from('tipos_veiculo').select('*').eq('ativo', true).order('ordem', { ascending: true })
-    );
+    setLoading(true);
+    const { data, error: err } = await supabase
+      .from('tipos_veiculo')
+      .select('*')
+      .order('ordem', { ascending: true });
+
     if (!mountedRef.current) return;
     if (err) {
       console.error('[FETCH ERROR] tipos_veiculo:', err);
@@ -35,12 +36,19 @@ export function useTiposVeiculoDB() {
   useEffect(() => {
     mountedRef.current = true;
     fetchTipos();
-    const unsub = subscribeRealtime(CACHE_KEY, 'tipos_veiculo', fetchTipos);
+    return () => { mountedRef.current = false; };
+  }, [fetchTipos]);
 
-    return () => {
-      mountedRef.current = false;
-      unsub();
-    };
+  const criarTipo = useCallback(async (tipo: { nome: string; ordem: number; quantidade_docas: number }) => {
+    const { error: err } = await supabase.from('tipos_veiculo').insert(tipo);
+    if (err) throw err;
+    await fetchTipos();
+  }, [fetchTipos]);
+
+  const atualizarTipo = useCallback(async (id: string, updates: Partial<Pick<TipoVeiculo, 'nome' | 'ordem' | 'ativo' | 'quantidade_docas'>>) => {
+    const { error: err } = await supabase.from('tipos_veiculo').update(updates).eq('id', id);
+    if (err) throw err;
+    await fetchTipos();
   }, [fetchTipos]);
 
   const getLabelByNome = useCallback((nome: string): string => {
@@ -49,5 +57,5 @@ export function useTiposVeiculoDB() {
     return nome.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   }, [tipos]);
 
-  return { tipos, loading, error, getLabelByNome, refetch: fetchTipos };
+  return { tipos, loading, error, getLabelByNome, refetch: fetchTipos, criarTipo, atualizarTipo };
 }
