@@ -475,6 +475,7 @@ export type Database = {
           id: string
           nome: string
           ordem: number
+          quantidade_docas: number
         }
         Insert: {
           ativo?: boolean
@@ -482,6 +483,7 @@ export type Database = {
           id?: string
           nome: string
           ordem?: number
+          quantidade_docas?: number
         }
         Update: {
           ativo?: boolean
@@ -489,6 +491,7 @@ export type Database = {
           id?: string
           nome?: string
           ordem?: number
+          quantidade_docas?: number
         }
         Relationships: []
       }
