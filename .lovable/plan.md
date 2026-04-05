@@ -1,113 +1,50 @@
 
-Diagnóstico direto
 
-Você tem razão em um ponto: a tela de fornecedores deveria buscar só fornecedores.
+# Plano: Adicionar `quantidade_docas` à tabela `tipos_veiculo` + tela de gestão
 
-Hoje isso não acontece porque o erro está no nível da rota, não na página `Fornecedores.tsx`.
+## O que será feito
 
-Evidência do código
+1. **Migration**: Adicionar coluna `quantidade_docas INTEGER NOT NULL DEFAULT 1` na tabela `tipos_veiculo`
+2. **Nova página**: Criar `src/pages/TiposVeiculo.tsx` — tela CRUD para gerenciar tipos de veículo (nome, ordem, ativo, quantidade de docas)
+3. **Modal de edição**: Criar `src/components/tipos-veiculo/TipoVeiculoModal.tsx` para adicionar/editar tipos
+4. **Rota no App.tsx**: Adicionar rota `/tipos-veiculo` (sem providers, igual a `/fornecedores`)
+5. **Sidebar**: Adicionar link "Tipos de Veículo" no menu lateral (admin only)
+6. **Hook**: Atualizar `useTiposVeiculoDB.ts` para incluir `quantidade_docas` no tipo e expor funções de criar/atualizar
 
-- `src/pages/Fornecedores.tsx` usa só `useFornecedoresDB()`
-- Mas `src/App.tsx` coloca `/fornecedores` dentro de `RoutesWithProviders`
-- Esse wrapper monta sempre:
-  - `SenhaProvider` → `useSenhasDB()` + `useCargasDB()`
-  - `CrossProvider` → `useCrossDB()`
-  - `SolicitacaoProvider` → `useSolicitacoesDB()` + `useFornecedoresDB()` + `useSenha()`
+## Detalhes
 
-Então a rota real hoje é:
-
-```text
-/fornecedores
-  -> RoutesWithProviders
-     -> SenhaProvider        => senhas + cargas
-     -> CrossProvider        => cross_docking
-     -> SolicitacaoProvider  => solicitacoes + fornecedores
-     -> Fornecedores page    => fornecedores
+### Migration SQL
+```sql
+ALTER TABLE tipos_veiculo ADD COLUMN quantidade_docas INTEGER NOT NULL DEFAULT 1;
 ```
 
-Ou seja: a tela que deveria fazer 1 request faz pelo menos 5 fetches lógicos.
+### Tela de gestão (`TiposVeiculo.tsx`)
+- Tabela listando: Nome, Quantidade de Docas, Ordem, Status (ativo/inativo)
+- Botão "Novo Tipo" abre modal
+- Botão editar em cada linha
+- Switch para ativar/desativar
+- Padrão visual igual à tela de Fornecedores
 
-Por que “colocar loading enquanto busca tudo” não resolve
+### Modal (`TipoVeiculoModal.tsx`)
+- Campos: Nome (texto), Quantidade de Docas (número, min 1), Ordem (número)
+- Validação: nome obrigatório, quantidade >= 1
 
-- Loading é só UI
-- Ele não reduz requests
-- O burst continua acontecendo por trás
-- E os hooks pesados ainda usam `fetchAllRows('*')`, então `senhas`, `cargas`, `solicitacoes` e `cross_docking` podem virar mais de 1 chamada HTTP cada se houver paginação interna
+### Hook atualizado
+- Tipo `TipoVeiculo` ganha campo `quantidade_docas: number`
+- Novas funções: `criarTipo()`, `atualizarTipo()`
 
-Então o problema da tela simples não é “fornecedores ser pesado”.
-É ela estar herdando tabelas pesadas que não usa.
+### Rota
+- `/tipos-veiculo` sem providers (hook direto como `/fornecedores`)
+- Admin only
 
-Onde a abordagem anterior ficou errada
+## Arquivos alterados/criados
 
-- O corte foi feito no `/login`
-- Mas não foi feito por tela simples
-- Então `/fornecedores`, `/funcionarios` e `/acessos` continuam entrando no bloco pesado de providers
+| Arquivo | Ação |
+|---|---|
+| Migration SQL | Adicionar coluna `quantidade_docas` |
+| `src/hooks/useTiposVeiculoDB.ts` | Adicionar campo + CRUD |
+| `src/pages/TiposVeiculo.tsx` | Criar página |
+| `src/components/tipos-veiculo/TipoVeiculoModal.tsx` | Criar modal |
+| `src/App.tsx` | Adicionar rota |
+| `src/components/layout/Sidebar.tsx` | Adicionar link no menu |
 
-Plano de correção
-
-1. Quebrar o `RoutesWithProviders` em grupos menores por necessidade real da rota
-
-2. Tirar estas rotas de `SenhaProvider`, `CrossProvider` e `SolicitacaoProvider`:
-   - `/fornecedores`
-   - `/funcionarios`
-   - `/acessos`
-
-3. Manter cada uma com só o que já usa hoje:
-   - `/fornecedores` → `useFornecedoresDB()`
-   - `/funcionarios` → `useConferentesDB()`
-   - `/acessos` → zero Supabase
-
-4. Manter providers só nas rotas que realmente consomem contexto:
-   - `SenhaProvider` apenas onde há `useSenha()`
-   - `CrossProvider` apenas onde há `useCross()`
-   - `SolicitacaoProvider` apenas onde há `useSolicitacao()`
-
-5. Preservar a ordem obrigatória nas rotas que usam solicitação:
-   - `SenhaProvider` deve ficar por fora de `SolicitacaoProvider`
-   - Senão volta o erro: `useSenha must be used within a SenhaProvider`
-
-Mapa de rota recomendado
-
-```text
-Sem providers:
-- /login
-- /acesso
-- /comprador
-- /comprador/agenda
-- /fornecedores
-- /funcionarios
-- /acessos
-
-Só SenhaProvider:
-- /senha
-- /painel
-
-SenhaProvider + SolicitacaoProvider:
-- /solicitacao
-- /solicitacoes
-- /agendamento
-- /docas (se continuar usando useSolicitacao)
-
-SenhaProvider + CrossProvider:
-- /cross
-- /armazenamento
-
-Rotas operacionais completas:
-- /
-- /agenda
-- /senhas
-- /docas
-```
-
-O que isso resolve imediatamente
-
-- `/fornecedores` passa a pedir só `fornecedores`
-- `/funcionarios` passa a pedir só `conferentes`
-- `/acessos` para de tocar no Supabase
-- Os 503 dessas telas simples tendem a sumir porque elas deixam de carregar `senhas`, `cargas`, `cross_docking` e `solicitacoes` junto
-
-Resumo honesto
-
-O erro não é “faltou spinner”.
-O erro é: a tela simples ainda está montando providers globais pesados.
-Enquanto isso não for separado por rota, `/fornecedores` nunca vai se comportar como uma tela de 1 request.
