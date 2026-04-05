@@ -39,7 +39,7 @@ export default function TiposVeiculo() {
   };
 
   return (
-    <Layout title="Tipos de Veículo">
+    <Layout>
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <p className="text-muted-foreground">Gerencie os tipos de veículos e quantas docas cada um ocupa.</p>

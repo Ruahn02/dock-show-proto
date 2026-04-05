@@ -27,6 +27,7 @@ import LoginAdmin from "./pages/LoginAdmin";
 import LoginOperacional from "./pages/LoginOperacional";
 import LoginComprador from "./pages/LoginComprador";
 import AgendamentoComprador from "./pages/AgendamentoComprador";
+import TiposVeiculo from "./pages/TiposVeiculo";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -102,6 +103,7 @@ const App = () => (
             <Route path="/fornecedores" element={<ProtectedRoute adminOnly><Fornecedores /></ProtectedRoute>} />
             <Route path="/funcionarios" element={<ProtectedRoute adminOnly><Funcionarios /></ProtectedRoute>} />
             <Route path="/acessos" element={<ProtectedRoute adminOnly><Acessos /></ProtectedRoute>} />
+            <Route path="/tipos-veiculo" element={<ProtectedRoute adminOnly><TiposVeiculo /></ProtectedRoute>} />
 
             {/* Rotas com Senha only */}
             <Route path="/senha" element={<SenhaOnlyRoutes />} />
