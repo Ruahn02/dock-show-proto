@@ -32,103 +32,62 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-/** Rotas que precisam de TODOS os providers (Senha + Cross + Solicitacao) */
-const FullProviderRoutes = () => (
-  <SenhaProvider>
-    <CrossProvider>
-      <SolicitacaoProvider>
-        <Routes>
-          {/* Admin - usa todos os contexts */}
-          <Route path="/" element={<ProtectedRoute adminOnly><Dashboard /></ProtectedRoute>} />
-          <Route path="/agenda" element={<ProtectedRoute adminOnly><Agenda /></ProtectedRoute>} />
-          <Route path="/docas" element={<ProtectedRoute><Docas /></ProtectedRoute>} />
-          <Route path="/agendamento" element={<ProtectedRoute adminOnly><AgendamentoPlanejamento /></ProtectedRoute>} />
-          <Route path="/solicitacoes" element={<ProtectedRoute adminOnly><Solicitacoes /></ProtectedRoute>} />
-        </Routes>
-      </SolicitacaoProvider>
-    </CrossProvider>
-  </SenhaProvider>
+/** Wrapper helpers — each route gets only the providers it needs */
+const WithSenha = ({ children }: { children: React.ReactNode }) => (
+  <SenhaProvider>{children}</SenhaProvider>
 );
-
-/** Rotas que precisam de Senha + Cross (sem Solicitacao) */
-const SenhaCrossRoutes = () => (
-  <SenhaProvider>
-    <CrossProvider>
-      <Routes>
-        <Route path="/cross" element={<ProtectedRoute><CrossDockingPage /></ProtectedRoute>} />
-        <Route path="/armazenamento" element={<ProtectedRoute adminOnly><Armazenamento /></ProtectedRoute>} />
-      </Routes>
-    </CrossProvider>
-  </SenhaProvider>
+const WithSenhaCross = ({ children }: { children: React.ReactNode }) => (
+  <SenhaProvider><CrossProvider>{children}</CrossProvider></SenhaProvider>
 );
-
-/** Rotas que precisam só de SenhaProvider */
-const SenhaOnlyRoutes = () => (
-  <SenhaProvider>
-    <Routes>
-      <Route path="/senha" element={<SenhaCaminhoneiro />} />
-      <Route path="/painel" element={<PainelSenhas />} />
-      <Route path="/senhas" element={<ProtectedRoute adminOnly><ControleSenhas /></ProtectedRoute>} />
-    </Routes>
-  </SenhaProvider>
-);
-
-/** Rotas que precisam de Senha + Solicitacao (sem Cross) */
-const SenhaSolicitacaoRoutes = () => (
-  <SenhaProvider>
-    <SolicitacaoProvider>
-      <Routes>
-        <Route path="/solicitacao" element={<SolicitacaoEntrega />} />
-      </Routes>
-    </SolicitacaoProvider>
-  </SenhaProvider>
+const WithAll = ({ children }: { children: React.ReactNode }) => (
+  <SenhaProvider><CrossProvider><SolicitacaoProvider>{children}</SolicitacaoProvider></CrossProvider></SenhaProvider>
 );
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="light" storageKey="doca-theme">
-    <ProfileProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Rotas públicas SEM providers — zero Supabase */}
-            <Route path="/login" element={<LoginAdmin />} />
-            <Route path="/acesso" element={<LoginOperacional />} />
-            <Route path="/comprador" element={<LoginComprador />} />
-            <Route path="/comprador/agenda" element={<AgendamentoComprador />} />
+      <ProfileProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Rotas públicas */}
+              <Route path="/login" element={<LoginAdmin />} />
+              <Route path="/acesso" element={<LoginOperacional />} />
+              <Route path="/comprador" element={<LoginComprador />} />
+              <Route path="/comprador/agenda" element={<AgendamentoComprador />} />
 
-            {/* Rotas simples SEM providers — só usam hooks diretos */}
-            <Route path="/fornecedores" element={<ProtectedRoute adminOnly><Fornecedores /></ProtectedRoute>} />
-            <Route path="/funcionarios" element={<ProtectedRoute adminOnly><Funcionarios /></ProtectedRoute>} />
-            <Route path="/acessos" element={<ProtectedRoute adminOnly><Acessos /></ProtectedRoute>} />
-            <Route path="/tipos-veiculo" element={<ProtectedRoute adminOnly><TiposVeiculo /></ProtectedRoute>} />
+              {/* Rotas simples — sem providers pesados */}
+              <Route path="/fornecedores" element={<ProtectedRoute adminOnly><Fornecedores /></ProtectedRoute>} />
+              <Route path="/funcionarios" element={<ProtectedRoute adminOnly><Funcionarios /></ProtectedRoute>} />
+              <Route path="/acessos" element={<ProtectedRoute adminOnly><Acessos /></ProtectedRoute>} />
+              <Route path="/tipos-veiculo" element={<ProtectedRoute adminOnly><TiposVeiculo /></ProtectedRoute>} />
 
-            {/* Rotas com Senha only */}
-            <Route path="/senha" element={<SenhaOnlyRoutes />} />
-            <Route path="/painel" element={<SenhaOnlyRoutes />} />
-            <Route path="/senhas" element={<SenhaOnlyRoutes />} />
+              {/* Rotas com SenhaProvider only */}
+              <Route path="/senha" element={<WithSenha><SenhaCaminhoneiro /></WithSenha>} />
+              <Route path="/painel" element={<WithSenha><PainelSenhas /></WithSenha>} />
+              <Route path="/senhas" element={<WithSenha><ProtectedRoute adminOnly><ControleSenhas /></ProtectedRoute></WithSenha>} />
 
-            {/* Rota com Senha + Solicitacao */}
-            <Route path="/solicitacao" element={<SenhaSolicitacaoRoutes />} />
+              {/* Rota com Senha + Solicitacao */}
+              <Route path="/solicitacao" element={<WithSenha><SolicitacaoProvider><SolicitacaoEntrega /></SolicitacaoProvider></WithSenha>} />
 
-            {/* Rotas com Senha + Cross */}
-            <Route path="/cross" element={<SenhaCrossRoutes />} />
-            <Route path="/armazenamento" element={<SenhaCrossRoutes />} />
+              {/* Rotas com Senha + Cross */}
+              <Route path="/cross" element={<WithSenhaCross><ProtectedRoute><CrossDockingPage /></ProtectedRoute></WithSenhaCross>} />
+              <Route path="/armazenamento" element={<WithSenhaCross><ProtectedRoute adminOnly><Armazenamento /></ProtectedRoute></WithSenhaCross>} />
 
-            {/* Rotas que precisam de tudo */}
-            <Route path="/" element={<FullProviderRoutes />} />
-            <Route path="/agenda" element={<FullProviderRoutes />} />
-            <Route path="/docas" element={<FullProviderRoutes />} />
-            <Route path="/agendamento" element={<FullProviderRoutes />} />
-            <Route path="/solicitacoes" element={<FullProviderRoutes />} />
+              {/* Rotas que precisam de todos os providers */}
+              <Route path="/" element={<WithAll><ProtectedRoute adminOnly><Dashboard /></ProtectedRoute></WithAll>} />
+              <Route path="/agenda" element={<WithAll><ProtectedRoute adminOnly><Agenda /></ProtectedRoute></WithAll>} />
+              <Route path="/docas" element={<WithAll><ProtectedRoute><Docas /></ProtectedRoute></WithAll>} />
+              <Route path="/agendamento" element={<WithAll><ProtectedRoute adminOnly><AgendamentoPlanejamento /></ProtectedRoute></WithAll>} />
+              <Route path="/solicitacoes" element={<WithAll><ProtectedRoute adminOnly><Solicitacoes /></ProtectedRoute></WithAll>} />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ProfileProvider>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ProfileProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
